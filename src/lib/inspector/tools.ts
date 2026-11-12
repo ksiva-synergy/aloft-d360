@@ -1,7 +1,7 @@
 import { ACCESS_DENIED_MODEL_HINT, friendlyDataLabel, requestUrlForAccess } from '@/lib/access/denial-ui';
 import { prisma } from '@/lib/db';
 import { ReadOnlyViolationError, MultiStatementError, ExternalLinksError } from '@/lib/databricks/execute';
-import { largeResultDisplayNote } from './result-display';
+import { CHAT_QUERY_RESULT_MAX_ROWS, largeResultDisplayNote } from './result-display';
 import { profileResultSet } from '@/lib/studio/profiler';
 import type { QueryResult } from '@/hooks/useInspectorChat';
 import type { SemanticQuery } from '@/lib/semantic/types';
@@ -461,16 +461,17 @@ export async function executeInspectorTool(
           level: 'query',
           surface: 'sql',
           sessionId: context?.sessionId ?? null,
+          rowLimit: CHAT_QUERY_RESULT_MAX_ROWS,
         });
 
-        const cappedRows = sqlResult.rows.slice(0, 1000);
+        const cappedRows = sqlResult.rows.slice(0, CHAT_QUERY_RESULT_MAX_ROWS);
         emit({
           type: 'query_result',
           columns: sqlResult.columns,
           rows: cappedRows,
           sql: statement,
           rowCount: sqlResult.row_count,
-          truncated: sqlResult.truncated || sqlResult.rows.length > 1000,
+          truncated: sqlResult.truncated || sqlResult.rows.length > CHAT_QUERY_RESULT_MAX_ROWS,
           ...('access_note' in sqlResult && sqlResult.access_note ? { accessNote: sqlResult.access_note } : {}),
         });
 

@@ -35,12 +35,19 @@ import {
   type JsonTable,
 } from '@/components/workbench/json-table';
 import { renderInline as renderInlineRich } from '@/components/workbench/render-inline';
+import type { QueryResult } from '@/hooks/useInspectorChat';
+import { ChatFullTableDialog } from '@/components/workbench/ChatFullTableDialog';
+import { primaryMarkdownTableIndex } from '@/lib/inspector/result-display';
 const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
 /** Chat tables: fixed height, scroll body, sticky header (keeps long lists inside the message). */
 const CHAT_TABLE_SCROLL: React.CSSProperties = {
   maxHeight: 'min(420px, 55vh)',
   overflow: 'auto',
   WebkitOverflowScrolling: 'touch',
+};
+const CHAT_TABLE_SCROLL_INSET: React.CSSProperties = {
+  ...CHAT_TABLE_SCROLL,
+  maxHeight: 'min(480px, 58vh)',
 };
 const CHAT_TABLE_HEAD_BG_MD = 'color-mix(in srgb, var(--brand-a) 8%, var(--surface-1))';
 const CHAT_TABLE_HEAD_BG_JSON = 'color-mix(in srgb, var(--brand-a) 6%, var(--surface-1))';
@@ -62,27 +69,39 @@ function ChatTableFilterInput({
   value,
   onChange,
   id,
+  compact = false,
 }: {
   value: string;
   onChange: (next: string) => void;
   id: string;
+  compact?: boolean;
 }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '1 1 160px', minWidth: 0, maxWidth: 300 }}>
-      <Search size={14} style={{ color: MUTED, flexShrink: 0 }} aria-hidden />
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: compact ? 4 : 8,
+        flex: compact ? '0 1 148px' : '1 1 160px',
+        minWidth: compact ? 100 : 0,
+        maxWidth: compact ? 168 : 300,
+      }}
+    >
+      <Search size={compact ? 12 : 14} style={{ color: MUTED, flexShrink: 0 }} aria-hidden />
       <input
         id={id}
         type="search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Filter rows…"
+        placeholder={compact ? 'Filter…' : 'Filter rows…'}
         aria-label="Filter table rows"
         style={{
-          ...type['ui-regular'],
+          ...(compact ? type.caption : type['ui-regular']),
           width: '100%',
           minWidth: 0,
-          padding: '6px 10px',
-          borderRadius: 8,
+          padding: compact ? '3px 7px' : '6px 10px',
+          lineHeight: compact ? 1.35 : undefined,
+          borderRadius: compact ? 5 : 8,
           border: `1px solid ${BORDER_SUBTLE}`,
           background: 'var(--surface-1)',
           color: INK,
@@ -440,6 +459,9 @@ function MarkdownTable({
   toolbar,
   footerNote,
   testId,
+  warehouseResult,
+  inspectorSessionId,
+  insetWide = false,
 }: {
   headers: string[];
   aligns: ColAlign[];
@@ -447,8 +469,14 @@ function MarkdownTable({
   toolbar?: React.ReactNode;
   footerNote?: string;
   testId?: string;
+  /** Full warehouse rows when the typed table is only a preview. */
+  warehouseResult?: QueryResult;
+  inspectorSessionId?: string | null;
+  /** Ask Data: table bleeds into column gutters with inset side shadow. */
+  insetWide?: boolean;
 }) {
   const [filter, setFilter] = useState('');
+  const [fullTableOpen, setFullTableOpen] = useState(false);
   const visibleIndices = useMemo(() => filterRowIndices(rows, filter), [rows, filter]);
   const showFilter = rows.length >= CHAT_TABLE_FILTER_MIN;
   const filterActive = filter.trim().length > 0;
@@ -467,38 +495,88 @@ function MarkdownTable({
     whiteSpace: 'normal',
     wordBreak: 'break-word',
     minWidth: 72,
-    maxWidth: 360,
+    maxWidth: insetWide ? 480 : 360,
   };
 
   return (
     <div
-      style={{
-        margin: '12px 0 16px',
-        borderRadius: 10,
-        border: `1px solid ${BORDER_SUBTLE}`,
-        overflow: 'hidden',
-      }}
+      className={insetWide ? `${chatStyles.tableInset}` : undefined}
+      style={
+        insetWide
+          ? undefined
+          : {
+              margin: '12px 0 16px',
+              borderRadius: 10,
+              border: `1px solid ${BORDER_SUBTLE}`,
+              overflow: 'hidden',
+            }
+      }
       data-testid={testId}
     >
-      {(toolbar || showFilter) && (
+      {(toolbar || showFilter || warehouseResult) && (
         <div
+          className={insetWide ? chatStyles.tableInsetToolbar : undefined}
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             flexWrap: 'wrap',
-            gap: 10,
-            padding: '8px 12px',
-            borderBottom: `1px solid ${BORDER_SUBTLE}`,
+            gap: warehouseResult ? 8 : 10,
+            padding: warehouseResult ? '6px 10px' : insetWide ? '10px 16px' : '8px 12px',
+            borderBottom: insetWide ? undefined : `1px solid ${BORDER_SUBTLE}`,
           }}
         >
-          {showFilter && (
-            <ChatTableFilterInput id={`${testId ?? 'md-table'}-filter`} value={filter} onChange={setFilter} />
+          {warehouseResult ? (
+            <>
+              <span style={{ ...type.caption, color: MUTED, minWidth: 0, flex: '0 1 auto', whiteSpace: 'nowrap' }}>
+                <strong style={{ color: INK, fontWeight: 600 }}>{rows.length}</strong>
+                {' / '}
+                {warehouseResult.rowCount.toLocaleString()}
+              </span>
+              {showFilter ? (
+                <ChatTableFilterInput
+                  id={`${testId ?? 'md-table'}-filter`}
+                  value={filter}
+                  onChange={setFilter}
+                  compact
+                />
+              ) : null}
+              <button
+                type="button"
+                onClick={() => setFullTableOpen(true)}
+                title={`Open all ${warehouseResult.rowCount.toLocaleString()} rows`}
+                style={{
+                  ...type.caption,
+                  flexShrink: 0,
+                  marginLeft: showFilter ? 0 : 'auto',
+                  padding: '3px 8px',
+                  lineHeight: 1.35,
+                  borderRadius: 5,
+                  border: `1px solid ${BORDER_GOLD}`,
+                  background: 'color-mix(in srgb, var(--brand-a) 8%, var(--surface-1))',
+                  color: 'var(--brand-a-ink)',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                All rows
+              </button>
+            </>
+          ) : (
+            toolbar
           )}
-          {toolbar}
+          {showFilter && !warehouseResult && (
+            <div style={{ marginLeft: 'auto' }}>
+              <ChatTableFilterInput id={`${testId ?? 'md-table'}-filter`} value={filter} onChange={setFilter} />
+            </div>
+          )}
         </div>
       )}
-      <div style={CHAT_TABLE_SCROLL}>
+      <div
+        className={insetWide ? chatStyles.tableInsetScroll : undefined}
+        style={insetWide ? CHAT_TABLE_SCROLL_INSET : CHAT_TABLE_SCROLL}
+      >
         <table
           style={{
             width: '100%',
@@ -506,6 +584,7 @@ function MarkdownTable({
             ...sans,
             fontSize: 'var(--type-ui-regular-size)',
             lineHeight: 1.45,
+            ...(insetWide ? { minWidth: 'max-content' } : {}),
           }}
         >
           <thead>
@@ -576,7 +655,7 @@ function MarkdownTable({
           </tbody>
         </table>
       </div>
-      {rows.length > 0 && (
+      {rows.length > 0 && !warehouseResult && (
         <div
           style={{
             ...mono,
@@ -590,6 +669,13 @@ function MarkdownTable({
           {footerNote ?? tableFooterLabel(rows.length, visibleIndices.length, filterActive)}
         </div>
       )}
+      {fullTableOpen && warehouseResult ? (
+        <ChatFullTableDialog
+          result={warehouseResult}
+          sessionId={inspectorSessionId}
+          onClose={() => setFullTableOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -1151,10 +1237,10 @@ function DataTable({ code, table, onShowJson }: { code: string; table: JsonTable
         }}
       >
         <span style={{ ...type.label, color: MUTED, flexShrink: 0 }}>{countLabel}</span>
-        {showFilter && (
-          <ChatTableFilterInput id="assistant-data-table-filter" value={filter} onChange={setFilter} />
-        )}
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, flexShrink: 0, marginLeft: 'auto' }}>
+          {showFilter && (
+            <ChatTableFilterInput id="assistant-data-table-filter" value={filter} onChange={setFilter} />
+          )}
           {anyExpandable && <QuietButton label={allOpen ? 'Collapse all' : 'Expand all'} onClick={toggleAll} />}
           <QuietButton label="JSON" onClick={onShowJson} />
           <CopyButton text={code} />
@@ -1306,7 +1392,15 @@ function fencedBlock(lang: string, code: string): React.ReactNode {
   return <CodeBlockView lang={lang} code={code} />;
 }
 
-function renderProseSection(prose: string, key: string, proseStyle: React.CSSProperties): React.ReactNode {
+type ProseTableOpts = {
+  warehouseResult?: QueryResult;
+  inspectorSessionId?: string | null;
+  primaryTableIndex: number;
+  tableOrdinalRef: { n: number };
+  insetWide?: boolean;
+};
+
+function renderProseSection(prose: string, key: string, proseStyle: React.CSSProperties, tableOpts?: ProseTableOpts): React.ReactNode {
   const trimmed = prose.trim();
   if (trimmed && (trimmed[0] === '[' || trimmed[0] === '{')) {
     const structured = structuredJsonBlock(trimmed, key);
@@ -1314,12 +1408,12 @@ function renderProseSection(prose: string, key: string, proseStyle: React.CSSPro
   }
   return (
     <div key={key} style={proseStyle}>
-      {renderProseBlocks(prose, key)}
+      {renderProseBlocks(prose, key, tableOpts)}
     </div>
   );
 }
 
-function renderProseBlocks(prose: string, keyPrefix: string): React.ReactNode[] {
+function renderProseBlocks(prose: string, keyPrefix: string, tableOpts?: ProseTableOpts): React.ReactNode[] {
   const lines = prose.split('\n');
   const out: React.ReactNode[] = [];
   let i = 0;
@@ -1346,12 +1440,20 @@ function renderProseBlocks(prose: string, keyPrefix: string): React.ReactNode[] 
         rows.push(headers.map((_, ci) => cells[ci] ?? ''));
         i += 1;
       }
+      const tableIndex = tableOpts ? tableOpts.tableOrdinalRef.n++ : -1;
+      const linkWarehouse =
+        tableOpts?.warehouseResult && tableIndex === tableOpts.primaryTableIndex
+          ? tableOpts.warehouseResult
+          : undefined;
       out.push(
         <MarkdownTable
           key={`${keyPrefix}-tbl-${blockKey++}`}
           headers={headers}
           aligns={aligns.length === headers.length ? aligns : headers.map(() => 'left' as ColAlign)}
           rows={rows}
+          warehouseResult={linkWarehouse}
+          inspectorSessionId={tableOpts?.inspectorSessionId}
+          insetWide={tableOpts?.insetWide}
         />,
       );
       continue;
@@ -1371,7 +1473,17 @@ function renderProseBlocks(prose: string, keyPrefix: string): React.ReactNode[] 
   return out;
 }
 
-export function AssistantContent({ content }: { content: string }) {
+export function AssistantContent({
+  content,
+  linkedWarehouseResult,
+  inspectorSessionId,
+  insetWideTables = false,
+}: {
+  content: string;
+  linkedWarehouseResult?: QueryResult;
+  inspectorSessionId?: string | null;
+  insetWideTables?: boolean;
+}) {
   const whole = !content.includes('```') && /^\s*[[{]/.test(content) ? structuredJsonBlock(content.trim()) : null;
   if (whole) return whole;
 
@@ -1380,11 +1492,21 @@ export function AssistantContent({ content }: { content: string }) {
   let lastIndex = 0;
   let match: RegExpExecArray | null;
   const proseStyle: React.CSSProperties = { ...type['body-lg'], color: INK };
+  const tableOpts: ProseTableOpts | undefined =
+    linkedWarehouseResult || insetWideTables
+      ? {
+          warehouseResult: linkedWarehouseResult,
+          inspectorSessionId,
+          primaryTableIndex: linkedWarehouseResult ? primaryMarkdownTableIndex(content) : -1,
+          tableOrdinalRef: { n: 0 },
+          insetWide: insetWideTables,
+        }
+      : undefined;
 
   while ((match = codeBlockRegex.exec(content)) !== null) {
     if (match.index > lastIndex) {
       const prose = content.slice(lastIndex, match.index);
-      parts.push(renderProseSection(prose, `p-${lastIndex}`, proseStyle));
+      parts.push(renderProseSection(prose, `p-${lastIndex}`, proseStyle, tableOpts));
     }
     const lang = (match[1] || 'text').toLowerCase();
     const code = match[2];
@@ -1395,7 +1517,7 @@ export function AssistantContent({ content }: { content: string }) {
   if (lastIndex < content.length || parts.length === 0) {
     const remaining = lastIndex < content.length ? content.slice(lastIndex) : content;
     if (remaining.length > 0 || parts.length === 0) {
-      parts.push(renderProseSection(remaining, `p-${lastIndex}`, proseStyle));
+      parts.push(renderProseSection(remaining, `p-${lastIndex}`, proseStyle, tableOpts));
     }
   }
 
@@ -1430,6 +1552,12 @@ export interface StreamingMessageProps {
   showToolCalls?: boolean;
   /** Pass false for members and admins with developer mode off. */
   showTechnicalToolNames?: boolean;
+  /** Warehouse payload for “open full table” on the main markdown table in this reply. */
+  linkedWarehouseResult?: QueryResult;
+  /** Inspector session — used to re-run SQL without the model’s LIMIT 100 sample. */
+  inspectorSessionId?: string | null;
+  /** Wider inset tables (Ask Data chat). */
+  insetWideTables?: boolean;
 }
 
 export function StreamingMessage({
@@ -1451,6 +1579,9 @@ export function StreamingMessage({
   modelName,
   showToolCalls = true,
   showTechnicalToolNames = false,
+  linkedWarehouseResult,
+  inspectorSessionId,
+  insetWideTables = false,
 }: StreamingMessageProps) {
   const [copied, setCopied] = useState(false);
 
@@ -1508,7 +1639,7 @@ export function StreamingMessage({
           background: cleanPresentation || (!content.trim() && !error) ? 'transparent' : SURFACE,
           borderRadius: 8,
           border: cleanPresentation || (!content.trim() && !error) ? '1px solid transparent' : `1px solid ${BORDER_SUBTLE}`,
-          overflow: 'hidden',
+          overflow: cleanPresentation ? 'visible' : 'hidden',
           position: 'relative',
           width: '100%',
           maxWidth: '100%',
@@ -1555,7 +1686,12 @@ export function StreamingMessage({
             className={cleanPresentation ? chatStyles.answer : undefined}
             style={{ padding: cleanPresentation ? '8px 0 18px' : '0 clamp(12px, 2vw, 24px) 16px', maxWidth: '100%' }}
           >
-            <AssistantContent content={content} />
+            <AssistantContent
+              content={content}
+              linkedWarehouseResult={linkedWarehouseResult}
+              inspectorSessionId={inspectorSessionId}
+              insetWideTables={insetWideTables || cleanPresentation}
+            />
           </div>
         )}
         {error && !isStreaming && <p role="alert" className="px-5 pb-3 text-size-body text-[var(--ink-2)]">{error}</p>}
@@ -1582,9 +1718,10 @@ export function StreamingMessage({
                   borderRadius: 6, padding: '2px 7px', letterSpacing: '0.04em',
                 }}>STOPPED</span>
               )}
-              {(ts || durationMs != null || (tokenCount != null && tokenCount > 0) || shortModel) && (
-                <details className={chatStyles.details} open={cleanPresentation ? undefined : true}>
-                  <summary className={cleanPresentation ? chatStyles.summary : chatStyles.hiddenSummary}>Details</summary>
+              {!cleanPresentation
+                && (ts || durationMs != null || (tokenCount != null && tokenCount > 0) || shortModel) && (
+                <details className={chatStyles.details} open>
+                  <summary className={chatStyles.hiddenSummary}>Details</summary>
                   <div className={chatStyles.metadata}>
                     {ts && <span>Sent at {ts}</span>}
                     {!isStreaming && durationMs != null && (

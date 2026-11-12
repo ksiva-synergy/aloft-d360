@@ -11,8 +11,9 @@ import { cn } from '@/lib/utils';
 import { UserMenu } from '@/components/shell/UserMenu';
 import { BrandMark } from '@/components/shell/BrandMark';
 import type { Session } from 'next-auth';
+import { useSession } from 'next-auth/react';
 import { useSectionLevels } from '@/lib/sections/useSectionLevels';
-import { groupForPath, isActive, primaryNavHref, showHomeInNav, type NavItem } from './nav-config';
+import { flatNavItems, groupForPath, isActive, isFlatNav, primaryNavHref, showHomeInNav, type NavItem } from './nav-config';
 import { useNavGroups } from './useNavGroups';
 import { TOGGLE_EVENT, useNavShell } from './useNavShell';
 import { AuroraGlow, NavStyleToggle, useNavStyle } from './nav-shared';
@@ -44,7 +45,9 @@ export function toggleMobileNav() {
 function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
   const pathname = usePathname();
   const isHome = pathname === '/dashboard';
-  const shell = useNavShell();
+  const { data: session } = useSession();
+  const shellRole = (session ?? initialSession)?.user?.role as string | undefined;
+  const shell = useNavShell({ initialRole: shellRole });
   const { expanded, pinned, mobileOpen } = shell;
   const me = useSectionLevels();
   const levels = me?.levels ?? null;
@@ -54,6 +57,7 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
   const [areaId, setAreaId] = useState(() => groupForPath(pathname));
   const [filter, setFilter] = useState('');
   const groups = useNavGroups();
+  const flatNav = isFlatNav(groups);
 
   // Follow navigation: show the panel for the section you are in.
   useEffect(() => {
@@ -63,7 +67,10 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
 
   const area = groups.find((g) => g.id === areaId) ?? groups[0];
   const q = filter.trim().toLowerCase();
-  const items = q ? area.items.filter((i) => i.label.toLowerCase().includes(q)) : area.items;
+  const baseItems = flatNav ? flatNavItems(groups) : (area?.items ?? []);
+  const items = q ? baseItems.filter((i) => i.label.toLowerCase().includes(q)) : baseItems;
+  const flatNavTitle =
+    flatNavItems(groups).find((i) => isActive(i, pathname))?.label ?? groups[0]?.label ?? '';
 
   return (
     <>
@@ -100,7 +107,7 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
           }}
         >
           <AuroraGlow />
-          <div className="flex h-[var(--shell-header-h)] w-full shrink-0 items-center justify-center border-b border-[var(--header-border)]">
+          <div className="flex min-h-[var(--shell-header-h)] w-full shrink-0 items-center justify-center border-b border-[var(--header-border)] px-1 pt-1.5 pb-1">
             <Link
               href={logoHref}
               aria-label="Synergy Group — ALOFT home"
@@ -113,20 +120,30 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
 
           <div className="relative flex flex-col items-center gap-1">
             {showHome ? <RailLink href="/dashboard" label="Home" icon={HouseIcon} active={isHome} /> : null}
-            {groups.map((g) => (
-              <RailButton
-                key={g.id}
-                label={g.railLabel}
-                icon={g.icon}
-                selected={g.id === areaId && !isHome}
-                hasActive={g.items.some((i) => isActive(i, pathname))}
-                onClick={() => {
-                  setAreaId(g.id);
-                  setFilter('');
-                  shell.open();
-                }}
-              />
-            ))}
+            {flatNav
+              ? flatNavItems(groups).map((item) => (
+                  <RailLink
+                    key={item.href}
+                    href={item.href}
+                    label={item.label}
+                    icon={item.icon}
+                    active={isActive(item, pathname)}
+                  />
+                ))
+              : groups.map((g) => (
+                  <RailButton
+                    key={g.id}
+                    label={g.railLabel}
+                    icon={g.icon}
+                    selected={g.id === areaId && !isHome}
+                    hasActive={g.items.some((i) => isActive(i, pathname))}
+                    onClick={() => {
+                      setAreaId(g.id);
+                      setFilter('');
+                      shell.open();
+                    }}
+                  />
+                ))}
           </div>
 
           <RailPinnedAgents pathname={pathname} />
@@ -151,7 +168,7 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
               <div className="min-w-0 flex-1">
                 <p className="text-[length:var(--type-caption-size)] font-semibold uppercase leading-none tracking-wide text-[var(--ink-3)]">Agent Lab</p>
                 <h2 className="mt-0.5 truncate leading-tight text-size-body font-semibold tracking-tight text-[var(--ink-1)]">
-                  {isHome ? 'Home' : area.label}
+                  {isHome ? 'Home' : flatNav ? flatNavTitle : area?.label}
                 </h2>
               </div>
               <button
@@ -170,7 +187,7 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
               </button>
             </div>
             <p className="mb-2 truncate px-2 text-size-ui text-[var(--ink-3)]">
-              {isHome ? 'Your workspace overview' : area.description}
+              {isHome ? 'Your workspace overview' : flatNav ? 'Jump to a page' : area?.description}
             </p>
 
             {!isHome && (
@@ -179,8 +196,8 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
                 <input
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
-                  placeholder={`Filter ${area.label.toLowerCase()}`}
-                  aria-label={`Filter ${area.label}`}
+                  placeholder={flatNav ? 'Filter pages' : `Filter ${area?.label.toLowerCase() ?? 'pages'}`}
+                  aria-label={flatNav ? 'Filter pages' : `Filter ${area?.label ?? 'pages'}`}
                   autoComplete="off"
                   className="w-full min-w-0 bg-transparent text-[length:var(--type-ui-regular-size)] text-[var(--ink-1)] outline-none placeholder:text-[var(--ink-3)]"
                 />

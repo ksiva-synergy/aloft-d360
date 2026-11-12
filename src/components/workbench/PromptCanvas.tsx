@@ -19,6 +19,20 @@ import { DismissedReflection } from './marcus/DismissedReflection';
 import { type, inkOf } from '@/lib/typography/tokens';
 import type { QueryResult } from '@/hooks/useInspectorChat';
 import { AssistantQueryTableOffer } from '@/components/workbench/AssistantQueryTableOffer';
+import { rankQueryResultsForChat, shouldOfferChatFullTable } from '@/lib/inspector/result-display';
+
+function linkedWarehouseForMessage(
+  msg: WorkbenchMessage,
+  queryResults: QueryResult[] | undefined,
+  simpleQueryTables: boolean,
+): QueryResult | undefined {
+  if (!simpleQueryTables || !queryResults?.length || !msg.queryResultIndices?.length) return undefined;
+  const { primary } = rankQueryResultsForChat(msg.queryResultIndices, queryResults);
+  const result = queryResults[primary];
+  if (!result?.rows.length) return undefined;
+  const content = typeof msg.content === 'string' ? msg.content : '';
+  return shouldOfferChatFullTable(content, result) ? result : undefined;
+}
 
 // ── Constants ─────────────────────────────────────────────────
 const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
@@ -404,6 +418,7 @@ interface ConversationThreadProps {
   /** Admin + developer mode: show describe_schema / execute_tool steps in the thread. */
   showDeveloperToolSteps?: boolean;
   queryResults?: QueryResult[];
+  simpleQueryTables?: boolean;
 }
 
 function ConversationThread({
@@ -430,6 +445,7 @@ function ConversationThread({
   collapseToolCallsWhenIdle = false,
   showDeveloperToolSteps = false,
   queryResults,
+  simpleQueryTables = false,
 }: ConversationThreadProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -508,9 +524,9 @@ function ConversationThread({
           flex: 1,
           overflowY: 'auto',
           // Capped column keeps the scrollbar at the pane edge while centring the content.
-          padding: columnMaxWidth
-            ? `24px max(clamp(16px, 2.5vw, 40px), calc((100% - ${columnMaxWidth}px) / 2)) 8px`
-            : '24px clamp(16px, 2.5vw, 40px) 8px',
+            padding: columnMaxWidth
+              ? `24px max(clamp(12px, 2vw, 32px), calc((100% - ${columnMaxWidth}px) / 2)) 8px`
+              : '24px clamp(12px, 2vw, 32px) 8px',
           display: 'flex',
           flexDirection: 'column',
           gap: 20,
@@ -578,11 +594,18 @@ function ConversationThread({
                   durationMs={completionMeta[msg.id]?.durationMs}
                   tokenCount={completionMeta[msg.id]?.tokenCount}
                   modelName={completionMeta[msg.id]?.modelName}
+                  linkedWarehouseResult={
+                    !isLiveStreaming
+                      ? linkedWarehouseForMessage(msg, queryResults, simpleQueryTables)
+                      : undefined
+                  }
+                  inspectorSessionId={sessionId}
                 />
                 {!isLiveStreaming && msg.accessDenial ? (
                   <AccessNoticeBanner message={msg.accessDenial.message} request={msg.accessDenial.request} />
                 ) : null}
                 {!isLiveStreaming
+                  && !simpleQueryTables
                   && queryResults
                   && msg.queryResultIndices?.length
                   ? (
@@ -738,6 +761,8 @@ export interface PromptCanvasProps {
   composerQueue?: ComposerQueue;
   /** Warehouse query results for **Open full table** under assistant replies (Inspector). */
   queryResults?: QueryResult[];
+  /** Inspector members: inline table only — hide multi-query explanation and tabs. */
+  simpleQueryTables?: boolean;
 }
 
 export function PromptCanvas({
@@ -779,10 +804,11 @@ export function PromptCanvas({
   showDeveloperToolSteps = false,
   composerQueue,
   queryResults,
+  simpleQueryTables = false,
 }: PromptCanvasProps) {
   const hasMessages = messages.length > 0 || !!chatError;
   const centeredComposer = !hasMessages && !emptyState;
-  const columnMaxWidth = surface === 'inspector' ? 800 : surface === 'workbench' || chatStyle ? WORKBENCH_COMPOSER_MAX_PX : undefined;
+  const columnMaxWidth = surface === 'inspector' ? 920 : surface === 'workbench' || chatStyle ? WORKBENCH_COMPOSER_MAX_PX : undefined;
 
   const { reflections, dismissed, dismiss, acknowledge, act, restoreReflection } = useReflections(sessionId);
 
@@ -897,6 +923,7 @@ export function PromptCanvas({
           collapseToolCallsWhenIdle={surface === 'inspector'}
           showDeveloperToolSteps={showDeveloperToolSteps}
           queryResults={queryResults}
+          simpleQueryTables={simpleQueryTables}
         />
       )}
 

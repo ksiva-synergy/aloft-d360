@@ -1,4 +1,4 @@
-.answer { color: var(--ink-1); overflow-wrap: anywhere; }
+.answer { color: var(--ink-1); overflow-wrap: anywhere; min-width: 0; max-width: 100%; overflow-x: visible; }
 .answer > div:first-child > p:first-child { font-size: 1.05em; line-height: 1.65; }
 .answer strong { font-weight: 650; color: var(--ink-1); }
 .details { min-width: 0; font-size: 12px; color: var(--ink-3); }
@@ -9,3 +9,29 @@
 .metadata { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 8px 0 2px; }
 
 .report { padding: clamp(12px, 2vw, 22px); background: var(--surface-1) !important; border: 1px solid var(--line-1) !important; border-radius: 16px !important; }
+
+/* Markdown data tables in Ask Data — full column width; inset shadow (no side bleed; scroll areas clip negative margins). */
+.tableInset {
+  margin: 14px 0 18px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  border-radius: 12px;
+  border: 1px solid var(--line-1);
+  background: var(--surface-1);
+  box-shadow:
+    inset 12px 0 18px -16px color-mix(in srgb, var(--ink-1) 10%, transparent),
+    inset -12px 0 18px -16px color-mix(in srgb, var(--ink-1) 10%, transparent),
+    0 1px 0 color-mix(in srgb, var(--ink-1) 6%, transparent),
+    0 8px 28px -12px color-mix(in srgb, var(--ink-1) 10%, transparent);
+  overflow: hidden;
+}
+.tableInsetScroll {
+  max-height: min(480px, 58vh);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.tableInsetToolbar {
+  background: color-mix(in srgb, var(--surface-2) 65%, var(--surface-1));
+  border-bottom: 1px solid var(--line-1);
+}

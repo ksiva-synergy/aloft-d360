@@ -329,14 +329,23 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
   const resultItemCount =
     insp.queryResults.length + insp.semanticChartMessages.length + insp.disambiguations.length + insp.exportOffers.length;
   const prevResultCountRef = useRef(resultItemCount);
+  const hasResults = resultItemCount > 0;
+  // Typical member UX: no Semantic/Developer tabs — tables live in the chat thread only.
+  const memberResultsOnly = !showSemanticTab && !showDeveloperTab;
+  const showResultsPane = !memberResultsOnly;
+
   useEffect(() => {
+    if (memberResultsOnly) return;
     if (resultItemCount > prevResultCountRef.current) {
       setRightCollapsed(false);
       setRightTab('results');
     }
     prevResultCountRef.current = resultItemCount;
-  }, [resultItemCount]);
-  const hasResults = resultItemCount > 0;
+  }, [resultItemCount, memberResultsOnly]);
+
+  useEffect(() => {
+    if (memberResultsOnly) setRightCollapsed(true);
+  }, [memberResultsOnly]);
 
   // A message sent while a reply streams waits in a queue; Send now stops the reply instead.
   const sendQueue = useQueuedSend({
@@ -449,7 +458,17 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
           onRenamed={(id, title) => { if (id === insp.sessionId) setSessionTitle(title); }}
         />
         {/* LEFT — conversation (full width while the results pane is minimized) */}
-        <div style={{ flex: rightCollapsed ? 1 : '0 0 60%', minWidth: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--wb-border-subtle)', overflow: 'hidden', minHeight: 0 }}>
+        <div
+          style={{
+            flex: !showResultsPane || rightCollapsed ? 1 : '0 0 60%',
+            minWidth: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            borderRight: showResultsPane && !rightCollapsed ? '1px solid var(--wb-border-subtle)' : undefined,
+            overflow: 'hidden',
+            minHeight: 0,
+          }}
+        >
           <PromptCanvas
             chatError={insp.error}
             surface="inspector"
@@ -482,6 +501,8 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
             classSuggestion={null}
             sessionId={insp.sessionId}
             chatStyle={INSPECTOR_CHAT_STYLE}
+            queryResults={insp.queryResults}
+            simpleQueryTables={memberResultsOnly}
             renderAfterAssistant={canInspect ? renderInspection : undefined}
             showDeveloperToolSteps={developerMode}
             composerQueue={composerQueue}
@@ -489,7 +510,7 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
         </div>
 
         {/* RIGHT — results / semantic governance / developer */}
-        {rightCollapsed && (
+        {showResultsPane && rightCollapsed && (
           <button
             type="button"
             className="insp-strip"
@@ -500,16 +521,23 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
           >
             <PanelRightOpen size={16} />
             {hasResults && <span className="insp-strip-dot" aria-hidden />}
-            <span style={{ writingMode: 'vertical-rl' }}>Results</span>
+            {!memberResultsOnly && <span style={{ writingMode: 'vertical-rl' }}>Results</span>}
           </button>
         )}
+        {showResultsPane && (
         <div style={{ flex: '1 1 40%', minWidth: 0, display: rightCollapsed ? 'none' : 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <RightPaneTabBar
-            activeTab={rightTab}
-            onChange={setRightTab}
-            showSemantic={showSemanticTab}
-            showDeveloper={showDeveloperTab}
-            trailing={
+          {memberResultsOnly ? (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                height: 36,
+                flexShrink: 0,
+                borderBottom: '1px solid var(--wb-border-subtle)',
+                paddingRight: 8,
+              }}
+            >
               <button
                 type="button"
                 className="insp-btn insp-btn--icon"
@@ -520,8 +548,27 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
               >
                 <PanelRightClose size={16} />
               </button>
-            }
-          />
+            </div>
+          ) : (
+            <RightPaneTabBar
+              activeTab={rightTab}
+              onChange={setRightTab}
+              showSemantic={showSemanticTab}
+              showDeveloper={showDeveloperTab}
+              trailing={
+                <button
+                  type="button"
+                  className="insp-btn insp-btn--icon"
+                  onClick={() => setRightCollapsed(true)}
+                  aria-label="Minimize panel"
+                  title="Minimize"
+                  style={{ width: 28, height: 28 }}
+                >
+                  <PanelRightClose size={16} />
+                </button>
+              }
+            />
+          )}
           {rightTab === 'developer' && showDeveloperTab ? (
             <DeveloperPane
               sessionId={insp.sessionId}
@@ -596,6 +643,7 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
             <SemanticGovernancePanel modelId={candidateModelId!} />
           )}
         </div>
+        )}
       </div>
 
       <DataStudio

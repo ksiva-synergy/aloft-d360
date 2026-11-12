@@ -2,8 +2,10 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, X } from 'lucide-react';
+import { Loader2, Search, X } from 'lucide-react';
 import type { QueryResult } from '@/hooks/useInspectorChat';
+import { CHAT_QUERY_RESULT_MAX_ROWS } from '@/lib/inspector/result-display';
+import { needsFullTableWarehouseRefetch } from '@/lib/inspector/sql-full-fetch';
 import { filterQueryRowIndices } from '@/lib/workbench/query-table-filter';
 import { type } from '@/lib/typography/tokens';
 
@@ -17,16 +19,79 @@ const sans: React.CSSProperties = { fontFamily: 'var(--font-sans)' };
 export function ChatFullTableDialog({
   result,
   title,
+  sessionId,
   onClose,
 }: {
   result: QueryResult;
   title?: string;
+  sessionId?: string | null;
   onClose: () => void;
 }) {
   const [filter, setFilter] = useState('');
+  const [display, setDisplay] = useState(result);
+  const [loading, setLoading] = useState(() => needsFullTableWarehouseRefetch(result));
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!needsFullTableWarehouseRefetch(result)) {
+      setDisplay(result);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    setLoadError(null);
+    fetch('/api/inspector/query/full', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: sessionId ?? undefined,
+        resultId: result.persistedId,
+        sql: result.sql,
+      }),
+    })
+      .then(async (r) => {
+        const data = (await r.json()) as {
+          error?: string;
+          message?: string;
+          columns?: QueryResult['columns'];
+          rows?: QueryResult['rows'];
+          rowCount?: number;
+          truncated?: boolean;
+          sql?: string;
+        };
+        if (!r.ok) {
+          throw new Error(data.message ?? data.error ?? 'Could not load rows');
+        }
+        return data;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setDisplay({
+          ...result,
+          columns: data.columns ?? result.columns,
+          rows: data.rows ?? result.rows,
+          rowCount: data.rowCount ?? result.rowCount,
+          truncated: data.truncated ?? result.truncated,
+          sql: data.sql ?? result.sql,
+        });
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setLoadError(err instanceof Error ? err.message : 'Could not load rows');
+        setDisplay(result);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [result, sessionId]);
+
   const visible = useMemo(
-    () => filterQueryRowIndices(result.rows, result.columns, filter).map((i) => result.rows[i]),
-    [result.rows, result.columns, filter],
+    () => filterQueryRowIndices(display.rows, display.columns, filter).map((i) => display.rows[i]),
+    [display.rows, display.columns, filter],
   );
   const filterActive = filter.trim().length > 0;
 
@@ -45,8 +110,8 @@ export function ChatFullTableDialog({
   }, []);
 
   const heading = title ?? 'Query results';
-  const total = result.rowCount;
-  const loaded = result.rows.length;
+  const total = display.rowCount;
+  const loaded = display.rows.length;
 
   return createPortal(
     <div
@@ -89,8 +154,16 @@ export function ChatFullTableDialog({
             flexShrink: 0,
           }}
         >
-          <h2 style={{ ...type['body-lg'], fontWeight: 600, color: INK, margin: 0, flex: 1 }}>{heading}</h2>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '1 1 280px', maxWidth: 360 }}>
+          <h2 style={{ ...type['body-lg'], fontWeight: 600, color: INK, margin: 0, flex: 1, minWidth: 0 }}>
+            {heading}
+            {loading ? (
+              <span style={{ ...type.caption, color: MUTED, fontWeight: 400, marginLeft: 8 }}>
+                <Loader2 size={12} style={{ display: 'inline', verticalAlign: '-2px', marginRight: 4 }} aria-hidden />
+                Loading rows…
+              </span>
+            ) : null}
+          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: 'min(360px, 42vw)', flexShrink: 0 }}>
             <Search size={14} style={{ color: MUTED, flexShrink: 0 }} aria-hidden />
             <input
               type="search"
@@ -136,7 +209,7 @@ export function ChatFullTableDialog({
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--type-ui-regular-size)', lineHeight: 1.45 }}>
             <thead style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--surface-1)' }}>
               <tr>
-                {result.columns.map((col) => (
+                {display.columns.map((col) => (
                   <th
                     key={col.name}
                     style={{
@@ -157,16 +230,20 @@ export function ChatFullTableDialog({
               {visible.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={result.columns.length}
+                    colSpan={display.columns.length}
                     style={{ padding: 24, textAlign: 'center', color: MUTED }}
                   >
-                    {filterActive ? 'No rows match your search.' : 'No rows.'}
+                    {loading
+                      ? 'Loading warehouse rows…'
+                      : filterActive
+                        ? 'No rows match your search.'
+                        : 'No rows.'}
                   </td>
                 </tr>
               ) : (
                 visible.map((row, ri) => (
                   <tr key={ri} style={{ background: ri % 2 === 0 ? 'transparent' : 'color-mix(in srgb, var(--wb-ink) 3%, transparent)' }}>
-                    {result.columns.map((col) => {
+                    {display.columns.map((col) => {
                       const raw = row[col.name];
                       const text = raw == null ? '—' : String(raw);
                       return (
@@ -214,9 +291,14 @@ export function ChatFullTableDialog({
               : `Showing ${loaded.toLocaleString()} row${loaded === 1 ? '' : 's'}`}
             {total > loaded ? ` · ${total.toLocaleString()} total from query` : ''}
           </span>
-          {result.truncated && (
+          {loadError ? (
+            <span style={{ color: GOLD }} title={loadError}>
+              Showing the first {result.rows.length.toLocaleString()} rows from chat — could not load more.
+            </span>
+          ) : null}
+          {display.truncated && (
             <span style={{ color: GOLD }}>
-              Row limit reached — use CSV export for the full extract.
+              Row limit reached (max {CHAT_QUERY_RESULT_MAX_ROWS.toLocaleString()}) — use CSV export for more.
             </span>
           )}
         </footer>

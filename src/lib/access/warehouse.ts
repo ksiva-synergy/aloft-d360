@@ -24,6 +24,8 @@ export interface RunWarehouseQueryInput {
   surface: import('./types').AccessSurface;
   sessionId?: string | null;
   waitTimeoutSecs?: number;
+  /** Override default Databricks row_limit for this query (e.g. Ask Data inline tables). */
+  rowLimit?: number;
 }
 
 export async function runWarehouseQuery(input: RunWarehouseQueryInput): Promise<DatabricksExecuteResult> {
@@ -57,7 +59,11 @@ export async function runWarehouseQuery(input: RunWarehouseQueryInput): Promise<
     session.workspaceHost,
     session.warehouseId,
     session.token,
-    { statement: enforce ? plan.statement : input.statement, waitTimeoutSecs: input.waitTimeoutSecs },
+    {
+      statement: enforce ? plan.statement : input.statement,
+      waitTimeoutSecs: input.waitTimeoutSecs,
+      ...(input.rowLimit != null ? { rowLimit: input.rowLimit } : {}),
+    },
   );
   return enforce ? applyMask(result, plan) : result;
 }

@@ -15,6 +15,7 @@ import { evaluateTrajectoryReflection } from '@/lib/marcus/inspectorReflect';
 import { evaluateInspectorFirstTurn } from '@/lib/marcus/reflect';
 import { executeInspectorTool, resolveToolCatalogEntry } from '@/lib/inspector/tools';
 import { withAgentOpsToolLog } from '@/lib/agent-ops/log-tool-invocation';
+import { hasAgentOpsRole } from '@/lib/agent-ops/role-gate';
 import { TurnMetricsRecorder } from '@/lib/agent-ops/record-turn-metrics';
 import { buildSystemPrompt, buildToolConfig, buildInsightsContext } from '@/lib/inspector/prompts';
 import {
@@ -455,7 +456,7 @@ export async function POST(request: NextRequest) {
                 sessionId: body.sessionId ?? '',
                 connectionId: resolvedConnectionId,
                 dataPrincipal,
-                resultsPanel: true,
+                resultsPanel: hasAgentOpsRole(role),
               }),
             ),
           maxLoops: maxInspectorLoops,
