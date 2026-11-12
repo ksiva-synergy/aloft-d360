@@ -22,27 +22,42 @@ function load(userId: string): Promise<MeSections | null> {
   return promise;
 }
 
+type SectionLevelsSnapshot = { userId: string; value: MeSections | null; settled: boolean };
+
 /**
- * The signed-in person's section levels, or null while loading (or if the call failed).
+ * Section levels for the signed-in user. `pending` is true until `/api/me/sections` finishes (success or failure).
  * UX only: the server checks every request itself (src/lib/sections/server.ts).
  */
-export function useSectionLevels(): MeSections | null {
+export function useSectionLevelsState(): { data: MeSections | null; pending: boolean } {
   const { data } = useSession();
   const userId = data?.user?.id ?? null;
-  const [state, setState] = useState<{ userId: string; value: MeSections | null } | null>(null);
+  const [state, setState] = useState<SectionLevelsSnapshot | null>(null);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      setState(null);
+      return;
+    }
     let live = true;
+    setState(null);
     void load(userId).then((value) => {
-      if (live) setState({ userId, value });
+      if (live) setState({ userId, value, settled: true });
     });
     return () => {
       live = false;
     };
   }, [userId]);
 
-  return state && state.userId === userId ? state.value : null;
+  const pending = !!userId && !(state && state.userId === userId && state.settled);
+  const levels =
+    state && state.userId === userId && state.settled ? state.value : null;
+  return { data: levels, pending };
+}
+
+/** Levels while `pending`, else the payload (null if the call failed). */
+export function useSectionLevels(): MeSections | null {
+  const { data, pending } = useSectionLevelsState();
+  return pending ? null : data;
 }
 
 /** Level for one section; null while loading. */
