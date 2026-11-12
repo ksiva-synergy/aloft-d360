@@ -3,8 +3,8 @@
 - **What:** Merged `synergy-marine/main` into `feature/automate-runs` so [PR #47](https://github.com/Synergy-Marine-Group/aloft-d360/pull/47) is mergeable. Overlapping edits were mostly `docs/CHANGELOG.md` and estate Jobs/object UI (`main`’s executor/usage/expanded-row work from PR #46) alongside this branch’s Inspector, section access, and Automate work — Git `ort` merged cleanly; no conflict markers left.
 - **Paths:** Merge commit `efa0ffd` on `feature/automate-runs`; this changelog entry.
 - **Why:** User hit merge conflicts merging into `main`.
-- **Verified:** `npm run typecheck` and `npm run web:typecheck` exit 0 after merge.
-- **Not done:** Full `vitest` + SPA build not re-run for the merge commit alone.
+- **Verified:** After merge: `npx vitest run` 212 files / 1693 passed (2 skipped); `npm run typecheck` + `web:typecheck`; `web:build` + `web:check-bundle` — all exit 0 (2026-11-12 post-merge).
+- **Not done:** GitHub Actions CI on PR #47 not re-checked from this session.
 
 ## 2026-11-12 — Recovered Ask Data work lost when Cursor saved stale files at 09:03
 
