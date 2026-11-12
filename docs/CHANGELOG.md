@@ -1,3 +1,27 @@
+## 2026-11-12 — Models page: sticky + bottom Save bar
+
+- **What:** **Save changes** sits in a **sticky** bar next to the tabs (Role Access, etc.) and a **fixed bottom** banner when there are unsaved edits, with an “Unsaved — save to apply” hint and ring on the primary button.
+- **Paths:** `src/views/agent-staging/models.tsx`.
+- **Why:** Save lived only at the top of the page; people editing role access below the fold never saw it.
+- **Verified:** Code review.
+
+## 2026-11-12 — Root URL (`/`): redirect to login instead of endless Loading
+
+- **What:** `LandingRedirect` now mirrors `RequireAuth`: unsigned-in or invalid session → `/login`. Section fetch failure falls back to `/dashboard` instead of hanging. `useSectionLevelsState()` separates pending vs failed for the home route.
+- **Paths:** `web/src/routes/LandingRedirect.tsx`, `src/lib/sections/useSectionLevels.ts`.
+- **Why:** Opening only the site origin hit `/`, which is outside `RequireAuth`. With no session, section levels never loaded so `me === null` looked like “still loading” forever; `/login` and `/dashboard` worked because those routes handle auth.
+- **Verified:** Code review; not checked in browser.
+
+## 2026-11-12 — Inspector latency and context plan (docs only)
+
+- **What:** Added `docs/inspector/latency-and-context-plan.md`. It explains why simple Inspector questions take 35–95 s (worst 292 s, 8 s under the 300 s limit) and sets out a design to fix it without losing accuracy.
+  - Nine problems, each with evidence, fix, accuracy safeguard and files: too many steps, self-check queries, multi-step table discovery (`research` still not offered), full SQL results re-sent every step (row limit now 5,000), stale table descriptions, repeated scans of the same table, no cross-question caching (per-question context inside the system prompt), no answer check in code, no wrap-up at the limit; plus model and warehouse speed.
+  - Design: pre-loop table lookup, server-side result store with a short model view and a new `read_result` tool (exact aggregates only on complete results), prompt order for caching, code answer check (observe then enforce), time budget with a final no-tools call, batch shortening of old results.
+  - Rollout in 8 steps gated on a 30–50 question test set (accuracy ≥ baseline).
+- **Why:** The user reported that simple questions take too long and asked for the cause, a fix that keeps accuracy, and detailed documentation.
+- **Verified:** Read-only SELECTs on `agent_turn_log`, `agent_loop_log`, `tool_invocation_log` (last 7 days, 22 Inspector turns); code read at the cited lines. Corrects two figures given earlier in chat: the 09:44 parallel queries were near-duplicates, not identical; 6 of 18 queries in the slowest turn were checks, not about half.
+- **Not done:** No code changed. Test set not built. Tool-log outputs are truncated, so true SQL result sizes in the history weren't measured. Model comparison rests on 4 Gpt-6-Luna turns.
+
 ## 2026-11-12 — Ask Data (members): hide reply **Details** metadata
 
 - **What:** Collapsible **Details** (timestamp, duration, tokens, model) is omitted on the member chat presentation; **Copy** stays.

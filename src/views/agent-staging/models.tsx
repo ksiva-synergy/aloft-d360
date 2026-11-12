@@ -146,6 +146,70 @@ function cleanLabel(label: string): string {
   return label.replace(/\s*\(LLM Lite\)\s*/gi, '').trim();
 }
 
+function ModelSettingsSaveActions({
+  canEdit,
+  hasUnsavedChanges,
+  saving,
+  changedCount,
+  onSave,
+  onDiscard,
+  showDiscard,
+}: {
+  canEdit: boolean;
+  hasUnsavedChanges: boolean;
+  saving: boolean;
+  changedCount: number;
+  onSave: () => void;
+  onDiscard: () => void;
+  showDiscard: boolean;
+}) {
+  if (!canEdit) {
+    return (
+      <Chip tone="warn">
+        <Lock className="h-3 w-3" />
+        View only — cannot save
+      </Chip>
+    );
+  }
+  return (
+    <>
+      {showDiscard && hasUnsavedChanges && (
+        <button
+          type="button"
+          onClick={onDiscard}
+          disabled={saving}
+          className={cn(btn.ghost, 'active:scale-[0.97] transition-transform duration-150')}
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+          Discard
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={onSave}
+        disabled={saving || !hasUnsavedChanges}
+        className={cn(
+          btn.primary,
+          'active:scale-[0.97] transition-transform duration-150 shadow-sm',
+          hasUnsavedChanges &&
+            'ring-2 ring-[var(--brand-a)] ring-offset-2 ring-offset-[var(--main-bg)]',
+        )}
+      >
+        {saving ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <Save className="h-3.5 w-3.5" />
+        )}
+        {saving
+          ? 'Saving…'
+          : hasUnsavedChanges
+            ? `Save changes (${changedCount})`
+            : 'Save changes'}
+      </button>
+    </>
+  );
+}
+
 interface ModelPickerDropdownProps {
   value: string;
   models: LlmLiteCatalogEntry[];
@@ -596,8 +660,17 @@ export default function ModelsConfigPage() {
     ? cleanLabel(defaultModelEntry.label)
     : cleanLabel(draft?.defaultGatewayModelId ?? 'Grok 4.7');
 
+  const discardDraft = useCallback(() => {
+    if (data) setDraft(data.settings);
+  }, [data]);
+
   return (
-    <div className="mx-auto max-w-6xl px-6 py-6 space-y-6">
+    <div
+      className={cn(
+        'mx-auto max-w-6xl px-6 py-6 space-y-6',
+        canEdit && hasUnsavedChanges && 'pb-28',
+      )}
+    >
       {/* Top Hero & Gateway Health Strip */}
       <div className="rounded-2xl border border-[var(--line-1)] bg-[var(--surface-1)] p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -632,7 +705,7 @@ export default function ModelsConfigPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <button
               type="button"
               onClick={() => void loadConfig()}
@@ -643,34 +716,29 @@ export default function ModelsConfigPage() {
               Refresh
             </button>
 
-            {canEdit && hasUnsavedChanges && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => data && setDraft(data.settings)}
-                  disabled={saving}
-                  className={cn(btn.ghost, 'active:scale-[0.97] transition-transform duration-150')}
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  Discard
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleSave()}
-                  disabled={saving}
-                  className={cn(btn.primary, 'active:scale-[0.97] transition-transform duration-150 shadow-sm')}
-                >
-                  {saving ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Save className="h-3.5 w-3.5" />
-                  )}
-                  {saving ? 'Saving…' : `Save Changes (${changedCount})`}
-                </button>
-              </>
-            )}
+            <ModelSettingsSaveActions
+              canEdit={canEdit}
+              hasUnsavedChanges={hasUnsavedChanges}
+              saving={saving}
+              changedCount={changedCount}
+              onSave={() => void handleSave()}
+              onDiscard={discardDraft}
+              showDiscard
+            />
           </div>
         </div>
+
+        {!canEdit && (
+          <p
+            role="note"
+            className="mt-4 rounded-xl border border-[var(--line-1)] bg-[var(--surface-2)]/50 px-4 py-3 text-size-ui text-[var(--ink-2)]"
+          >
+            You can inspect gateway and role settings here, but saving requires{' '}
+            <strong className="text-[var(--ink-1)]">Platform Admin</strong> or a bundle that includes{' '}
+            <strong className="text-[var(--ink-1)]">Manage</strong> on Models. Org{' '}
+            <strong className="text-[var(--ink-1)]">Admin</strong> is view-only on this page by default.
+          </p>
+        )}
 
         {/* Integrated 4-Metric Bar */}
         <div className="mt-5 grid grid-cols-1 gap-3 border-t border-[var(--line-1)] pt-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -786,13 +854,14 @@ export default function ModelsConfigPage() {
         </div>
       )}
 
-      {/* Navigation Bar: Segmented Pill Control + Quick Global Setter */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <Segmented
-          label="Model configuration view"
-          value={activeTab}
-          onChange={setActiveTab}
-          options={[
+      {/* Stays visible while scrolling (esp. Role Access tab) */}
+      <div className="sticky top-0 z-30 -mx-6 space-y-3 border-b border-[var(--line-1)] bg-[var(--main-bg)]/95 px-6 py-3 backdrop-blur-md">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <Segmented
+            label="Model configuration view"
+            value={activeTab}
+            onChange={setActiveTab}
+            options={[
             {
               value: 'features',
               label: (
@@ -835,8 +904,26 @@ export default function ModelsConfigPage() {
                 </span>
               ),
             },
-          ]}
-        />
+            ]}
+          />
+
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {canEdit && hasUnsavedChanges && (
+              <span className="rounded-full bg-[var(--brand-a-soft)] px-2.5 py-1 text-caption font-semibold text-[var(--brand-a-ink)]">
+                Unsaved — save to apply
+              </span>
+            )}
+            <ModelSettingsSaveActions
+              canEdit={canEdit}
+              hasUnsavedChanges={hasUnsavedChanges}
+              saving={saving}
+              changedCount={changedCount}
+              onSave={() => void handleSave()}
+              onDiscard={discardDraft}
+              showDiscard={false}
+            />
+          </div>
+        </div>
 
         {activeTab === 'features' && draft && (
           <div className="flex flex-wrap items-center gap-2.5 rounded-xl border border-[var(--line-1)] bg-[var(--surface-1)] px-3.5 py-2">
@@ -1569,6 +1656,31 @@ export default function ModelsConfigPage() {
                 </table>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {canEdit && hasUnsavedChanges && (
+        <div
+          role="region"
+          aria-label="Unsaved model settings"
+          className="fixed inset-x-0 bottom-0 z-[90] border-t border-[var(--line-1)] bg-[var(--surface-1)]/98 px-4 py-3 shadow-[0_-12px_40px_rgba(0,0,0,0.15)] backdrop-blur-md"
+        >
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">
+            <p className="text-size-ui text-[var(--ink-2)]">
+              <span className="font-semibold text-[var(--ink-1)]">You have unsaved model settings</span>
+              {' — '}
+              {changedCount} {changedCount === 1 ? 'change' : 'changes'}. Save to apply role access and routing.
+            </p>
+            <ModelSettingsSaveActions
+              canEdit={canEdit}
+              hasUnsavedChanges={hasUnsavedChanges}
+              saving={saving}
+              changedCount={changedCount}
+              onSave={() => void handleSave()}
+              onDiscard={discardDraft}
+              showDiscard
+            />
           </div>
         </div>
       )}
