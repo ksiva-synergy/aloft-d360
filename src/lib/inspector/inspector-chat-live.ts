@@ -58,6 +58,10 @@ type Bucket = {
   listeners: Set<() => void>;
   setters: InspectorSetters;
   ctrl: AbortController | null;
+  /** Client id of the running turn, sent with Stop so only that reply is cancelled. */
+  turnId: string | null;
+  /** Assistant message the running turn writes into. */
+  assistantId: string | null;
   userStop: boolean;
   model: string;
   autosave: ReturnType<typeof setTimeout> | null;
@@ -150,6 +154,8 @@ export function inspectorBucket(key: string): Bucket {
       snap: emptySnap(),
       listeners: new Set<() => void>(),
       ctrl: null,
+      turnId: null,
+      assistantId: null,
       userStop: false,
       model: DEFAULT_INSPECTOR_MODEL_KEY,
       autosave: null,
@@ -263,6 +269,17 @@ export function recoverInspectorTurn(key: string) {
   })();
 }
 
+/**
+ * Stop polling a dropped turn's draft (Stop pressed). Without clearing `recovering`, the next
+ * turn would think it is still recovering and never leave the streaming state.
+ */
+export function stopInspectorRecovery(key: string) {
+  const bucket = inspectorBucket(key);
+  bucket.recoverGen += 1;
+  bucket.recovering = false;
+  update(bucket, 'recovering', false);
+}
+
 /** New chat / explicit reset. Does not run when the page unmounts. */
 export function resetInspectorLive(key: string) {
   const bucket = inspectorBucket(key);
@@ -271,6 +288,8 @@ export function resetInspectorLive(key: string) {
   bucket.recovering = false;
   bucket.ctrl?.abort();
   bucket.ctrl = null;
+  bucket.turnId = null;
+  bucket.assistantId = null;
   if (bucket.autosave) clearTimeout(bucket.autosave);
   bucket.autosave = null;
   const model = bucket.snap.selectedModel;

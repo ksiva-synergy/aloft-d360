@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { clientStreamError } from '@/lib/inspector/client-stream-error';
-import { clearTurnStop, isTurnStopped, turnStopKey } from '@/lib/chat/turn-control';
+import { openTurn, parseTurnId } from '@/lib/chat/turn-control';
 import { createDraftWriter } from '@/lib/chat/turn-draft';
 import { type Message, type ContentBlock } from '@aws-sdk/client-bedrock-runtime';
 import { logAgentCost } from '@/lib/lifecycle/log-agent-cost';
@@ -21,6 +21,8 @@ import {
   buildSessionKnowledgeContext,
   persistSessionKnowledgeAfterTurn,
 } from '@/lib/inspector/session-knowledge';
+import { buildDomainFocusContext } from '@/lib/inspector/domain-context';
+import { splitFollowUps } from '@/lib/inspector/extract-suggestions';
 import { dispatchAgentLoop } from '@/lib/inspector/providers/factory';
 import { BOOST_MODELS } from '@/lib/boost/models';
 import { openSession } from '@/lib/memory/trace';
@@ -38,6 +40,7 @@ import { buildSemanticContext, type SemanticContext } from '@/lib/semantic/conte
 import { guardInspectorChat, resolveInspectorPrincipal } from '@/lib/inspector/session-auth';
 import { principalForUser } from '@/lib/access/principal';
 import { chatModelKeyForRole, isPlatformAdminRole } from '@/lib/inspector/model-access';
+import { effectiveContextMode } from '@/lib/inspector/context-mode';
 import { getSessionUserRole } from '@/lib/inspector/session-role';
 import { DEFAULT_INSPECTOR_MODEL_KEY } from '@/lib/inspector/default-model';
 import { fromLlmLiteModelKey, toLlmLiteModelKey } from '@/lib/llmlite/keys';
@@ -111,30 +114,6 @@ function isBedrockConfigured(): boolean {
   return hasStaticAwsCredentials() || process.env.INSPECTOR_USE_INSTANCE_PROFILE === 'true' || process.env.AWS_EXECUTION_ENV === 'AWS_ElasticBeanstalk';
 }
 
-function extractSuggestionsFromText(text: string): string[] {
-  const lines = text.split('\n');
-  const results: string[] = [];
-  let inBlock = false;
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    const lc = line.toLowerCase();
-    if (lc.includes('you might') || lc.includes('next step') || lc.includes('follow-up') || lc.includes('you could') || lc.includes('try:') || lc.includes('options:')) {
-      inBlock = true;
-      continue;
-    }
-    if (inBlock || i >= lines.length - 8) {
-      const m = line.match(/^[-*•]\s+(.+)/) || line.match(/^\d+\.\s+(.+)/);
-      if (m) {
-        const txt = m[1].trim().replace(/[.:]$/, '');
-        if (txt.length >= 5 && txt.length <= 80) results.push(txt);
-      } else if (inBlock && line.length > 0 && !line.match(/^[-*•\d]/)) {
-        if (results.length > 0) inBlock = false;
-      }
-    }
-  }
-  return results.slice(0, 3);
-}
-
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
 export async function POST(request: NextRequest) {
@@ -143,6 +122,10 @@ export async function POST(request: NextRequest) {
     messages?: { role: string; content: string }[];
     model?: string;
     contextMode?: 'harvested' | 'warehouse_only';
+    /** Optional starting business area key selected on the welcome screen (e.g. 'hr', 'crewing'). */
+    domainKey?: string;
+    /** Client id for this turn, so Stop targets only this reply. */
+    turnId?: string;
   };
 
   // ── D1: session-ownership guard (behind INSPECTOR_AUTH_ENFORCE) ─────────────
@@ -200,7 +183,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const contextMode: 'harvested' | 'warehouse_only' = body.contextMode === 'warehouse_only' ? 'warehouse_only' : 'harvested';
+  // Members and read-only users always get Catalog + SQL; only admins can switch to SQL only.
+  const contextMode = effectiveContextMode(body.contextMode, role, principal?.kind === 'service');
 
   const modelConfig = resolveModel(effectiveModelKey);
   const isFoundryModel = !!modelConfig.foundryDeployment;
@@ -246,10 +230,19 @@ export async function POST(request: NextRequest) {
 
   const toolConfig = buildToolConfig(contextMode, !!(semanticCtx && semanticCtx.entities.length > 0));
   const basePrompt = buildSystemPrompt(contextMode, semanticCtx);
-  const insightsContext = contextMode === 'harvested' ? await buildInsightsContext(body.sessionId) : '';
-  const sessionKnowledgeContext =
-    body.sessionId && isUUID(body.sessionId) ? await buildSessionKnowledgeContext(body.sessionId) : '';
-  const systemPrompt = [basePrompt, insightsContext, sessionKnowledgeContext].filter(Boolean).join('\n\n');
+  const [insightsContext, sessionKnowledgeContext, domainFocusContext] = await Promise.all([
+    contextMode === 'harvested' ? buildInsightsContext(body.sessionId) : Promise.resolve(''),
+    body.sessionId && isUUID(body.sessionId) ? buildSessionKnowledgeContext(body.sessionId) : Promise.resolve(''),
+    // Kept in SQL only too: it is the area the person picked (HR vs Crewing) and it is
+    // filtered to the data they may see.
+    buildDomainFocusContext({
+      orgId: spendOrgId,
+      dataPrincipal,
+      domainKey: body.domainKey,
+      messages: body.messages,
+    }),
+  ]);
+  const systemPrompt = [basePrompt, insightsContext, sessionKnowledgeContext, domainFocusContext].filter(Boolean).join('\n\n');
 
   const firstUserMessageText = ((body.messages ?? []).find((m) => m.role === 'user' && m.content?.trim())?.content ?? '')
     .trim()
@@ -333,10 +326,10 @@ export async function POST(request: NextRequest) {
       // `closed` means the browser went away (other tab, navigation, sleep). Keep generating.
       // `userStop` is only the Stop button (POST /api/inspector/chat/cancel).
       const closed = { value: false };
-      const stopKey = body.sessionId ? turnStopKey('inspector', body.sessionId) : '';
-      if (stopKey) clearTurnStop(stopKey);
-      const userStop = { get value() { return isTurnStopped(stopKey); } };
-      const draft = createDraftWriter(body.sessionId, 'inspectorDraft');
+      const turn = openTurn('inspector', body.sessionId, parseTurnId(body.turnId));
+      const userStop = { get value() { return turn.isStopped(); } };
+      // A newer turn on this session (Send now) owns the draft from then on.
+      const draft = createDraftWriter(body.sessionId, 'inspectorDraft', turn.isCurrent);
       const encoder = new TextEncoder();
 
       request.signal.addEventListener('abort', () => {
@@ -462,6 +455,7 @@ export async function POST(request: NextRequest) {
                 sessionId: body.sessionId ?? '',
                 connectionId: resolvedConnectionId,
                 dataPrincipal,
+                resultsPanel: true,
               }),
             ),
           maxLoops: maxInspectorLoops,
@@ -643,8 +637,17 @@ export async function POST(request: NextRequest) {
         }
 
         if (result.outcome === 'completed') {
-          const extracted = extractSuggestionsFromText(result.finalText ?? '');
-          emit({ type: 'suggestions', items: extracted.length >= 2 ? extracted : ['Show table columns', 'Sample a few rows', 'Check row counts by date'] });
+          // Follow-ups show as pills only: drop the closing bullets / "I can ..." offer from the
+          // reply (screen and saved draft) when they became pills.
+          const finalText = result.finalText ?? '';
+          const followUps = splitFollowUps(finalText);
+          if (followUps.items.length > 0) {
+            if (followUps.body !== finalText && !userStop.value) {
+              draft.replace(followUps.body);
+              emit({ type: 'text_replace', text: followUps.body });
+            }
+            emit({ type: 'suggestions', items: followUps.items });
+          }
 
           const { qualityScore, success } = scoreRun({
             completed: true,
@@ -821,6 +824,8 @@ export async function POST(request: NextRequest) {
         emit({ type: 'error', message: clientStreamError(err, 'inspector/chat'), recoverable: true });
         emit({ type: 'done', usage: { inputTokens: 0, outputTokens: 0 }, model: effectiveModelId, loops: 0, qualityScore: 0, contextMode, outcome: 'errored' as const, toolTrajectory: [] });
         if (!closed.value) { closed.value = true; try { controller.close(); } catch {} }
+      } finally {
+        turn.end();
       }
     },
   });

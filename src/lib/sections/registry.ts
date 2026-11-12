@@ -12,7 +12,9 @@
  * How a level is worked out (resolveSectionLevels):
  *   1. Platform admins get `manage` on every section.
  *   2. Otherwise: the highest of the built-in role defaults the person holds, and any
- *      `section:<id>:view|manage` permission keys carried by their roles (bundles).
+ *      `section:<id>:view|manage` permission keys carried by their roles (bundles). A built-in
+ *      role's defaults come from `defaults` below unless a platform admin changed them in the UI
+ *      (`section-default:*` keys on the role, see ROLE_DEFAULT_PREFIX).
  *   3. Then capped: `viewOnly` sections never go above view; `manageIsPlatformAdminOnly` sections
  *      (all of Data Estate) never give manage to anyone but a platform admin.
  *
@@ -43,6 +45,8 @@ export interface SectionDef {
 
 const ESTATE_DEFAULTS: Record<DefaultRole, SectionLevel> = { readonly: 'none', member: 'none', admin: 'view' };
 const ADMIN_VIEW: Record<DefaultRole, SectionLevel> = { readonly: 'none', member: 'none', admin: 'view' };
+/** Admin tools: org admins can use them (create, run, edit); members need a bundle. */
+const ADMIN_TOOL: Record<DefaultRole, SectionLevel> = { readonly: 'none', member: 'none', admin: 'manage' };
 const MEMBER_TOOL: Record<DefaultRole, SectionLevel> = { readonly: 'view', member: 'manage', admin: 'manage' };
 const EVERYONE_VIEW: Record<DefaultRole, SectionLevel> = { readonly: 'view', member: 'view', admin: 'view' };
 /** Home overview: members land on Ask Data instead. */
@@ -75,13 +79,13 @@ export const SECTIONS: SectionDef[] = [
   { id: 'build.dashboards', label: 'Dashboards', group: 'build', paths: ['/inspector/dashboards'], view: 'Shared dashboards', manage: 'Create, edit, and share dashboards', defaults: ADMIN_VIEW },
   { id: 'build.metrics', label: 'Metrics', group: 'build', paths: ['/agent-lab/metrics'], view: 'Metric definitions', manage: 'Define and change metrics', defaults: ADMIN_VIEW },
   { id: 'build.teach', label: 'Teach', group: 'build', paths: ['/agent-lab/teach'], view: 'Teach sessions', manage: 'Run teach sessions, hand off candidates', defaults: ADMIN_VIEW },
-  { id: 'build.automate', label: 'Automate', group: 'build', paths: ['/agent-lab/automate', '/agent-lab/flows'], view: 'Flows and runs', manage: 'Create, run, and schedule flows', defaults: ADMIN_VIEW },
+  { id: 'build.automate', label: 'Automate', group: 'build', paths: ['/agent-lab/automate', '/agent-lab/flows'], view: 'Flows and runs', manage: 'Create, run, and schedule flows', defaults: ADMIN_TOOL },
   { id: 'build.performance', label: 'Performance Lab', group: 'build', paths: ['/performance-lab', '/agent-lab/ops'], view: 'Eval results', manage: 'Run evals', defaults: ADMIN_VIEW },
   { id: 'build.bandits', label: 'Bandits', group: 'build', paths: ['/agent-lab/bandits'], view: 'Experiments', manage: 'Change experiments', defaults: ADMIN_VIEW },
   { id: 'build.history', label: 'History', group: 'build', paths: ['/agent-lab/history', '/agent-lab/runs'], view: 'Own runs', manage: "Everyone's runs", defaults: MEMBER_HISTORY },
 
   // ── Memory ──
-  { id: 'memory.knowledge', label: 'Knowledge', group: 'memory', paths: ['/agent-lab/knowledge'], view: 'Knowledge bases', manage: 'Edit knowledge bases', defaults: ADMIN_VIEW },
+  { id: 'memory.knowledge', label: 'Knowledge', group: 'memory', paths: ['/agent-lab/knowledge'], view: 'Knowledge bases', manage: 'Edit knowledge bases', defaults: ADMIN_TOOL },
   { id: 'memory.foer', label: 'FOER', group: 'memory', paths: ['/agent-lab/memory'], view: 'Agent memory', manage: 'Approve and reject memory', defaults: ADMIN_VIEW },
   { id: 'memory.ops', label: 'FOER Ops', group: 'memory', paths: ['/agent-lab/memory/ops'], view: 'Memory operations', manage: 'Run memory operations', defaults: ADMIN_VIEW },
   { id: 'memory.contributions', label: 'Contributions', group: 'memory', paths: ['/agent-lab/memory/contributions'], view: 'Contributions', manage: 'Approve contributions', defaults: ADMIN_VIEW },
@@ -214,10 +218,65 @@ export function splitSectionRoles(roles: RoleWithBase[]): {
   return { customRole, bundles };
 }
 
-/** A built-in role's defaults as a full level map (custom roles start from this). */
-export function defaultLevels(role: DefaultRole): SectionLevels {
+/**
+ * Built-in role defaults changed in Users → Section access. Stored as permission keys on the
+ * built-in role's own row: `section-default:<role>:<sectionId>:<none|view|manage>`. Everyone who
+ * holds the role carries them (flattenPermissions), so they are re-read on every request like any
+ * other key. Only cells that differ from the code default (SectionDef.defaults) are stored, so a
+ * later change to a code default still reaches every cell nobody changed.
+ * The prefix is not `section:`, so bundle code that replaces `section:*` keys never touches these.
+ */
+export const ROLE_DEFAULT_PREFIX = 'section-default:';
+
+export function roleDefaultKey(role: DefaultRole, sectionId: string, level: SectionLevel): string {
+  return `${ROLE_DEFAULT_PREFIX}${role}:${sectionId}:${level}`;
+}
+
+/** Highest default a built-in role may have on a section (same ceiling as a bundle). */
+function clampToCeiling(s: SectionDef, level: SectionLevel): SectionLevel {
+  return level === 'manage' ? bundleCeiling(s) : level;
+}
+
+/** Changed defaults per built-in role, read from `section-default:*` keys. Unknown or malformed keys are ignored. */
+export function roleDefaultOverridesFromKeys(keys: Iterable<string>): Partial<Record<DefaultRole, SectionLevels>> {
+  const out: Partial<Record<DefaultRole, SectionLevels>> = {};
+  for (const k of keys) {
+    if (!k.startsWith(ROLE_DEFAULT_PREFIX)) continue;
+    const [role, sectionId, level, ...rest] = k.slice(ROLE_DEFAULT_PREFIX.length).split(':');
+    if (rest.length || !(DEFAULT_ROLES as string[]).includes(role)) continue;
+    const s = SECTION_BY_ID.get(sectionId);
+    if (!s || !(level === 'none' || level === 'view' || level === 'manage')) continue;
+    const r = role as DefaultRole;
+    const prev = out[r]?.[sectionId];
+    const next = clampToCeiling(s, level);
+    // Two keys for one cell should not happen; if it does, the higher level wins (like everywhere else).
+    (out[r] ??= {})[sectionId] = prev ? higher(prev, next) : next;
+  }
+  return out;
+}
+
+/**
+ * Keys to store on a built-in role for the defaults in `levels` (sections left out keep their code
+ * default). Only cells that differ from the code default produce a key.
+ */
+export function roleDefaultKeysFor(role: DefaultRole, levels: Record<string, SectionLevel | undefined>): string[] {
+  const keys: string[] = [];
+  for (const s of SECTIONS) {
+    const l = levels[s.id];
+    if (!l) continue;
+    const capped = clampToCeiling(s, l);
+    if (capped !== s.defaults[role]) keys.push(roleDefaultKey(role, s.id, capped));
+  }
+  return keys;
+}
+
+/**
+ * A built-in role's defaults as a full level map (custom roles start from this). Pass the role's
+ * changed defaults (from roleDefaultOverridesFromKeys) to get what the role gives today.
+ */
+export function defaultLevels(role: DefaultRole, overrides?: SectionLevels): SectionLevels {
   const out: SectionLevels = {};
-  for (const s of SECTIONS) out[s.id] = s.defaults[role];
+  for (const s of SECTIONS) out[s.id] = overrides?.[s.id] ?? s.defaults[role];
   return out;
 }
 
@@ -249,12 +308,15 @@ export type SectionLevels = Record<string, SectionLevel>;
  * Levels for every section, from the person's role names and the permission keys their roles carry.
  * A person with no roles counts as Member (matches DEFAULT_ROLE in src/lib/rbac.ts).
  * With a custom role (a `section:role-base:*` key), defaults are skipped and keys decide.
+ * Built-in role defaults changed in the UI (`section-default:*` keys) replace the code default for
+ * that role and section; they can lower it as well as raise it.
  */
 export function resolveSectionLevels(roleNames: readonly string[], permissions: ReadonlySet<string> | readonly string[]): SectionLevels {
   const perms = permissions instanceof Set ? permissions : new Set(permissions as readonly string[]);
   const names = roleNames.length ? roleNames : ['member'];
   const platformAdmin = names.includes('platform_admin');
   const customRole = baseFromKeys(perms) !== null;
+  const overrides = platformAdmin || customRole ? {} : roleDefaultOverridesFromKeys(perms);
   const out: SectionLevels = {};
   for (const s of SECTIONS) {
     if (platformAdmin) {
@@ -263,7 +325,9 @@ export function resolveSectionLevels(roleNames: readonly string[], permissions: 
     }
     let level: SectionLevel = 'none';
     // A custom role replaces the role defaults entirely; otherwise start from the built-in role.
-    if (!customRole) for (const r of DEFAULT_ROLES) if (names.includes(r)) level = higher(level, s.defaults[r]);
+    if (!customRole) {
+      for (const r of DEFAULT_ROLES) if (names.includes(r)) level = higher(level, overrides[r]?.[s.id] ?? s.defaults[r]);
+    }
     if (perms.has(sectionPermissionKey(s.id, 'view'))) level = higher(level, 'view');
     if (perms.has(sectionPermissionKey(s.id, 'manage'))) level = higher(level, 'manage');
     if (level === 'manage' && (s.viewOnly || s.manageIsPlatformAdminOnly)) level = 'view';

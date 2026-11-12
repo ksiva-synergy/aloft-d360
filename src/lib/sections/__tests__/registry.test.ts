@@ -113,6 +113,15 @@ describe('govern defaults', () => {
     expect(levels['home']).toBe('none');
   });
 
+  it('org admins can use Automate and Knowledge by default; members cannot', () => {
+    const admin = resolveSectionLevels(['admin'], []);
+    expect(admin['build.automate']).toBe('manage');
+    expect(admin['memory.knowledge']).toBe('manage');
+    const member = resolveSectionLevels(['member'], []);
+    expect(member['build.automate']).toBe('none');
+    expect(member['memory.knowledge']).toBe('none');
+  });
+
   it('members have no Govern sections unless a bundle adds them', () => {
     const levels = resolveSectionLevels(['member'], []);
     expect(levels['govern.connections']).toBe('none');

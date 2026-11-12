@@ -11,6 +11,8 @@ export class AccessDeniedError extends Error {
     label?: string;
     failedPath?: string;
     requestUrl?: string;
+    /** Why the SQL could not be checked (reason `sql_unresolved`): fix the query, not an access gap. */
+    sqlReason?: string;
   };
 
   constructor(
@@ -23,6 +25,7 @@ export class AccessDeniedError extends Error {
       label?: string;
       failedPath?: string;
       requestUrl?: string;
+      sqlReason?: string;
     },
   ) {
     super(message);

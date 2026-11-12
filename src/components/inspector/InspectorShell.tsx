@@ -2,29 +2,32 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter, useSearchParams } from '@/lib/navigation';
-import { X, ArrowUpRight, Table2, Compass, Clock, BarChart3, Sparkles } from 'lucide-react';
+import { X, Table2 } from 'lucide-react';
 import { FlaskConical, SquarePen, PanelRightOpen, PanelRightClose, Database } from 'lucide-react';
 import { PromptCanvas } from '@/components/workbench/PromptCanvas';
 import { AnswerInspection } from '@/components/agent-lab/AnswerInspection';
 import { buildInspectorInspection } from '@/lib/inspector/answer-inspection';
 import { useDeveloperMode } from '@/hooks/useDeveloperMode';
 import type { WorkbenchMessage } from '@/components/agent-lab/workbench/types';
-import { Companion } from '@/components/companion/Companion';
 import { DashboardPane } from './DashboardPane';
 import { InspectorChatList } from './InspectorChatList';
 import { SemanticChartCard } from './SemanticChartCard';
 import { DisambiguationCard } from './DisambiguationCard';
 import { ExportReadyCard } from './ExportReadyCard';
-import { EmptyStatePrompts } from './EmptyStatePrompts';
+import { InspectorWelcome, prefetchWelcomeCatalog } from './InspectorWelcome';
 import { QueryProgressCard } from './QueryProgressCard';
 import { SemanticGovernancePanel, RightPaneTabBar } from './SemanticGovernancePanel';
 import type { RightPaneTab } from './SemanticGovernancePanel';
 import { DataStudio } from '@/components/studio/DataStudio';
 import { useInspectorChat } from '@/hooks/useInspectorChat';
+import { mergeIntoDraft, useQueuedSend } from '@/hooks/useQueuedSend';
+import type { ComposerQueue } from '@/components/workbench/InputComposer';
 import { useSession } from 'next-auth/react';
 import { DeveloperPane } from '@/components/agent-ops/DeveloperPane';
 import { AgentHandoffCard } from './AgentHandoffCard';
 import { detectAgentBuildIntent } from '@/lib/construction/handoff';
+import { hasAgentOpsRole } from '@/lib/agent-ops/role-gate';
+import { canChooseContextMode, type InspectorContextMode } from '@/lib/inspector/context-mode';
 import { type } from '@/lib/typography/tokens';
 
 // ── Styles ────────────────────────────────────────────────────────────────────
@@ -84,12 +87,15 @@ interface InspectorStatusBarProps {
   onContextModeChange: (mode: 'harvested' | 'warehouse_only') => void;
   onOpenLab: () => void;
   onNewSession: () => void;
+  showPerformanceLab?: boolean;
+  /** Admins only; everyone else always gets Catalog + SQL, so the switch is hidden. */
+  showModeSwitch?: boolean;
 }
 
-function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode, onContextModeChange, onOpenLab, onNewSession }: InspectorStatusBarProps) {
+function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode, onContextModeChange, onOpenLab, onNewSession, showPerformanceLab = false, showModeSwitch = false }: InspectorStatusBarProps) {
   const modes: { id: 'harvested' | 'warehouse_only'; label: string; hint: string }[] = [
     { id: 'harvested', label: 'Catalog + SQL', hint: 'Answer with harvested catalog context (T0/T1/T2) plus live SQL' },
-    { id: 'warehouse_only', label: 'SQL only', hint: 'Answer with raw Databricks SQL only' },
+    { id: 'warehouse_only', label: 'SQL only', hint: 'Answer with live SQL only, without harvested catalog insights' },
   ];
 
   return (
@@ -116,23 +122,25 @@ function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode,
           role="status"
         >
           <span className="insp-status-dot" />
-          {dbConnected === null ? 'Checking Databricks…' : dbConnected ? 'Databricks connected' : 'Databricks not connected'}
+          {dbConnected === null ? 'Connecting…' : dbConnected ? 'Data connected' : 'Data not connected'}
         </span>
-        <div className="insp-seg" role="radiogroup" aria-label="Context mode">
-          {modes.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              role="radio"
-              aria-checked={contextMode === m.id}
-              title={m.hint}
-              onClick={() => onContextModeChange(m.id)}
-              style={type.label}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
+        {showModeSwitch && (
+          <div className="insp-seg" role="radiogroup" aria-label="Context mode">
+            {modes.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                role="radio"
+                aria-checked={contextMode === m.id}
+                title={m.hint}
+                onClick={() => onContextModeChange(m.id)}
+                style={type.label}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* RIGHT — session actions. New session / history live in the chat list (md+);
@@ -144,64 +152,10 @@ function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode,
             New session
           </button>
         </span>
-        <button type="button" className="insp-btn insp-btn--icon" onClick={onOpenLab} aria-label="Performance Lab" title="Performance Lab — compare model metrics">
-          <FlaskConical size={16} />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ── Welcome (empty conversation) ──────────────────────────────────────────────
-// One empty state for the whole page: a clear question, one line on what Inspector
-// does, and starter questions. Governed models supply their own prompts.
-const GENERIC_STARTERS: { prompt: string; label: string; icon: React.ReactNode }[] = [
-  { prompt: 'What data can I explore here?', label: 'Discover', icon: <Compass size={16} /> },
-  { prompt: 'Which tables were updated most recently?', label: 'Freshness', icon: <Clock size={16} /> },
-  { prompt: 'Show the largest tables by row count', label: 'Size', icon: <BarChart3 size={16} /> },
-  { prompt: 'Chart row counts for my top 10 tables', label: 'Visualize', icon: <Sparkles size={16} /> },
-];
-
-function InspectorWelcome({ modelId, onPrompt }: { modelId: string | null; onPrompt: (p: string) => void }) {
-  const { data: session } = useSession();
-  const firstName = session?.user?.name?.trim().split(/\s+/)[0];
-  return (
-    <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'grid', placeItems: 'center', padding: '32px 24px', position: 'relative' }}>
-      <div className="wl-glow" aria-hidden />
-      <div className="insp-welcome" style={{ width: '100%', maxWidth: 640, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, position: 'relative' }}>
-        <div className="wl-hero">
-          <Companion size={64} />
-        </div>
-        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {firstName && (
-            <span style={{ ...type['ui-regular'], color: 'var(--brand-a-ink)' }}>Hi {firstName}</span>
-          )}
-          <h1 className="wl-title" style={{ ...type['title-section'], margin: 0 }}>What do you want to know?</h1>
-          <p style={{ ...type.body, color: 'var(--ink-2)', margin: '0 auto', maxWidth: 440 }}>
-            Type a question in plain language. The chat queries your warehouse, explains the numbers and builds charts.
-          </p>
-        </div>
-        {modelId ? (
-          <EmptyStatePrompts modelId={modelId} includeWhatIsThis showHeading={false} onPromptClick={onPrompt} />
-        ) : (
-          <div className="wl-grid">
-            {GENERIC_STARTERS.map((s, i) => (
-              <button
-                key={s.prompt}
-                type="button"
-                className="wl-card"
-                onClick={() => onPrompt(s.prompt)}
-                style={{ ...type['ui-regular'], animationDelay: `${120 + i * 60}ms` }}
-              >
-                <span className="wl-card-icon">{s.icon}</span>
-                <span className="wl-card-text">
-                  <span className="wl-card-label">{s.label}</span>
-                  <span>{s.prompt}</span>
-                </span>
-                <ArrowUpRight size={15} className="wl-card-arrow" />
-              </button>
-            ))}
-          </div>
+        {showPerformanceLab && (
+          <button type="button" className="insp-btn insp-btn--icon" onClick={onOpenLab} aria-label="Performance Lab" title="Performance Lab — compare model metrics">
+            <FlaskConical size={16} />
+          </button>
         )}
       </div>
     </div>
@@ -225,12 +179,17 @@ function renderInspection(msg: WorkbenchMessage) {
 export default function InspectorShell({ sessionId: initialSessionId }: InspectorShellProps = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: authSession } = useSession();
+  const canGovernSemantic = hasAgentOpsRole(authSession?.user?.role);
+  const canChooseMode = canChooseContextMode(authSession?.user?.role);
   const [composer, setComposer] = useState('');
   const [sourceChartNotice, setSourceChartNotice] = useState<string | null>(null);
   const [studioOpen, setStudioOpen] = useState(false);
   const [sessionTitle, setSessionTitle] = useState('');
   const [dbConnected, setDbConnected] = useState<boolean | null>(null);
-  const [contextMode, setContextMode] = useState<'harvested' | 'warehouse_only'>('harvested');
+  const [chosenContextMode, setContextMode] = useState<InspectorContextMode>('harvested');
+  // Members always get Catalog + SQL (the server enforces this too); admins can switch.
+  const contextMode: InspectorContextMode = canChooseMode ? chosenContextMode : 'harvested';
   const expandButtonRef = useRef<HTMLButtonElement>(null);
 
   // Governance tab state — populated on mount from /api/inspector/semantic/candidates
@@ -243,12 +202,21 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
   const { developerMode } = useDeveloperMode();
   const showDeveloperTab = developerMode;
   const canInspect = developerMode;
+  const showSemanticTab = hasCandidateModels && canGovernSemantic;
+
+  // Warm the welcome catalog so "New chat" shows the area cards without waiting.
+  useEffect(() => { prefetchWelcomeCatalog(); }, []);
 
   useEffect(() => {
     if (!showDeveloperTab && rightTab === 'developer') setRightTab('results');
   }, [showDeveloperTab, rightTab]);
 
-  const insp = useInspectorChat({ sessionId: initialSessionId ?? null, contextMode });
+  useEffect(() => {
+    if (!showSemanticTab && rightTab === 'semantic') setRightTab('results');
+  }, [showSemanticTab, rightTab]);
+
+  const [selectedDomainKey, setSelectedDomainKey] = useState<string | null>(null);
+  const insp = useInspectorChat({ sessionId: initialSessionId ?? null, contextMode, domainKey: selectedDomainKey });
 
   // ── Agent-build intent → Agent Lab handoff card ─────────────────────────────
   // Inspector explores data; agents are built in Agent Lab. When the latest user
@@ -304,18 +272,20 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
   // `?panel=semantic` (e.g. from the home dashboard's review item) opens that tab directly.
   const panelParam = searchParams?.get('panel') ?? null;
   useEffect(() => {
+    // Metrics governance is admin-only; members would only get a 403 here.
+    if (!canGovernSemantic) return;
     fetch('/api/inspector/semantic/candidates')
       .then(r => r.ok ? r.json() : { exists: false, modelId: null })
       .then((d: { exists: boolean; modelId: string | null }) => {
         setHasCandidateModels(d.exists);
         setCandidateModelId(d.modelId);
-        if (d.exists && panelParam === 'semantic') {
+        if (d.exists && panelParam === 'semantic' && canGovernSemantic) {
           setRightTab('semantic');
           setRightCollapsed(false);
         }
       })
       .catch(() => {});
-  }, [panelParam]);
+  }, [panelParam, canGovernSemantic]);
 
   // Auto-rename after first and second assistant response
   const renamePhaseRef = useRef(0);
@@ -360,21 +330,47 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
     insp.queryResults.length + insp.semanticChartMessages.length + insp.disambiguations.length + insp.exportOffers.length;
   const prevResultCountRef = useRef(resultItemCount);
   useEffect(() => {
-    if (resultItemCount > prevResultCountRef.current) setRightCollapsed(false);
+    if (resultItemCount > prevResultCountRef.current) {
+      setRightCollapsed(false);
+      setRightTab('results');
+    }
     prevResultCountRef.current = resultItemCount;
   }, [resultItemCount]);
   const hasResults = resultItemCount > 0;
 
+  // A message sent while a reply streams waits in a queue; Send now stops the reply instead.
+  const sendQueue = useQueuedSend({
+    isStreaming: insp.isStreaming,
+    hasError: !!insp.error,
+    send: insp.send,
+    stop: insp.abort,
+    restoreDraft: (text) => setComposer((current) => mergeIntoDraft(current, text)),
+    resetKey: insp.sessionId,
+  });
+
+  // Sends when idle, queues while a reply is starting or streaming, ignores repeat clicks.
+  const submitText = sendQueue.submit;
+
   const handleSubmit = useCallback(() => {
-    const text = composer.trim();
-    if (!text || insp.isStreaming) return;
-    insp.send(text);
+    if (!composer.trim()) return;
+    submitText(composer);
     setComposer('');
-  }, [composer, insp]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [composer, submitText]);
 
   const handleStop = useCallback(() => {
-    insp.abort();
-  }, [insp]); // eslint-disable-line react-hooks/exhaustive-deps
+    sendQueue.stop();
+  }, [sendQueue]);
+
+  const composerQueue: ComposerQueue = {
+    queued: sendQueue.queued,
+    onQueue: handleSubmit,
+    onSendNow: (withDraft) => {
+      sendQueue.sendNow(withDraft ? composer : undefined);
+      if (withDraft) setComposer('');
+    },
+    onEdit: sendQueue.takeBack,
+    onDiscard: sendQueue.discard,
+  };
 
   const handleEditMessage = useCallback((messageId: string) => {
     const result = insp.editMessage(messageId);
@@ -385,6 +381,7 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
     renamePhaseRef.current = 0;
     prevStreamingRef.current = false;
     setSessionTitle('');
+    setSelectedDomainKey(null);
     insp.reset();
   }, [insp]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -417,6 +414,8 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
           router.push('/performance-lab');
         }}
         onNewSession={handleReset}
+        showPerformanceLab={canGovernSemantic}
+        showModeSwitch={canChooseMode}
       />
 
       {sourceChartNotice && (
@@ -454,7 +453,7 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
           <PromptCanvas
             chatError={insp.error}
             surface="inspector"
-            emptyState={<InspectorWelcome modelId={candidateModelId} onPrompt={(p) => insp.send(p)} />}
+            emptyState={<InspectorWelcome modelId={candidateModelId} onPrompt={submitText} onSelectDomain={setSelectedDomainKey} />}
             banner={showAgentHandoff && lastUserMessage ? (
               <AgentHandoffCard
                 inspectorSessionId={insp.sessionId}
@@ -485,6 +484,7 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
             chatStyle={INSPECTOR_CHAT_STYLE}
             renderAfterAssistant={canInspect ? renderInspection : undefined}
             showDeveloperToolSteps={developerMode}
+            composerQueue={composerQueue}
           />
         </div>
 
@@ -507,7 +507,7 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
           <RightPaneTabBar
             activeTab={rightTab}
             onChange={setRightTab}
-            showSemantic={hasCandidateModels}
+            showSemantic={showSemanticTab}
             showDeveloper={showDeveloperTab}
             trailing={
               <button
@@ -532,7 +532,7 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
               contextMode={contextMode}
               surface="inspector"
             />
-          ) : rightTab === 'results' || !hasCandidateModels ? (
+          ) : rightTab === 'results' || !showSemanticTab ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               {showResultsEmptyState ? (
                 <div style={{ flex: 1, display: 'grid', placeItems: 'center', padding: 24 }}>
@@ -562,7 +562,7 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
                       key={dm.id}
                       message={dm}
                       modelId={candidateModelId}
-                      onChoose={(followUp) => insp.send(followUp)}
+                      onChoose={(followUp) => submitText(followUp)}
                     />
                   ))}
                   {insp.exportOffers.map((eo) => (
@@ -574,7 +574,7 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
                       message={scm}
                       echartsOption={scm.echartsOption}
                       sourceChartId={sourceChartId}
-                      onRefine={(followUp) => insp.send(followUp)}
+                      onRefine={(followUp) => submitText(followUp)}
                       originalQuestion={latestUserQuestion}
                     />
                   ))}

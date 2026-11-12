@@ -2017,12 +2017,142 @@ main { scroll-behavior: smooth; }
 .wl-card-text { display:flex; flex-direction:column; gap:3px; flex:1; min-width:0; }
 .wl-card-label { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3); }
 .wl-card-arrow { flex-shrink:0; color:var(--ink-3); opacity:0; transform:translate(-3px,3px); transition:opacity 150ms ease, transform 150ms ease; }
+@media (hover:none), (pointer:coarse) {
+  .wl-card .wl-card-arrow { opacity:1; transform:none; }
+}
 @media (hover:hover) and (pointer:fine) {
   .wl-card:hover { border-color:var(--line-2); background:var(--surface-2); }
   .wl-card:hover .wl-card-icon { color:var(--brand-a-ink); background:var(--brand-a-soft); border-color:transparent; }
   .wl-card:hover .wl-card-arrow { opacity:1; transform:none; color:var(--ink-2); }
 }
 @media (prefers-reduced-motion: reduce) { .wl-in, .wl-card { animation:none; } }
+
+/* ── Inspector welcome (InspectorWelcome.tsx) ──────────────────────────────── */
+.iw-root { flex:1; min-height:0; overflow-y:auto; display:grid; place-items:center; padding:32px 24px; position:relative; }
+.iw-glow { position:absolute; left:50%; top:42%; width:640px; max-width:100%; height:420px; transform:translate(-50%,-50%);
+  background:
+    radial-gradient(closest-side at 35% 45%, color-mix(in srgb, var(--brand-a) 14%, transparent), transparent),
+    radial-gradient(closest-side at 68% 55%, color-mix(in srgb, var(--brand-b) 10%, transparent), transparent);
+  filter:blur(28px); pointer-events:none; }
+.iw-stack { width:100%; max-width:820px; display:flex; flex-direction:column; align-items:center; gap:24px; position:relative; }
+.iw-hero { padding:0; animation:ld-in 320ms cubic-bezier(.23,1,.32,1) both; }
+.iw-head { display:flex; flex-direction:column; align-items:center; gap:6px; text-align:center; max-width:560px; animation:ld-in 340ms 40ms cubic-bezier(.23,1,.32,1) both; }
+.iw-title { color:var(--ink-1); }
+.iw-name { background:linear-gradient(90deg, var(--brand-a), color-mix(in srgb, var(--brand-a) 55%, var(--brand-b)));
+  -webkit-background-clip:text; background-clip:text; color:transparent; }
+.iw-section { width:100%; display:flex; flex-direction:column; gap:10px; animation:ld-in 360ms 80ms cubic-bezier(.23,1,.32,1) both; }
+.iw-section-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0 2px; }
+.iw-section-spacer { flex:1; min-height:1px; }
+.iw-eyebrow { margin:0; color:var(--ink-3); }
+.iw-link { background:none; border:none; padding:0; cursor:pointer; color:var(--brand-a-ink);
+  text-decoration:underline; text-decoration-color:transparent; text-underline-offset:3px; transition:text-decoration-color 150ms ease; }
+.iw-link:hover { text-decoration-color:var(--brand-a); }
+.iw-back { display:inline-flex; align-items:center; gap:6px; background:none; border:none; padding:0; cursor:pointer; color:var(--ink-2); }
+.iw-back:hover { color:var(--brand-a-ink); }
+/* Domain panel runs ~10% smaller than the global type scale (user: too big on a laptop).
+   Inline `type.*` styles read these variables, so overriding them here scales the panel only. */
+.iw-drill { --type-body-size:0.84375rem; --type-label-size:0.71875rem; --type-caption-size:0.71875rem;
+  width:100%; display:flex; flex-direction:column; gap:12px; padding:16px 18px; border-radius:14px;
+  border:1px solid var(--line-1); background:var(--surface-1); box-shadow:var(--shadow-card); animation:ld-in 280ms cubic-bezier(.23,1,.32,1) both; }
+.iw-drill-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.iw-drill-lead { color:var(--ink-2); flex:1; min-width:220px; }
+/* Brief: the primary action in a domain, so it is solid. */
+.iw-brief-btn { display:inline-flex; align-items:center; gap:6px; padding:7px 13px; border-radius:999px; flex-shrink:0;
+  border:1px solid transparent; background:var(--brand-a); color:#FFFFFF; font-weight:600;
+  cursor:pointer; transition:background-color 150ms ease, box-shadow 150ms ease, transform 120ms ease-out; }
+.iw-brief-btn:active { transform:scale(0.97); }
+.iw-brief-btn:focus-visible { outline:2px solid var(--brand-a); outline-offset:2px; }
+@media (hover:hover) and (pointer:fine) {
+  .iw-brief-btn:hover { background:color-mix(in srgb, var(--brand-a) 86%, #000); box-shadow:var(--shadow-card); }
+}
+.iw-subtopics { display:flex; flex-wrap:wrap; gap:7px; }
+.iw-pill { display:inline-flex; align-items:center; gap:6px; height:27px; padding:0 5px 0 11px; border-radius:999px;
+  border:1px solid var(--line-1); background:var(--surface-1); color:var(--ink-2); cursor:pointer; font-weight:500;
+  transition:border-color 140ms ease, background-color 140ms ease, color 140ms ease; }
+.iw-pill-count { display:inline-grid; place-items:center; min-width:18px; height:16px; padding:0 5px; border-radius:8px;
+  background:var(--surface-2); color:var(--ink-3); font-size:10px; font-weight:600; font-variant-numeric:tabular-nums; }
+.iw-pill.is-active { border-color:var(--ink-1); background:var(--ink-1); color:var(--surface-1); font-weight:600; }
+.iw-pill.is-active .iw-pill-count { background:color-mix(in srgb, var(--surface-1) 22%, transparent); color:inherit; }
+.iw-pill:focus-visible { outline:2px solid var(--brand-a); outline-offset:1px; }
+@media (hover:hover) and (pointer:fine) {
+  .iw-pill:not(.is-active):hover { border-color:var(--line-2); color:var(--ink-1); }
+}
+@media (max-width:640px) {
+  .iw-subtopics { flex-wrap:nowrap; overflow-x:auto; margin-inline:-4px; padding:0 4px 2px; scrollbar-width:none; }
+  .iw-pill { flex:none; }
+}
+.iw-covers { margin:0; padding-left:1.1rem; display:flex; flex-direction:column; gap:6px; }
+.iw-covers li { line-height:1.45; }
+.iw-drill-meta { color:var(--ink-3); margin:0; }
+.iw-offers { display:flex; flex-direction:column; gap:8px; }
+.iw-offers-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:9px 10px; width:100%; }
+@media (max-width:640px) { .iw-offers-grid { grid-template-columns:1fr; } }
+/* Suggested prompts read as things you could say: soft speech bubbles, question first, topic underneath. */
+.iw-offer { display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; text-align:left; padding:11px 12px 11px 14px;
+  border-radius:16px 16px 16px 5px; border:1px solid transparent; background:var(--surface-2);
+  color:var(--ink-1); cursor:pointer;
+  transition:border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease, transform 120ms ease-out; }
+.iw-offer-body { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.iw-offer-q { font-size:13.5px; line-height:1.45; font-weight:500; text-wrap:pretty; }
+.iw-offer-q::before { content:"\201C"; color:var(--brand-a); font-weight:700; margin-right:1px; }
+.iw-offer-q::after { content:"\201D"; color:var(--brand-a); font-weight:700; margin-left:1px; }
+.iw-offer-topic { display:inline-flex; align-items:center; gap:6px; color:var(--ink-3); }
+.iw-offer-topic::before { content:""; width:5px; height:5px; border-radius:50%; background:color-mix(in srgb, var(--brand-a) 70%, var(--ink-3)); }
+.iw-offer-go { flex-shrink:0; display:grid; place-items:center; width:25px; height:25px; border-radius:50%;
+  border:1px solid var(--line-1); background:var(--surface-1); color:var(--ink-3);
+  transition:background-color 150ms ease, border-color 150ms ease, color 150ms ease, transform 150ms ease; }
+.iw-drill-foot { display:flex; justify-content:center; padding-top:2px; }
+.iw-more { display:inline-flex; align-items:center; gap:5px; padding:5px 11px; border-radius:8px; border:none; background:none;
+  color:var(--brand-a-ink); font-weight:600; cursor:pointer; transition:background-color 150ms ease; }
+.iw-more svg { transition:transform 200ms ease; }
+.iw-more[aria-expanded="true"] svg { transform:rotate(180deg); }
+.iw-more:focus-visible { outline:2px solid var(--brand-a); outline-offset:1px; }
+.iw-offer:active { transform:scale(0.99); }
+.iw-offer:focus-visible { outline:2px solid var(--brand-a); outline-offset:1px; }
+@media (hover:hover) and (pointer:fine) {
+  .iw-offer:hover { border-color:color-mix(in srgb, var(--brand-a) 40%, var(--line-1)); background:var(--surface-1); box-shadow:var(--shadow-card); }
+  .iw-offer:hover .iw-offer-go { background:var(--brand-a); border-color:transparent; color:#FFFFFF; transform:translateX(2px); }
+  .iw-more:hover { background:var(--brand-a-soft); }
+}
+@media (prefers-reduced-motion:reduce) {
+  .iw-offer, .iw-offer-go, .iw-more svg, .iw-brief-btn { transition:none; }
+  .iw-offer:hover .iw-offer-go { transform:none; }
+}
+.iw-empty { color:var(--ink-3); padding:14px 16px; border:1px dashed var(--line-2); border-radius:12px; background:var(--surface-1); }
+.iw-grid { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px; width:100%; }
+.iw-grid-areas { grid-template-columns:repeat(3, minmax(0, 1fr)); }
+@media (max-width:900px) { .iw-grid-areas { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+.iw-card-skel { min-height:132px; cursor:default; border-color:transparent; pointer-events:none; }
+@media (max-width:760px) { .iw-grid { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+@media (max-width:420px) { .iw-grid { grid-template-columns:1fr; } }
+.iw-card { display:flex; flex-direction:column; gap:12px; width:100%; padding:12px; text-align:left;
+  border:1px solid var(--line-1); border-radius:14px; background:var(--surface-1); color:var(--ink-1); cursor:pointer;
+  box-shadow:0 1px 2px color-mix(in srgb, var(--ink-1) 5%, transparent);
+  animation:ld-in 360ms cubic-bezier(.23,1,.32,1) both;
+  transition:border-color 160ms ease, box-shadow 200ms ease, transform 200ms cubic-bezier(.23,1,.32,1); }
+.iw-card:active { transform:scale(0.98); }
+.iw-card:focus-visible { outline:2px solid var(--iw-accent, var(--brand-a)); outline-offset:2px; }
+.iw-preview { display:block; height:56px; padding:8px 10px; border-radius:10px; color:var(--ink-2);
+  background:color-mix(in srgb, var(--iw-accent) 8%, var(--surface-2)); }
+.iw-svg { display:block; width:100%; height:100%; overflow:visible; }
+.iw-card-body { display:flex; flex-direction:column; gap:2px; padding:0 4px 2px; min-width:0; }
+.iw-card-title { display:flex; align-items:center; justify-content:space-between; gap:8px; color:var(--ink-1); }
+.iw-card-hint { color:var(--ink-3); }
+.iw-card-arrow { flex-shrink:0; color:var(--ink-3); opacity:0; transform:translate(-3px,3px); transition:opacity 150ms ease, transform 150ms ease, color 150ms ease; }
+@media (hover:none), (pointer:coarse) { .iw-card .iw-card-arrow { opacity:1; transform:none; } }
+@media (hover:hover) and (pointer:fine) {
+  .iw-card:hover { transform:translateY(-2px); border-color:color-mix(in srgb, var(--iw-accent) 45%, var(--line-1));
+    box-shadow:0 10px 28px -14px color-mix(in srgb, var(--iw-accent) 55%, transparent); }
+  .iw-card:hover .iw-card-arrow { opacity:1; transform:none; color:var(--iw-accent); }
+  .iw-card:hover .iw-gear { transform:rotate(45deg); }
+  .iw-card:hover .iw-ship { transform:translateX(5px); }
+}
+.iw-gear, .iw-ship { transform-box:fill-box; transform-origin:center; transition:transform 600ms cubic-bezier(.23,1,.32,1); }
+@media (prefers-reduced-motion: reduce) {
+  .iw-hero, .iw-head, .iw-card, .iw-section, .iw-area { animation:none; }
+  .iw-card, .iw-card:hover, .iw-area, .iw-area:hover { transform:none; }
+  .iw-card:hover .iw-gear, .iw-card:hover .iw-ship { transform:none; }
+}
 
 /* ── Loading system ───────────────────────────────────────────────────────────
    One vocabulary for "work in progress": a pulsing accent dot, shimmer text,

@@ -61,6 +61,16 @@ describe('connection picker', () => {
     expect(within(selectListbox()).getByRole('option', { name: 'c-gone (not available to you)' })).toBeTruthy();
   });
 
+  it('offers only shared connections, not "add one", to someone without Connections access', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ connections: [{ id: 'c-team', name: 'Team docs', kind: 's3', status: 'ok', mine: false }], canCreate: false }), { status: 200 }),
+    );
+    renderTool('object_store.list');
+    await screen.findByText(/Pick a connection shared with you\. Adding one needs Connections access/);
+    expect(screen.queryByRole('button', { name: /Enter bucket and credentials/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: /Manage connections/ })).toBeNull();
+  });
+
   it('is not shown for operations without a connection', () => {
     const fetch = vi.spyOn(global, 'fetch');
     renderTool('notify.message', { channel: 'ops' });

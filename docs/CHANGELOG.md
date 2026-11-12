@@ -1,3 +1,392 @@
+## 2026-11-12 — Recovered Ask Data work lost when Cursor saved stale files at 09:03
+
+- **What happened:** At 09:03 IST Cursor saved its open copies of 16 files (Cursor local history: "save" at 03:33 UTC). They were from about 00:30–01:15 IST, so they replaced newer work from overnight Claude Code sessions and the Cursor agent: follow-ups as pills only (`splitFollowUps`), members always on Catalog + SQL (`effectiveContextMode`), no false "request access", hidden table paths, the faster welcome catalog, chat-bubble suggested questions, "Data connected" header, Open full table wiring, and every 2026-11-12 changelog entry. No git command was involved (reflog unchanged since 2026-11-11 20:13).
+- **Recovered:**
+  - From the dev server's compiled source maps at 08:50 IST (newest before the overwrite): `src/app/api/inspector/chat/route.ts`, `src/lib/inspector/prompts.ts`, `src/lib/inspector/extract-suggestions.ts`, `src/lib/inspector/welcome-catalog.ts`.
+  - By replaying, in time order, the overnight sessions' recorded edits (Edit calls and their python edit scripts, all applied cleanly) onto the stale copies: `src/components/inspector/InspectorShell.tsx`, `src/components/inspector/InspectorWelcome.tsx`, `src/app/globals.css`, `src/lib/inspector/__tests__/extract-suggestions.test.ts` (plus the 5 `splitFollowUps` tests and import from session d80d365f's saved test file).
+  - `src/hooks/useInspectorChat.ts`: replayed edits, then the Cursor agent's Open full table change (`queryResultIndices`) from Cursor's own file snapshots.
+  - `docs/CHANGELOG.md`: three-way merge of a pre-overwrite backup (08:46 IST) with Cursor's later entries; all 12 lost entries are back.
+- **Kept as Cursor left it:** `src/app/api/inspector/welcome/route.ts`, `src/lib/inspector/welcome-cache.ts`, `src/lib/inspector/domain-context.ts` (the Cursor agent rewrote the welcome cache after 09:03 as one catalog per organisation; see the entry below). Note: the welcome screen no longer filters areas by each person's discover access, unlike the lost per-person version; queries are still checked per person.
+- **Also fixed:** `src/lib/inspector/__tests__/prompts-voice.test.ts` and `src/lib/construction/__tests__/catalog-sync.test.ts` looked for "Do not add a sources or joins section"; the 08:38 "hide table/catalog paths" change reworded the rule to "…do not add…" in `answer-rules.ts`. Tests now match the current wording (the rule itself is unchanged).
+- **Verified:** `tsc --noEmit` and `npm run web:typecheck` exit 0; ESLint clean on the restored files; full `npx vitest run`: 212/212 files, 1693 passed, 2 skipped. `npm run build` (SPA + `next build`) exit 0; `web:check-bundle` clean.
+- **Not done:** Not checked in a browser. Edits made between the 08:50 compile and 09:03 (if any) to the source-map files could not be recovered; none were found in any session log. Copies of all 16 files as they were before recovery: Claude scratchpad `backup-current-0957`.
+
+## 2026-11-12 — Section dependencies: Automate can use Connections and Knowledge it embeds; matrix warns about the rest
+
+- **What:** New `src/lib/sections/uses.ts` lists screens that embed another section's feature, with the exact API calls (method, path, host level). Someone with the host section may make those calls without the other section; every other call and the other section's screens stay closed, and per-item rules still apply. First entries: Automate → Connections (list own/shared connections at Automate View; try an extraction at Automate Manage) and Automate → Knowledge (list knowledge bases at View; try a search at Manage). Before this, a member given Automate saw "Could not load your connections" / "Could not load the knowledge bases". The central `handle()` guard and the Connections helper (`connectionActor`, new `connectionContext`) accept the host as an alternative. Adding a connection still needs Connections Manage: `GET /api/connections` returns `canCreate`, and Automate's picker hides "add" when it is false. Users → Section access warns per column when a column opens a host but not what it still needs, with a one-click "Give Connections: Manage" fix; the person drawer preview shows the same.
+- **Paths:** `src/lib/sections/uses.ts` (new), `src/lib/sections/api-guard.ts`, `src/app/api/connections/_shared.ts`, `src/app/api/connections/route.ts`, `src/views/agent-lab/flows/FlowForm.tsx`, `src/components/users/SectionAccessPanel.tsx`, `src/components/users/PersonSectionAccess.tsx`, `src/components/users/users.module.css`, `src/lib/sections/__tests__/route-coverage.test.ts`, `docs/access/section-access.md`. Tests: `uses.test.ts` (new), `connections.routes.test.ts`, `knowledge.routes.test.ts`, `ConnectionPicker.test.tsx`, `users.test.tsx` (one each).
+- **Why:** User asked how a section that depends on another is handled (it was not), then asked to build it, starting with Automate.
+- **Verified:** Included in the full run in the entry above.
+- **Not done:** Not checked in a browser. Other dependencies the scan found still 403 without the other section (Ask Data → Agents, Dashboards, Metrics, Teach, Performance; Dashboards → Ask Data, Metrics); listed in `docs/access/section-access.md`.
+
+## 2026-11-12 — Inspector welcome: org-wide in-memory cache (shared catalog, faster welcome)
+
+- **What:** Wired `GET /api/inspector/welcome` to `getOrgWelcomeCatalog` / `getWelcomeBase` — one cached welcome catalog per org for all users (no per-user discover filter on welcome). `buildDomainFocusContext` reuses the same org base instead of reloading Prisma each chat turn. Cache evicted on T0/T1/T2/T3 harvest `finalize` and on access department path add/remove.
+- **Paths:** `src/lib/inspector/welcome-cache.ts`, `src/app/api/inspector/welcome/route.ts`, `src/lib/inspector/domain-context.ts`, `src/lib/context/queue.ts`, `src/app/api/access/department-paths/route.ts`, `docs/inspector/domain-welcome-and-suggestions.md`.
+- **Why:** User approved org-wide domain cards (access requests handle gaps) and RAM cache for speed without new DB tables.
+- **Verified:** Vitest: `welcome-catalog`, `domain-context`, `welcome-departments` (15 tests passed).
+- **Not done:** Persisted table materialization; Redis cross-replica cache.
+
+## 2026-11-12 — Docs: Inspector domain welcome cards and suggestion flows (end-to-end)
+
+- **What:** Added `docs/inspector/domain-welcome-and-suggestions.md` — end-to-end documentation for business-domain welcome cards, drill-in question offers (T2 scoring, subtopics), soft `DOMAIN FOCUS` prompt injection, and post-reply follow-up suggestion pills.
+- **Paths:** `docs/inspector/domain-welcome-and-suggestions.md`.
+- **Why:** User requested detailed documentation on Inspector domain suggest cards — what exists, how it works, and what was shipped.
+- **Verified:** Doc cross-checked against `InspectorWelcome.tsx`, `welcome/route.ts`, `welcome-catalog.ts`, `domain-context.ts`, `extract-suggestions.ts`, and 2026-11-11 changelog entries.
+- **Not done:** No code or behavior changes.
+
+## 2026-11-12 — Ask Data: **Open full table** popup (all query rows, search — not LLM markdown)
+
+- **What:** After a warehouse query, assistant messages with linked `query_result` data show **Open full table (N rows)** under the reply. A modal lists every row returned to the browser (up to 1,000), with column search/filter. Data comes from `query_result` / `studio_query_results`, not from markdown the model typed. `WorkbenchMessage.queryResultIndices` ties each reply to session results; `display_note` text mentions the button.
+- **Paths:** `src/components/workbench/ChatFullTableDialog.tsx`, `AssistantQueryTableOffer.tsx`, `src/lib/workbench/query-table-filter.ts`, `src/hooks/useInspectorChat.ts`, `src/components/workbench/PromptCanvas.tsx`, `src/components/inspector/InspectorShell.tsx`, `src/components/agent-lab/workbench/types.ts`, `src/lib/inspector/result-display.ts`.
+- **Why:** Chat intentionally shows ~10 preview rows; users wanted a dedicated searchable table for the full record set without blowing the LLM reply budget.
+- **Verified:** Typecheck on touched files (pending).
+- **Not done:** Not checked in browser. Saved agents without `query_result` still rely on JSON/markdown tables only.
+
+## 2026-11-12 — Ask Data: hide table/catalog paths by default; reveal when user asks
+
+- **What:** Clarified `AGENT_ANSWER_VOICE` and the harvested-mode Inspector prompt: everyday answers stay stakeholder-facing (no `catalog.schema.table`, schema, or catalog talk). When the person **explicitly** asks for table names, catalog, schema, column names, SQL, or data source, the model must answer with exact paths from the session, columns if relevant, and SQL in a fence when requested. ACCESS_DENIED replies still omit paths.
+- **Paths:** `src/lib/inspector/answer-rules.ts`, `src/lib/inspector/prompts.ts`.
+- **Why:** Product rule — do not expose warehouse internals in chat unless the user wants technical detail.
+- **Verified:** Prompt text review only.
+- **Not done:** No live chat regression.
+
+## 2026-11-12 — Chat tables: PDF/URL cells as Open + Copy link, not raw URLs
+
+- **What:** Markdown table cells and JSON data tables now render `[label](url)` and bare `https://…` as a labeled open action plus **Copy link**; the long URL is not shown in the cell. Prose lines outside tables still render markdown links as normal anchors (label only, no copy chip). Platform answer rules tell the model not to paste raw URLs inside markdown tables and to use short labels such as `[Open the SIRE report PDF](url)` unless the person asks for the full link text.
+- **Paths:** `src/components/workbench/render-inline.tsx` (new), `src/components/workbench/StreamingMessage.tsx`, `src/lib/inspector/answer-rules.ts`, `src/components/workbench/__tests__/render-inline.test.tsx`.
+- **Why:** SIRE-style answers showed literal `[Open the SIRE report PDF](https://…)` in the bubble because inline markdown did not parse links; long asset URLs were hard to read in tables.
+- **Verified:** `render-inline.test.tsx` (2 cases). ESLint on touched files (pending full run).
+- **Not done:** Not checked in the browser on the live SIRE thread.
+
+## 2026-11-12 — Ask Data domain panel: suggested questions restyled as chat bubbles
+
+- **What:** Restyled the panel that opens when you pick a business area on the empty chat screen (e.g. Finance). The layout is unchanged: description + brief button, sub-topic chips, two-column questions, "Show more".
+  - Questions are soft speech bubbles (`18px 18px 18px 6px` radius, tinted fill, no border at rest) with the text in quotes, 15px/500. The question comes first; the sub-topic sits underneath as a small dotted caption (it used to sit above). On hover the bubble turns white with a warm outline and shadow, and a round arrow button fills with the accent color.
+  - "Brief me on …" is now a solid accent button with a sparkle icon (it was a pale pill with an up-right arrow).
+  - Sub-topic chips show counts as a small badge instead of "(5)". The active chip is solid ink. On phones the chips scroll sideways in one row.
+  - "Show N more questions" became a toggle with a chevron and a "Show fewer" state.
+  - Mockups compared: https://claude.ai/artifact/SXb9dCuB5iQuiqmzG4rSi9 (style 3, "Chat bubbles").
+  - Follow-up, same day: user found it slightly large on a laptop, so the panel is ~10% smaller. `.iw-drill` overrides `--type-body-size` (15 → 13.5px) and `--type-label-size` / `--type-caption-size` (12 → 11.5px) for the panel only. Question text 15 → 13.5px, and bubble padding, grid gaps, chips (30 → 27px), count badges, brief button, arrow circle (28 → 25px) and icons all shrunk to match.
+- **Paths:** `src/components/inspector/InspectorWelcome.tsx`, `src/app/globals.css` (`.iw-brief-btn`, `.iw-pill*`, `.iw-offer*`, `.iw-more`).
+- **Why:** User asked for a better-looking, easier-to-read panel for the conversational assistant that keeps the current layout, and picked the chat-bubble style.
+- **Verified:** `tsc --noEmit` shows no errors in `InspectorWelcome.tsx`; ESLint clean on it. `typography-guard.test.ts` + `welcome-catalog.test.ts` 11/11 pass (run from `C:\`). The solid button and hover arrow use white text on `--brand-a`, because `--surface-1` is near-black in dark themes.
+- **Not done:** Not checked in a browser (light or dark). The misfiled question noted in the mockup ("Compare onboard counts across DOC entities" under EBITDA & P&L, from the `/onboard/` rule in `welcome-catalog.ts`) is not fixed.
+
+## 2026-11-12 — Ask Data welcome screen loads instantly (cached catalog, faster build)
+
+- **What:** The empty-chat screen (greeting + Crewing / Marine / … cards) waited 2–3 s on `GET /api/inspector/welcome` every time it mounted. Each call loaded all 3,623 active objects, every version of every object semantic card (2,537 rows, ~3.8 MB JSON) via an `IN (…3,600 ids…)` list, ran access filtering, then `buildWelcomeCatalog` spent ~1.2 s in CPU. Now:
+  - **Server cache** (`welcome-cache.ts`): org-wide inputs (objects, latest semantic card per object, departments) are cached in memory, stale-while-revalidate (fresh 5 min, served stale up to 30 min while refreshing in the background), loaded with one org-scoped semantics query instead of the `IN` list. Each user's finished catalog is cached the same way (fresh 60 s, stale up to 10 min, max 500 users). Concurrent requests share one in-flight load.
+  - **Client cache** (`InspectorWelcome.tsx`): the last catalog is kept in memory and in `localStorage` (`aloft.inspector.welcome.v1`, max 7 days), tagged with the signed-in user's id, and painted before first frame; the API revalidates in the background and replaces it. A copy saved by a different user is never shown once the session is known. `InspectorShell` prefetches the catalog on mount so "New chat" doesn't wait either.
+  - **`buildWelcomeCatalog` CPU:** `selectTopDomainCandidates` re-tokenized both intents with a regex on every similarity check (12 picks × thousands of candidates × up to 12 chosen); word sets are now memoized per pass. Summary de-dup in `ingestSemantic` was O(n²) with `toLowerCase` per comparison; now a `Set`. Output is byte-identical (same JSON hash on live data); build time ~1.2 s → ~0.15–0.5 s.
+- **Paths:** `src/lib/inspector/welcome-cache.ts` (new), `src/app/api/inspector/welcome/route.ts`, `src/lib/inspector/welcome-catalog.ts`, `src/components/inspector/InspectorWelcome.tsx`, `src/components/inspector/InspectorShell.tsx`.
+- **Why:** User: the welcome screen took a few seconds to load; make it instant.
+- **Verified:** Read-only timing against the live DB with `tsx`: cold base load 763 ms, warm 0 ms; catalog build 1,239 ms before → 370–616 ms after (first runs include JIT warm-up; ~150 ms steady in the CPU profile), identical output hash. `welcome-catalog.test.ts` + `welcome-departments.test.ts` 11/11 pass (run from `C:\`). `tsc --noEmit` shows no errors in touched files; ESLint clean on the four changed welcome files (three pre-existing `set-state-in-effect` errors remain in `InspectorShell.tsx`, not on changed lines).
+- **Not done:** Not checked in a browser. The very first visit after a server restart, with no saved copy in the browser, still waits for one cold load (~1 s). Access grant/revoke changes can take up to ~1 min (one stale response) to change which area cards are listed; data access itself is still enforced per query. No explicit cache eviction is wired to harvest or department edits — they show up within the TTLs. Server cache is per process (each instance warms its own).
+
+## 2026-11-12 — Users & access: editable built-in role defaults, and a Permissions tab
+
+- **What:**
+  - **Built-in role defaults (Users → Section access).** The Read only, Member and Admin columns of the matrix were fixed (code defaults). Platform admins can now change them per cell or per group, then Save; the change applies to everyone with that role on their next request. Changed cells are tinted with the shipped level in the tooltip, and the column offers Reset. Platform admin stays "always everything". Stored as `section-default:<role>:<section>:<level>` permission keys on the built-in role row, only for cells that differ from the shipped default, and read by `resolveSectionLevels` (they replace the shipped default for that role; they can lower as well as raise; same caps as bundles; ignored for platform admins and people with a custom role). A new custom role now starts from what its base role gives today. The person drawer's preview includes changed defaults.
+  - **Permissions tab (Users → Permissions).** New matrix of permissions (rows, in plain words, grouped) by role (Admin, Member, Read only, each custom role and bundle). Platform admins tick and save; others with Users view see it read-only. Covers `inspector:use`, the Automate publishing permissions `connector:write` / `connector:external` / `flow:sql` (no role had these before; only platform admins got them in code), session, people/role and data access permissions. Permissions no route checks today are labelled "not checked yet"; `session:read:all` stays platform-admin only; `llm:payload:read` is marked sensitive. Only catalog keys are changed; section keys on a role are never touched.
+  - Both are audited (`section_role_defaults.updated`, `role.permissions.updated`). No schema change or migration: both use the existing roles / permissions / role_permissions tables.
+- **Paths:** `src/lib/sections/registry.ts` (override keys, `roleDefaultKeysFor`, `roleDefaultOverridesFromKeys`, `defaultLevels(role, overrides)`, `resolveSectionLevels`), `src/lib/sections/role-admin.ts` (new: storage for both), `src/lib/permission-catalog.ts` (new), `src/app/api/sections/route.ts` (`defaults` now today's, plus `builtInDefaults`, `roleOverrides`), `src/app/api/sections/role-defaults/[role]/route.ts` (new, PUT), `src/app/api/sections/permissions/route.ts` (new, GET), `src/app/api/sections/permissions/[roleId]/route.ts` (new, PUT), `src/app/api/sections/bundles/route.ts` (custom roles start from today's defaults), `src/components/users/SectionAccessPanel.tsx`, `src/components/users/PersonSectionAccess.tsx`, `src/components/users/RolePermissionsPanel.tsx` (new), `src/components/users/users.module.css`, `src/views/agent-staging/users.tsx` (third tab), `docs/access/section-access.md`. Tests: `src/lib/sections/__tests__/role-defaults.test.ts` (8), `src/lib/__tests__/permission-catalog.test.ts` (3), `src/app/api/sections/__tests__/role-admin.routes.test.ts` (8, in-memory roles store), `src/components/users/__tests__/users.test.tsx` (3 new, fixture gains `builtInDefaults`, save-bar wording "1 column").
+- **Why:** User asked whether the UI has complete RBAC editing; it did not (built-in role defaults and role permissions were code/seed only). User said "yes" to building both.
+- **Verified:** New and changed tests pass (registry, catalog, API routes, Users UI: 19/19). `tsc --noEmit` exit 0. ESLint clean on every new and changed file except a `set-state-in-effect` error in `users.tsx` line 141 that predates this change (same line at HEAD). `npm run web:typecheck` exit 0. Full `npx vitest run` (from `C:\`): 209/209 files, 1680 passed, 2 skipped. (An earlier full run alongside both typechecks had 3 failures, in `users.test.tsx` and `knowledge/readers.test.ts`; both files pass on their own and in the clean full run, so likely timeouts under load. The log kept only summary lines, so the cause wasn't confirmed.)
+- **Not done:** Not checked in a browser. Org admins still cannot edit either matrix (platform admins only, as for bundles). People with no role row get shipped Member defaults, not changed ones. Several seeded permissions (`user:create/update/delete`, `access:classify`, `audit:read`, `llm:payload:read`) are still not checked by any route; the tab says so rather than wiring them up.
+
+## 2026-11-12 — Org admins can use Automate and Knowledge by default
+
+- **What:** `build.automate` and `memory.knowledge` were `ADMIN_VIEW` (admin: view), so org admins could open Automate and Knowledge but got 403 on create, run, save or upload. Both now use a new `ADMIN_TOOL` default (readonly: none, member: none, admin: manage). Members still need a section bundle. Platform admins are unchanged (manage everything).
+- **Paths:** `src/lib/sections/registry.ts`, `src/lib/sections/__tests__/registry.test.ts` (new test: admin → manage, member → none for both sections).
+- **Why:** User: "admins should able to use it", answering the open question in the entry below.
+- **Verified:** Full `npx vitest run` from `C:\`: 206/206 files, 1658 passed, 2 skipped. `tsc --noEmit` and `npm run web:typecheck` exit 0.
+- **Not done:** Not checked in a browser as an org admin. Publishing a flow that sends email or calls external connectors still needs capability permissions (`connector:external`, `connector:write`, `flow:sql`). No role carries those yet; only platform admins get them automatically, so an org admin can build, simulate, save and run drafts but sees those as publish blockers. Custom-role bundles are unaffected (they replace role defaults).
+
+## 2026-11-12 — CI gate green again: route tests updated for section access, typography guard, two slow-test timeouts
+
+- **What:**
+  - **Route tests out of date with section access (`5a644e4d`).** Flows, connections and knowledge routes now check section access (`requireSection` in `_shared.ts`, plus the `handle()` API guard for `/api/knowledge`). Under the registry defaults, members have no `build.automate` or `memory.knowledge` access and no `govern.connections` manage access, so the mocked members in the tests got 403s (55 tests in 8 files). The tests now give those users the section key they need (`section:build.automate:manage`, `section:govern.connections:manage`, `section:memory.knowledge:manage`). Users that should be refused still have no section key and still get 403. In `routes.test.ts` the read-only user keeps the section key, so the `inspector:use` check is still what refuses them, and that test mocks `resolveAuth` without `Once`, because the guard and the route each resolve the caller.
+  - **Typography guard:** `DeleteAgentDialog.tsx` used the retired `text-lg` → `text-size-body-lg`. New `PinnedAgentBadge.tsx` used `text-[11px] font-bold` → `text-size-caption font-semibold` (12px), so the baseline doesn't grow.
+  - **Timeouts:** `explain.test.ts` "role grants" (loads the Prisma client through `roles.ts`, about 6.5s cold) and `route-coverage.test.ts` (reads every route file, over 5s under a full parallel run) now allow 30s. Assertions unchanged.
+  - **Local Vitest "Cannot read properties of undefined (reading 'config')":** this happens only when Vitest runs from a lowercase `c:\` working directory on Windows, which loads Vitest twice. Run it from `C:\ALOFT\aloft-ui-redesign` (for example `cmd /c "cd /d C:\ALOFT\aloft-ui-redesign && npx vitest run"`). CI (Ubuntu) is not affected.
+- **Paths:** `src/app/api/agent-lab/flows/__tests__/{agents,copilot,crud}.routes.test.ts`, `src/app/api/agent-lab/flows/__tests__/routes.test.ts`, `src/app/api/connections/__tests__/{connections,extract}.routes.test.ts`, `src/app/api/knowledge/__tests__/knowledge.routes.test.ts`, `src/lib/access/__tests__/explain.test.ts`, `src/lib/sections/__tests__/route-coverage.test.ts`, `src/components/agent-lab/DeleteAgentDialog.tsx`, `src/components/agent-lab/staging/PinnedAgentBadge.tsx`.
+- **Why:** User asked to fix typecheck and deployment errors. The `verify` job in `.github/workflows/ecr-push.yml` runs `vitest` before any image is built or deployed, so these failures blocked deployment.
+- **Verified:** All of the `verify` job's steps, run locally: `npx vitest run` 206/206 files, 1657 passed, 2 skipped. `tsc --noEmit` and `npm run web:typecheck` exit 0. Shared package and SPA build OK. `web:check-bundle` clean. `npm run build` (SPA prebuild + `next build`, as in the Dockerfile) exit 0.
+- **Not done:** No Docker image build or push, and no CI run (`gh` not installed; no failed CI log seen). `prisma generate` could not replace the engine DLL while the dev server holds it; the generated client already has the new models. Admin access to Automate and Knowledge: settled in the entry above (admins now manage both).
+
+## 2026-11-12 — Ask Data: follow-up pills no longer pick up answer bullets; follow-ups no longer repeat at the end of the reply
+
+- **What:** When a reply ended with answer bullets, a blank line, then follow-up question bullets, `extractSuggestionsFromText` kept collecting across the blank line and took the first three. Answer lines such as "Revenue is about 4.24 billion…" and "Employee benefits cover 948 vessels…" became pills. Those didn't match the closing block, so `splitFollowUps` left the real follow-ups in the text, and they showed twice. A new bullet list after a blank line or heading now starts fresh, and a lead-in line such as "Next questions:" drops bullets collected before it.
+- **Paths:** `src/lib/inspector/extract-suggestions.ts`, `src/lib/inspector/__tests__/extract-suggestions.test.ts` (3 new tests built from the user's reply).
+- **Why:** User screenshot: answer bullets as pills, and the three questions both in the reply and under it.
+- **Verified:** All 12 tests in `extract-suggestions.test.ts` pass (9 existing, 3 new), run with `tsx` and a small `vitest` stand-in because Vitest still fails at load here ("Cannot read properties of undefined (reading 'config')"). ESLint clean on both files.
+- **Not done:** Not checked in a browser. Replies saved before this change keep their stored pills and text.
+
+## 2026-11-12 — Ask Data: no false "request access" on queries that can't be checked; members always on Catalog + SQL; no "Databricks" in the header; no 0×0 chart warning
+
+- **What:**
+  - **False access banner:** When the access checker could not tell which tables a query reads (SHOW / DESCRIBE / USE, short table names, table-valued functions), Inspector showed "This query could not be checked for access…" with a **Request access** button. That is a query to rewrite, not missing access. `execute_tool` now returns `SQL_NOT_CHECKABLE` with the checker's own reason and a rewrite hint, as a retryable tool error, with no `access_denied` event, so no banner. Real denials (no grant, protections, explicit deny) are unchanged. `AccessDeniedError.detail.sqlReason` carries the reason from `authorizeSql`.
+  - **SQL only mode was broken by design:** its prompt told the model to start with `SHOW CATALOGS` / `SHOW TABLES` / `DESCRIBE TABLE`, and its tool list removed `describe_schema`. The checker refuses all SHOW/DESCRIBE, so every SQL-only turn began with a refused query and the banner above. SQL only now keeps `describe_schema` (access-filtered) for discovery, and the prompt and `execute_tool` description say to use it and fully qualified names. Domain focus (the area picked on the welcome screen) now applies in both modes.
+  - **Members:** members and read-only users always get **Catalog + SQL** and don't see the mode switch. Admins and platform admins keep the switch. Enforced on the server too (`effectiveContextMode` in the chat route), not just hidden in the UI.
+  - **Header:** the status reads "Data connected" / "Data not connected" / "Connecting…" instead of "Databricks …". The SQL only tooltip no longer says Databricks.
+  - **Console errors:** members no longer call `/api/inspector/semantic/candidates` (admin-only, returned 403). The results-pane chart renders only once its box has a size, which removes recharts' "width(0) and height(0)" warning while the pane is collapsed (`display:none`).
+- **Paths:** `src/lib/inspector/context-mode.ts` (new), `src/app/api/inspector/chat/route.ts`, `src/lib/inspector/tools.ts`, `src/lib/inspector/prompts.ts`, `src/lib/access/authorize.ts`, `src/lib/access/errors.ts`, `src/components/inspector/InspectorShell.tsx`, `src/components/inspector/DashboardPane.tsx` (`SizedChart`).
+- **Why:** User reported the access request / "could not be checked" error and other console errors on Ask Data, asked that members use Catalog + SQL without the switch, and asked to remove "Databricks" naming from the top bar.
+- **Verified:** `tsc --noEmit` reports no errors in the touched files. ESLint shows only the existing `set-state-in-effect` errors in `InspectorShell.tsx` / `DashboardPane.tsx` (lines not changed here). Runtime check with `tsx`: member/readonly → `harvested` even when asking for SQL only; admin → `warehouse_only` when asked; `SHOW CATALOGS` and short names give the expected checker reasons; SQL-only tool list now includes `describe_schema`.
+- **Not done:** Not checked in a browser as a member. No Vitest run (the suite still fails at load in this environment, see entries below). The model can still pick a short table name; it now gets the reason and retries instead of the person seeing a banner.
+
+## 2026-11-12 — Inspector: follow-up questions show only as pills, not also at the end of the reply
+
+- **What:** When the closing follow-ups of a reply become **NEXT QUESTIONS** pills, the server now removes them from the reply text. That covers trailing bullets, an optional lead-in such as "Next questions:", and a final "I can …" offer sentence. It sends the trimmed text as `text_replace` and saves it in the draft. The pills are also kept on the assistant message (`followUps`), so they come back after a reload.
+  - New `splitFollowUps(text)` in `src/lib/inspector/extract-suggestions.ts` returns `{ body, items }`. It removes the block only when the block is the very end of the reply, matches the extracted items exactly, and reads as follow-ups (questions or action phrases such as "Show…" or "Compare…", or it has a lead-in line). Closing bullets that are answer content (such as "- 1,249 in Ship Management") stay in the text.
+- **Paths:** `src/lib/inspector/extract-suggestions.ts`, `src/app/api/inspector/chat/route.ts`, `src/hooks/useInspectorChat.ts`, `src/components/agent-lab/workbench/types.ts` (`followUps?: string[]`), `src/lib/inspector/__tests__/extract-suggestions.test.ts` (5 new tests).
+- **Why:** The user's screenshot showed the same three questions twice: as bullets at the end of the reply and as pills under it.
+- **Verified:** All 9 tests in `extract-suggestions.test.ts` pass (4 existing, 5 new). They were run with Node 24 plus a small `vitest` stand-in, because Vitest itself fails at load in this environment (see the entry below). `tsc --noEmit` reports no errors in the touched files, and ESLint is clean on them.
+- **Not done:** Not checked in a browser. The bullets still appear while the reply streams and are swapped for pills when it finishes. They can't be told apart from content until the reply ends. Replies saved before this change keep their bullets.
+
+## 2026-11-12 — Inspector: question no longer sent twice; replies stream formatted instead of raw text
+
+- **What:**
+  - **Question sent twice:** `doSend` in `src/hooks/useInspectorChat.ts` added the user message to the list, then appended it again when building the request. The server merged the two into one message with the question repeated, so the model read every question twice. The request now has the question once.
+  - **Raw text while streaming:** `StreamingMessage` (uncommitted change) printed the streaming reply as plain `pre-wrap` text, so raw `**`, `#`, `-` and `|` showed until the reply ended and then jumped to the formatted view. It now uses `StreamingAssistantBody` (the component Agents → Use already uses). Prose is formatted as it arrives, each block fades in, and tables and code show a "Building table…" card until the reply finishes. The loader before the first text is unchanged.
+- **Paths:** `src/hooks/useInspectorChat.ts`, `src/components/workbench/StreamingMessage.tsx`.
+- **Why:** The user reported a duplicate of the same message after sending and the reply showing as raw writing instead of a proper animation.
+- **Verified:** `tsc --noEmit` reports no errors in the touched files. ESLint is clean on both files. `StreamingMessage.presentation.test.tsx` expectations still match (finished reply formatted, loader before text). Vitest could not run: every suite, including ones that passed on 2026-11-11, fails at load with "Cannot read properties of undefined (reading 'config')" (`getRunner()` undefined). It still fails with a fresh vite cache, and `node_modules` has not changed since 2026-11-01, so it is a test-environment issue to look at separately.
+- **Not done:** Not checked in a browser. The `streamShowPlainProse` / `streamHidesFormattedBody` / `streamAwaitingFormattedReply` helpers in `src/lib/chat/streaming-body.ts` are now unused but left in place (another in-progress change owns that file).
+
+## 2026-11-11 — Inspector follow-up pills: parse prose "I can X, Y, or Z" offers; remove generic "Show table columns" fallback
+
+- **What:** Fixes the **NEXT QUESTIONS** pills under Inspector replies showing `Show table columns` · `Sample a few rows` · `Check row counts by date` even when the assistant's closing sentence offered specific follow-ups (such as *"I can break the 645 mismatches by office or department, list the 339 Ship Management people costed to Corporate Functions, or show the same split by employment type (permanent vs contract)."*).
+  - **Root cause:** `extractSuggestionsFromText` in `src/app/api/inspector/chat/route.ts` only matched markdown bullets (`- ...`) or lines ending in `?`. Whenever the model wrote its follow-up offers as a closing prose sentence (`"I can ..."`), `extracted` returned `[]` and the route fell back to hardcoded `['Show table columns', 'Sample a few rows', 'Check row counts by date']`.
+  - **Fix:**
+    1. Extracted `extractSuggestionsFromText` and `parseProseOfferLine` into `src/lib/inspector/extract-suggestions.ts` to parse both trailing markdown bullets and prose `"I can ..."` / `"I can next ..."` / `"We can ..."` sentences into 2–3 clean, clickable pills (e.g. `Break the 645 mismatches by office or department`, `List the 339 Ship Management people costed to Corporate Functions`, `Show the same split by employment type (permanent vs contract)`), while ignoring body bullets that are followed by non-offer prose.
+    2. Removed the hardcoded `['Show table columns', 'Sample a few rows', 'Check row counts by date']` fallback in `src/app/api/inspector/chat/route.ts` — if a reply has no follow-up offers, no fake database-jargon pills are emitted.
+    3. Tightened `INSPECTOR_SYSTEM_PROMPT` and `INSPECTOR_WAREHOUSE_ONLY_PROMPT` in `src/lib/inspector/prompts.ts` to ask for 2–3 specific markdown-bullet follow-ups grounded in the answer's numbers and dimensions.
+- **Paths:** `src/lib/inspector/extract-suggestions.ts` (new), `src/app/api/inspector/chat/route.ts`, `src/lib/inspector/prompts.ts`, `src/lib/inspector/__tests__/extract-suggestions.test.ts` (new).
+- **Why:** User shared a screenshot showing `Show table columns`, `Sample a few rows`, and `Check row counts by date` directly beneath a reply that had just offered three specific HR follow-ups in prose.
+- **Verified:** Vitest passes on `extract-suggestions.test.ts` and `prompts-voice.test.ts`; ESLint clean on all touched files.
+- **Not done:** Only applies to new replies (suggestions are emitted on the SSE stream at the end of a turn, not re-parsed from old saved messages on reload).
+
+## 2026-11-11 — Inspector domain drill-in: sub-area filter pills, 2-column question grid, and Show more
+
+- **What:** Expanded the domain drill-in view on `/inspector` beyond a flat list of 4 questions:
+  - **12 real T2 questions per domain** (`selectTopDomainCandidates`, `buildDomainOffers`), balanced across both entities and sub-areas so one table doesn't dominate.
+  - **Sub-area filter pills (`subtopics`)** derived from the domain's actual T2 intents and entities:
+    - **Crewing:** *All (12)* · *Manning & Reliefs* · *Competency & Certificates* · *Contracts & Pay* · *Seafarer Profiles*
+    - **Marine:** *All (12)* · *Voyages & Port Calls* · *Fuel & Consumption* · *Fleet Performance* · *Certificates & Surveys*
+    - **Technical:** *All (12)* · *Defects & Root Cause* · *Planned Maintenance (PMS)* · *Spares & Stock* · *Audits & Inspections*
+    - **QHSE:** *All (12)* · *Findings & CAPA* · *Inspections & Vetting* · *Incidents & Near Misses* · *Safety Critical*
+    - **Finance:** *All (12)* · *EBITDA & P&L* · *Payroll & Cash* · *Payables & Committed Cost* · *Budgets & OPEX*
+    - **HR:** *All (12)* · *Headcount & Offices* · *Org & Reporting Lines* · *Payroll & Costing* · *Tenure & Audit Changes*
+  - **2-column question grid + Show more:** Shows 6 questions initially in a 2-column grid (each card shows its sub-area tag when viewing *All*), with a **Show N more questions** link to reveal all 12, plus a dedicated **Brief me on {Area}** pill action in the drill-in header.
+- **Paths:** `src/lib/inspector/welcome-catalog.ts`, `src/components/inspector/InspectorWelcome.tsx`, `src/app/globals.css`, `src/lib/inspector/__tests__/welcome-catalog.test.ts`.
+- **Why:** User noted that showing only 4 questions after clicking a domain felt too limited and asked for sub-area filter pills + a richer question grid.
+- **Verified:** Vitest passes on `welcome-catalog.test.ts` and `domain-context.test.ts` (11 tests); ESLint clean; verified subtopics and 12 questions per domain against live dev DB metadata.
+- **Not done:** Browser check on `/inspector`.
+
+## 2026-11-11 — Inspector domain drill-in & HR routing: real T2 capabilities, soft domain focus, and HR vs Crewing separation
+
+- **What:** Fixes two issues when clicking a business area on the Inspector welcome screen: **(1) Irrelevant starter questions on domain drill-in** (e.g., "What moved in Prod / Smac vs last month" in Crewing, "What moved in Lineage / User vs last month" in Technical, "What moved in Employee / Category vs last month" in HR) and **(2) Clicking HR returning seafarer/crewing data instead of shore-office HR data**.
+  - **Root causes found:**
+    1. `buildDomainOffers` built starter questions from the top 2 raw `domain_keywords` in the bucket (frequently schema/column fragments like `prod`, `smac`, `lineage`, `user`, `category`, `vessel`, `name`), while `buildDomainCovers` counted unweighted T2 intents across all tables in the bucket (so 600 small Fivetran lookup tables in `masters_crewing` drowned out core operational tables with `"Resolve type id by code"` / `"Inspect and column names"`).
+    2. When the user clicked **HR → Brief me on HR**, the model called `describe_schema(action:'search', query:'HR human resources employees seafarers crew')` — blending HR with seafarers/crew on its own. Worse, `keywords.ts` dropped `< 3` char tokens (`"hr"`) and skipped index 0 of `full_path` (`darwin_box`), so `darwin_box` tables had zero keyword overlap for `"hr"` or `"darwin"` and lost to 677 Crewing tables in vector search. Also, `tokenizeCatalogNameQuery` kept conversational words like `"briefing"`, causing `ILIKE '%briefing%'` to give crewing `debriefing_*` tables an exact-name boost (`+0.15`) on `"HR data briefing"`.
+  - **Fixes applied:**
+    1. **Real T2 capabilities per domain (`welcome-catalog.ts`, `welcome/route.ts`):** Added `scoreObjectForDomain` and `scoreBusinessIntent` (weighting T3-queried, curated/reporting, populated tables and filtering out schema/ETL/Fivetran/lookup noise). Domain drill-in now displays a clear domain overview line and starter questions drawn from the domain's real T2 `usage_patterns` intents (e.g. HR: *"Headcount by office and type"*, *"Headcount by division and functional area"*, *"Count changes by type and status"*, *"Brief me on HR"*). Deduplicated drill-in bullets against offer buttons in `InspectorWelcome.tsx` and restored `.iw-drill` / `.iw-offer` / `.iw-back` styles in `globals.css`.
+    2. **Soft domain starting path (`domain-context.ts`, `chat/route.ts`, `useInspectorChat.ts`, `InspectorShell.tsx`, `prompts.ts`):** Selecting a domain on the welcome screen (or asking about a domain in chat) injects a `## DOMAIN FOCUS — <Area> (Starting Path)` section into the system prompt with the top confirmed datasets, entities, summaries, and T2 intents for that area. It guides the model to start from those datasets and keep **HR** (Darwinbox shore-office employees) distinct from **Crewing** (vessel seafarers), while keeping all other areas open if the user's question or follow-up crosses domains.
+    3. **Catalog search & keyword indexing (`keywords.ts`, `describe.ts`):** Preserved short domain tokens (`hr`, `po`, `gl`, etc.) in `tokenize`, indexed non-generic catalog names (`darwin_box` + `hr`/`darwinbox` aliases) in `extractDomainKeywords`, stripped conversational prompt words (`briefing`, `overview`, `compare`, etc.) from `tokenizeCatalogNameQuery`, and required catalog name tokens to match at segment boundaries so `"briefing"` no longer matches `debriefing_*` tables.
+- **Paths:** `src/lib/inspector/welcome-catalog.ts`, `src/lib/inspector/domain-context.ts` (new), `src/app/api/inspector/welcome/route.ts`, `src/app/api/inspector/chat/route.ts`, `src/components/inspector/InspectorWelcome.tsx`, `src/components/inspector/InspectorShell.tsx`, `src/hooks/useInspectorChat.ts`, `src/lib/inspector/prompts.ts`, `src/lib/context/keywords.ts`, `src/lib/context/describe.ts`, `src/app/globals.css`, `src/lib/inspector/__tests__/welcome-catalog.test.ts`, `src/lib/inspector/__tests__/domain-context.test.ts` (new), `src/lib/context/keywords.test.ts`.
+- **Why:** User reported that clicking HR returned Crewing/seafarer details instead of HR data, and that clicking a domain first offered irrelevant starter questions instead of reflecting what actually exists in that domain (without hard-restricting tables).
+- **Verified:** Vitest passes on `welcome-catalog.test.ts`, `welcome-departments.test.ts`, `domain-context.test.ts`, `prompts-voice.test.ts`, and `keywords.test.ts` (20 tests). Verified against live dev DB metadata via `tsx` script: all 7 areas produce domain-specific T2 starter questions, HR domain focus lists `darwin_box.curated_db.employee_master*` tables, and `searchObjects("HR data briefing")` ranks `darwin_box.curated_db.employee_master_ranked_by_id` at the top. ESLint clean on all newly created and modified functions.
+- **Not done:** Existing `platform_context_objects.domain_keywords` rows in Aurora will pick up the new `darwin`/`hr` tokens on the next T2/keyword backfill, though live search and `DOMAIN FOCUS` already resolve `darwin_box` HR tables immediately without waiting for a backfill.
+
+## 2026-11-11 — Inspector welcome: a picture for each area, shorter header
+
+- **What:** Each area card now shows an illustration of what the area covers, instead of a generic chart chosen by the card's position. **Crewing:** crew on board vs on leave, and a crew rotation plan. **Marine:** a vessel and its route to the next port. **Technical:** a gear and a maintenance job list with one job overdue. **QHSE:** a safety shield and incidents falling below a target line. **Finance:** a stack of coins and a revenue → costs → EBITDA waterfall. **HR:** an org chart and a headcount split. Each area has a fixed accent colour. Areas are matched by key first, then by keywords in the key or label. Any other area keeps the generic charts. On hover, the gear turns and the ship moves a little (no motion when reduced motion is on). Card descriptions are removed, so each card shows the picture and the title only. The subtitle is now "What should we dig into today?". That also removes the "updated refreshed within the hour" wording bug. A "Live · N tables across N areas" pill was tried and taken out because the user did not want it.
+- **Paths:** `src/components/inspector/InspectorWelcome.tsx` (one preview component per area, `DOMAIN_VISUALS`, `DOMAIN_ALIASES`, `visualFor`; removed `areaCardHint` and `refreshedAgo`), `src/app/globals.css` (`.iw-gear` / `.iw-ship` hover motion and its reduced-motion override).
+- **Why:** User asked for a picture of each area on the card, no card descriptions, and a different subtitle.
+- **Verified:** `tsc --noEmit` reports no errors in `InspectorWelcome.tsx`. ESLint passes on the file.
+- **Not done:** Not checked in a browser. `lastRefreshedAt` is still returned by `/api/inspector/welcome` but the page no longer uses it.
+
+## 2026-11-11 — Inspector streaming: no duplicate tool-loop preamble in the reply bubble
+
+- **What:** Multi-loop agent runs (Grok / Foundry / Bedrock) streamed a short stakeholder preamble on every tool round; those paragraphs stacked in one bubble and often repeated "tables" language. Each tool loop now emits `text_replace` with empty text before tools run; `loop_start` for loop &gt; 1 clears the client draft. Prompt rules say not to write user-visible preamble on tool rounds.
+- **Paths:** `src/lib/inspector/agent-loop.ts`, `src/lib/inspector/providers/foundry-chat.ts`, `src/hooks/useInspectorChat.ts`, `src/hooks/useWorkbenchChat.ts`, `src/lib/inspector/answer-rules.ts`, `src/lib/inspector/prompts.ts`.
+- **Why:** User reported duplicate interim replies while the answer was still preparing.
+- **Verified:** Code review; existing inspector loop tests unchanged.
+- **Not done:** Browser retest on `/inspector`.
+
+## 2026-11-11 — Query answers: all rows from split Databricks results; no silently cut-off tables
+
+- **What:** Fixes a query with 225 rows that showed 64 in some runs and 225 in others. Three causes, three fixes. **(1) Databricks chunks:** INLINE results can arrive split into chunks, and `parseStatementResponse` read only chunk 0 and ignored `next_chunk_index`. How a result is split varies by run (cache hit vs. a fresh multi-partition run), so the row count changed between runs. The executor now fetches `/result/chunks/{n}` until done, within `row_limit` and the 4 MB byte cap (now counted across all chunks). `truncated` is now also true when fewer rows arrive than `manifest.total_row_count`. This covers every chat, agent and dashboard query (sync and async paths). **(2) LLM retyping rows:** the chat table was the model retyping the rows as markdown. All model calls cap output at 4096 tokens, so a few hundred rows ran out of tokens partway through. `execute_tool` results over a threshold now carry a `display_note`. In Inspector (`resultsPanel: true`) it says to type at most 10 rows and point to the Results table, which already shows every row from `query_result`. For saved agents (no Results pane) it says to type at most 40 rows and add "Showing 40 of N." The shared answer rules tell the model to follow `display_note` and allow that one partial-count line. **(3) Cut-off detection:** the Bedrock (`messageStop.stopReason`), Foundry chat-completions (`finish_reason`) and xAI Responses (`incomplete_details.reason`) loops now detect an output-cap stop on the final reply. They drop a half-written table row, append a visible "reply reached its length limit" notice, and record loop `stopReason: 'max_tokens'`. Agents chat streams the notice too, since it shows deltas, not `text_replace`. The Results table footer no longer says "truncated at 1000" no matter where it stopped.
+- **Paths:** `src/lib/databricks/execute.ts` (`collectRemainingInlineChunks`, async `parseStatementResponse`), `src/lib/inspector/result-display.ts` (new), `src/lib/inspector/reply-cutoff.ts` (new), `src/lib/inspector/tools.ts` (`resultsPanel` context flag, `display_note`), `src/app/api/inspector/chat/route.ts`, `src/app/api/agent-lab/agents/chat/route.ts`, `src/lib/inspector/agent-loop.ts`, `src/lib/inspector/providers/foundry-chat.ts`, `src/lib/inspector/answer-rules.ts`, `src/components/inspector/DashboardPane.tsx`; tests `src/lib/databricks/__tests__/inline-chunks.test.ts`, `src/lib/inspector/__tests__/reply-cutoff.test.ts`.
+- **Why:** User reported a response that should have 225 rows rendering 64 sometimes and 225 other times.
+- **Verified:** New tests pass (17, including the 64 + 161 = 225 chunk case, row-limit stop, `total_chunk_count` fallback, partial-result flag, cut-off trimming). Vitest over inspector, databricks, agents, access and the inspector/agents API routes: 513 passed. Two failures not related to this change: `access/explain.test.ts` hits the 5s timeout under full-suite load, and `welcome-catalog.test.ts` passes when rerun alone. `tsc --noEmit`: the only error is in the uncommitted `src/lib/inspector/welcome-catalog.ts`. Note: on this machine Vitest must run from `C:\…` (uppercase drive). From Git Bash's `c:/…` every suite fails with "Cannot read properties of undefined (reading 'config')".
+- **Not done:** Not tried against the live warehouse or in a browser. The model still receives up to 1000 rows in the tool result (it needs them for totals), so input-token cost for big results is unchanged. Workbench test-run keeps the no-panel note (it shows only a small preview). The 4096 output cap itself is unchanged.
+
+## 2026-11-11 — Chat: queue messages sent while a reply streams; Send now stops it; no duplicate sends
+
+- **What:** In Inspector and Agents → Use, the input box stays usable while a reply streams. Enter **queues** the message (a "Queued" bar above the input with **Send now**, Edit, ✕). It sends by itself when the reply finishes. More sends before then are added to the same queued message, so only one follow-up waits. **Send now** or **Ctrl+Enter** stops the current reply on the server and in the browser, keeps its partial text marked **Stopped**, and sends the latest message. **Stop** returns the queued text to the input box. A failed reply also returns it instead of sending. New chat or another chat returns it too. Inspector tells the model a reply was stopped (a note on that message in the request). **Duplicate-send fix (user report: clicking several times while it looked stuck sent several messages, each answered):** Inspector `send` now marks the chat busy at the first click (before the session is created) and refuses a second start. The queue drops a repeat of the question being answered and of its last queued line. Welcome prompts, disambiguation buttons and Agents starter prompts go through the same path.
+- **Server:** Stop is keyed **per turn** (`turnId` from the client on chat and cancel), so a late cancel cannot stop the new turn. Before this, the new turn cleared the old turn's flag, so the old reply kept running. A chat-wide Stop still works for a reply resumed after reload. An older turn stops writing the shared draft once a newer turn starts (`createDraftWriter(..., isCurrent)`). Agents chat waits up to 8s for a stopped turn on the same chat to save, so the new turn's history includes the interrupted question.
+- **Paths:** `src/lib/chat/turn-control.ts` (`openTurn`, `parseTurnId`, `waitForTurnIdle`), `src/lib/chat/turn-draft.ts`, `src/app/api/inspector/chat/route.ts`, `src/app/api/inspector/chat/cancel/route.ts`, `src/app/api/agent-lab/agents/chat/route.ts`, `src/app/api/agent-lab/agents/chat/cancel/route.ts`, `src/hooks/useQueuedSend.ts` (new), `src/components/workbench/QueuedMessageBar.tsx` (new), `src/components/workbench/InputComposer.tsx` (inline variant `queue` prop), `src/components/workbench/PromptCanvas.tsx` (`composerQueue`, per-message Stopped badge), `src/hooks/useInspectorChat.ts`, `src/lib/inspector/inspector-chat-live.ts` (`stopInspectorRecovery`, turn id on the bucket), `src/components/inspector/InspectorShell.tsx`, `src/components/inspector/dashboard-builder/ScopedInspectorPanel.tsx`, `src/components/agent-lab/workbench/types.ts` (`stopped`), `src/lib/agents/agent-use-chat-stream.ts`, `src/views/agent-lab/agents/use.tsx`; tests `src/lib/chat/__tests__/turn-control.test.ts`, `src/hooks/__tests__/useQueuedSend.test.ts`, `src/lib/agents/__tests__/agent-use-chat-stream.test.ts`.
+- **Why:** User asked that a message sent mid-reply wait, and that forcing it stop the current reply and answer the latest one. They also reported duplicate messages and answers from repeated clicks while the chat looked stuck.
+- **Verified:** `tsc --noEmit` clean for these files. Vitest passes for turn-control (5), useQueuedSend (6), agent-use-chat-stream (including a new Send now test) and inspector-chat-live. The full Vitest run fails in suites this change does not touch: flows/connections/knowledge routes return 403 (the uncommitted `policy-store.ts` access change), and the typography guard flags `PinnedAgentBadge.tsx` and `DeleteAgentDialog.tsx`.
+- **Not done:** Not tried in a browser. Workbench (toolbar composer) still blocks input while streaming. Agents' "Stopped" label is not saved, so it is gone after reload. Turn state is in memory per Node process: with several instances behind a load balancer, cancel and chat requests must reach the same instance (as before). Stop from Inspector while the first message's session is still being created drops that message rather than returning it to the input box.
+
+## 2026-11-11 — Inspector welcome: no table names or warehouse paths in UI copy
+
+- **What:** Welcome catalog filters `covers`, topics, and card hints with `isStakeholderFacingLine` / `scrubStakeholderLine` (drops `catalog.schema.table`, snake_case table tokens, curated_db paths). Removed `sampleTables` from the API shape and the drill line that showed dataset counts. Cards use capability-style layout only (Crewing, Marine, …); generic "What I can do" block removed.
+- **Paths:** `src/lib/inspector/welcome-catalog.ts`, `src/components/inspector/InspectorWelcome.tsx`, `src/app/globals.css`.
+- **Why:** User asked for areas only (not "domain" wording) and no table names on the landing page.
+- **Verified:** Unit check for `isStakeholderFacingLine`; eslint on touched files.
+- **Not done:** Chat replies still governed by voice rules separately.
+
+## 2026-11-11 — Inspector welcome crash when areas omit topics/covers
+
+- **What:** `InspectorWelcome` crashed on `a.topics.length` when `/api/inspector/welcome` returned areas without `topics` (stale response or hot-reload race). Added `normalizeWelcomeCatalog()` and normalize on fetch; optional chaining on `topics`, `covers`, and `offers` in the UI.
+- **Paths:** `src/lib/inspector/welcome-catalog.ts`, `src/components/inspector/InspectorWelcome.tsx`.
+- **Why:** User console: `TypeError: Cannot read properties of undefined (reading 'length')` at InspectorWelcome.tsx:276.
+- **Verified:** Code review; reload `/inspector` after HMR.
+- **Not done:** `GET /api/agent-lab/agents/pins` 500 is separate (likely missing `user_pinned_agents` migration — API should return 503 when table absent; check server log if it persists).
+
+## 2026-11-11 — Inspector replies: no harvest/catalog jargon for end users
+
+- **What:** Strengthened `AGENT_ANSWER_VOICE` with an explicit banned-terms list (harvest, catalog, schema, table path, Databricks, "pull the catalog", technical "domain", etc.) and preferred phrasing ("data we have on file", business names). Replaced the Step 2B system-prompt template that literally told the model to say "harvested catalog" and "knowledge harvest". Step 1/2A guidance now says to describe coverage in business language (crew certificates, portage bill) not schema names. Added `prompts-voice.test.ts` assertion that the old template string is gone.
+- **Paths:** `src/lib/inspector/answer-rules.ts`, `src/lib/inspector/prompts.ts`, `src/lib/inspector/__tests__/prompts-voice.test.ts`.
+- **Why:** User noticed stakeholder answers mentioning harvesting, catalog, and tables.
+- **Verified:** `prompts-voice.test.ts` expectations updated. Not re-tested in chat.
+- **Not done:** No client-side rewrite of streamed text (prompt-only fix). Saved agents inherit the same voice block via shared `answer-rules.ts`.
+
+## 2026-11-11 — Inspector welcome: business domains (Crewing, Marine, Finance, …)
+
+- **What:** Welcome API and UI group data by **business domain**, not `catalog.schema`. Domains come from `access_data_departments` paths (longest match on `full_path`), then path heuristics (finance, qhse, crewing, marine, technical, hr). Labels: Crewing, Marine, Technical, QHSE, Finance, HR, and **More to explore** for the rest. T2 semantic cards feed **covers** bullets on drill-in; department paths and semantics batch-loaded in `GET /api/inspector/welcome`. Prompts say “my {domain} domain”, not technical keys.
+- **Paths:** `src/lib/inspector/welcome-departments.ts`, `src/lib/inspector/welcome-catalog.ts`, `src/lib/inspector/welcome-semantics.ts`, `src/app/api/inspector/welcome/route.ts`, `src/components/inspector/InspectorWelcome.tsx`, `src/app/globals.css`, tests under `src/lib/inspector/__tests__/`.
+- **Why:** User asked for domains like Crewing, Finance, Technical, Marine — matched to what Govern defines plus harvest path patterns.
+- **Verified:** Read-only DB check on dev: departments CREWING (8 paths), HR (`darwin_box`), Marine (1 path), QHSE and TECHNICAL (no paths yet — heuristics still surface QHSE/finance-heavy schemas). `eslint` on touched files.
+- **Not done:** Finance is not an `access_data_department` row yet (inferred from schema names). Marine/QHSE/Technical need more **department path** tags in Govern for accurate buckets. Browser pass.
+
+## 2026-11-11 — Inspector welcome: domain browse then pick a question
+
+- **What:** Empty Inspector chat is a two-step **Your domains** flow: domain cards show a tagline and topic chips (not table counts). Clicking a domain opens in-place **starting questions** (trends, compare, brief, chart) built from harvested `domain_keywords` — chat only starts when the user picks one. Removed the **See all areas** link that sent a mega-prompt into chat (often duplicated the model’s opening line). Cross-domain capability cards hide while drilling into a domain. Welcome API returns up to 40 domains for “Show N more”.
+- **Paths:** `src/components/inspector/InspectorWelcome.tsx`, `src/lib/inspector/welcome-catalog.ts` (`tagline`, `offers`, `buildDomainOffers`), `src/app/api/inspector/welcome/route.ts`, `src/app/globals.css`, `src/lib/inspector/__tests__/welcome-catalog.test.ts`.
+- **Why:** User wanted domains first, then what they can *do* — not a table inventory or a chat dump.
+- **Verified:** `eslint` on touched TSX/TS files; logic checked via prior `tsx` assertion pattern for catalog grouping.
+- **Not done:** T2 semantic one-liners per domain (still schema-derived labels). Browser pass on `/inspector`.
+
+## 2026-11-11 — Inspector welcome shows the user's data and what Inspector can do
+
+- **What:** Rebuilt the empty Inspector chat. It now has a time-of-day greeting and a line like "You can ask about N tables across M data areas · refreshed 3h ago". A **Your data** section shows up to 6 real data areas (catalog.schema, largest first) with table count and the top harvested topics; clicking one asks for a plain-English tour of that area. "See all N areas" appears when there are more. A **What I can do** section shows 4 capability cards (Spot what moved, Compare periods, Explain a change, Build a chart), each with a small preview of that kind of answer. This replaces the four text-only cards, the extra paragraph and the rotating "Try asking" line. When a semantic model exists, the governed prompts still show, under "Questions your team asks". Includes loading skeletons and an empty state ("No data has been shared with you yet…"). New `GET /api/inspector/welcome` returns the harvested objects the caller may **discover** (the same `visibleObjectIds` check `describe_schema` uses), excluding test sources and grouped by `buildWelcomeCatalog`. Read-only Postgres metadata; no warehouse query.
+- **Paths:** `src/components/inspector/InspectorWelcome.tsx`, `src/app/api/inspector/welcome/route.ts`, `src/lib/inspector/welcome-catalog.ts`, `src/lib/inspector/__tests__/welcome-catalog.test.ts`, `src/app/globals.css` (new `.iw-*` block; the `.wl-*` styles agent chat uses are unchanged).
+- **Why:** The user said the landing page was text-heavy and boring, and asked for it to reflect what data we actually have and what Inspector can offer.
+- **Verified:** `tsc --noEmit` and eslint report nothing for these files. The grouping logic passed an equivalent `tsx` assertion script; Vitest is still broken in this checkout, so the new test file has not been run. The dev server returns 401 for `/api/inspector/welcome` without a session, so the route compiles and is auth-gated.
+- **Not done:** Not checked in a browser with a signed-in user or real estate data. Area labels come from schema names (layer words like `gold`/`silver` are dropped), not from T2 summaries.
+
+## 2026-11-11 — Agent chat: formatted streaming instead of raw text
+
+- **What:** While an agent reply streams, text now renders as formatted markdown (headings, bold, lists) instead of raw `whitespace-pre-wrap` text, and each new block fades in. Tables, fenced code / JSON blocks, and replies that are one JSON value show a pulsing placeholder card ("Building table · N rows", "Preparing data…") until the reply finishes, then the full render takes over. Dangling `**`, `` ` ``, lone `#` / `-` on the last streaming line are held back so they never flash raw. Respects `prefers-reduced-motion`.
+- **Paths:** `src/lib/chat/streaming-body.ts` (`splitStreamingContent`), `src/components/chat/StreamingAssistantBody.tsx` (new), `src/views/agent-lab/agents/use.tsx`.
+- **Why:** User reported raw data / markdown symbols showing during streaming in agent chat, then jumping to the formatted answer.
+- **Verified:** Parser checked with `tsx` on partial bold, heading marker, mid-table, table-then-prose, open/closed JSON fences, raw JSON, partial fence ticks. Tables stay unrendered until the end, so the earlier large-table freeze fix still holds. Not browser-tested.
+- **Not done:** Same treatment for Ask Data / Workbench (`StreamingMessage`), which still use their own streaming path.
+
+## 2026-11-11 — Pinned agents: chat-header Pin button + reorder
+
+- **What:** Agent chat header has a **Pin / Pinned** toggle (disabled with a tooltip at 5/5). Pinned agents can be reordered by dragging them in either sidebar style, or with Alt+↑ / Alt+↓ on a focused pin; the order is saved per user (`PATCH /api/agent-lab/agents/pins` with `{ order: [agentId…] }`). Deleting an agent from its chat page also drops it from the sidebar right away.
+- **Paths:** `src/components/agent-lab/PinAgentButton.tsx`, `src/components/agent-lab/staging/usePinReorder.ts`, `src/components/agent-lab/staging/CommandSidebar.tsx`, `src/components/agent-lab/staging/StagingSidebar.tsx`, `src/lib/agents/pinned-agents.ts` (`reorderPinnedAgents`), `src/lib/agents/usePinnedAgents.ts` (`reorder`), `src/app/api/agent-lab/agents/pins/route.ts` (PATCH), `src/views/agent-lab/agents/use.tsx`.
+- **Why:** User asked for the two follow-ups left out of the first pin change.
+- **Verified:** `tsc --noEmit` clean. Read-only check (`to_regclass`) confirmed `user_pinned_agents` does not exist on dev RDS yet, which is why a pin showed and then vanished (optimistic update rolled back after the failed save). The pins API now returns 503 "Pinning is not set up on this server yet" for Prisma P2021, and the chat-header Pin button shows errors inline for 5s instead of only in a tooltip. Not browser-tested.
+- **Not done:** Applying `20261111_user_pinned_agents` to the database. `prisma migrate status` shows local and DB migration history have diverged (7 local migrations unrecorded), so do **not** use `prisma migrate dev` (it offers a reset). Safe path: `prisma db execute --file prisma/migrations/20261111_user_pinned_agents/migration.sql` then `prisma migrate resolve --applied 20261111_user_pinned_agents`.
+
+## 2026-11-11 — Pin up to 5 agents to the sidebar (per user, stored in the database)
+
+- **What:** People can pin up to 5 saved agents. Pins are stored per user in a new `user_pinned_agents` table, so they follow the person to any browser or device. Pin / Unpin is in the Agents card ⋯ menu (disabled with "Sidebar full (5/5)" at the limit); pinned cards show a small pin next to the name. The Command sidebar shows a **Pinned agents** section on every page (initials badge, name when expanded, hover Unpin button); the Rail sidebar shows initials badges with the name as tooltip. Clicking opens the agent's chat. `GET/PUT /api/agent-lab/agents/pins` reads and changes only the caller's own pins; needs `build.agents` view (pinning is personal, so not `manage`). The limit is checked in a serializable transaction; pins on deprecated agents are dropped to free a slot; deleted agents cascade away.
+- **Paths:** `prisma/schema.prisma` (`UserPinnedAgent`, back-relations on `User` and `agent_catalog`), `prisma/migrations/20261111_user_pinned_agents/migration.sql` (additive, one table), `src/lib/agents/pinned-agents.ts`, `src/lib/agents/pinned-agents-shared.ts`, `src/lib/agents/usePinnedAgents.ts`, `src/app/api/agent-lab/agents/pins/route.ts`, `src/components/agent-lab/staging/PinnedAgentBadge.tsx`, `src/components/agent-lab/staging/CommandSidebar.tsx`, `src/components/agent-lab/staging/StagingSidebar.tsx`, `src/views/agent-lab/agents/index.tsx`.
+- **Why:** User request: one-click access to the agents people use daily, kept across browsers. Initials instead of agent icons because several agents share the same keyword icon (e.g. two ship icons).
+- **Verified:** `prisma validate` passes; Prisma client types regenerated (engine DLL rename failed with EPERM because the dev server holds it, which does not affect types). `tsc --noEmit`: no errors in these files; one existing error elsewhere (`PromptCanvas.tsx:571`, `stopped` not on `WorkbenchMessage`). Tests not run (Vitest broken in this checkout, see entry below).
+- **Not done:** Migration **not applied** to the database; run `npm run db:migrate` (or the team's RDS deploy step) and restart the dev server. No drag-to-reorder. No pin button in the agent chat header yet. Browser check.
+
+## 2026-11-11 — Saved Agents cards: View / Edit / Delete in a ⋯ menu
+
+- **What:** Kept the original Agents page and card layout. Each card now has only the **Chat** button inline. View details, Edit in Workbench and Delete (platform admins) moved into a ⋯ popover at the card's top-right. Card markup moved into an `AgentCard` component. Tried compact and data-source-chip variants; the user preferred the original, so they were dropped (no API changes kept).
+- **Paths:** `src/views/agent-lab/agents/index.tsx`.
+- **Why:** Four buttons per card (24 on screen) made the grid look busy.
+- **Verified:** `tsc --noEmit` clean. Vitest fails before any test runs in this checkout (`Cannot read properties of undefined (reading 'config')` at `describe`, even for the unrelated `cn-merge.test.ts`), so no tests were run.
+- **Not done:** Browser check.
+
+## 2026-11-11 — Agent reload + Inspector streaming tables
+
+- **What:** Agent `?chat=` reload resumes an in-flight server draft (poll until done). Shared `streaming-body` rules: no raw markdown tables while streaming; Inspector `StreamingMessage` uses the same pill / plain-prose behaviour as agent chat.
+- **Paths:** `src/lib/chat/streaming-body.ts`, `src/lib/agents/agent-use-chat-stream.ts`, `src/views/agent-lab/agents/use.tsx`, `src/components/workbench/StreamingMessage.tsx`.
+- **Why:** Refresh mid-reply lost the stream and showed broken `| row |` text; Inspector had the same streaming table issue.
+- **Verified:** `agent-use-chat-stream` unit tests; not browser-tested.
+
+## 2026-11-11 — Agent chat: fix freeze on large tables
+
+- **What:** SSE text updates coalesce (~80ms). Agent chat streams plain prose until table syntax appears, then shows only the loading pill until the reply finishes and the formatted table renders (scroll, filter). Markdown/JSON tables use `min(420px, 55vh)` + sticky header.
+- **Paths:** `src/lib/agents/agent-use-chat-stream.ts`, `src/views/agent-lab/agents/use.tsx`, `src/components/workbench/StreamingMessage.tsx`.
+- **Why:** Long employee lists re-built the full table UI on each token and locked the browser.
+- **Verified:** `agent-use-chat-stream` unit tests; not browser-tested.
+
+## 2026-11-11 — Agent answers: headcount must match table rows
+
+- **What:** `AGENT_ANSWER_VOICE` requires the stated total to match listed rows, or an explicit filter/partial explanation when they differ.
+- **Paths:** `src/lib/inspector/answer-rules.ts`.
+- **Why:** Users saw "225 employees" with only 122 table rows — usually COUNT vs filtered SELECT or an incomplete paste, not a UI cap.
+- **Verified:** Prompt-only; not re-tested in chat.
+
+## 2026-11-11 — Agent chat: ResponseLoading pill only
+
+- **What:** In-flight turns use only `ResponseLoading` (for the whole run, including after tokens start). Removed trailing `CaptainStatus` on the last message; members no longer see `LiveSteps` (developer mode still gets the step timeline).
+- **Paths:** `src/views/agent-lab/agents/use.tsx`.
+- **Why:** Wrong status UI was removed earlier; users wanted the pill, not the flat “Querying data” strip or post-answer companion row.
+- **Verified:** Code review; not browser-tested.
+
+## 2026-11-11 — Ask Data: sharper empty-state questions
+
+- **What:** Welcome cards and rotating hints read like meeting-ready analyst asks (pulse, YoY, brief, shareable chart). Governed-model starter templates and the “what is this data?” chip use conversational wording; EmptyStatePrompts fallback copy de-jargoned.
+- **Paths:** `src/components/inspector/InspectorWelcome.tsx`, `src/lib/dashboards/empty-states.ts`, `src/components/inspector/EmptyStatePrompts.tsx`, `src/lib/dashboards/__tests__/empty-states.test.ts`.
+- **Why:** Generic discover/chart prompts felt shallow for business users.
+- **Verified:** `empty-states` unit tests updated; not browser-tested.
+
+## 2026-11-11 — Ask Data welcome: original cards + try-asking line
+
+- **What:** Restored the prior welcome layout (`wl-glow`, 2×2 `wl-card` starters with icons). Added a rotating “Try asking …” line (click sends that question); respects `prefers-reduced-motion`.
+- **Paths:** `src/components/inspector/InspectorWelcome.tsx`.
+- **Why:** User preferred the original empty state over plain list / bento; wanted more engaging copy without decorative chrome.
+- **Verified:** Not browser-tested in this session.
+
+## 2026-11-11 — Follow-up questions + agent loading pill
+
+- **What:** Ask Data “Next questions” pills use `--ink-1` on `--surface-1`, full question text (no ellipsis), and sit directly under the latest reply. Extractor also picks question lines ending in `?`. Empty-state starter prompts use `--ink-1` and wrap. Agent Use shows the same `ResponseLoading` pill as Inspector while the reply is empty.
+- **Paths:** `src/components/workbench/PromptCanvas.tsx`, `src/app/api/inspector/chat/route.ts`, `src/components/inspector/EmptyStatePrompts.tsx`, `src/views/agent-lab/agents/use.tsx`.
+- **Why:** Follow-ups were low-contrast / easy to miss; agent chat still used the older companion strip for the first tokens.
+- **Verified:** Not browser-tested in this session.
+- **Not done:** Agent chat follow-up suggestion SSE (Inspector-only today).
+
+## 2026-11-11 — Inspector members: Results pane + system theme
+
+- **What:** Members in Ask Data only see the **Results** right pane (Semantic and Developer tabs stay admin-only). New query results auto-open that pane and switch to Results. Performance Lab icon hidden for members. Theme: `next-themes` uses `defaultTheme="system"` with `enableSystem`; boot script resolves `system` / unset via `prefers-color-scheme` before paint (`theme-boot-script.ts`).
+- **Paths:** `src/components/inspector/InspectorShell.tsx`, `src/components/providers/ThemeProvider.tsx`, `src/lib/theme/theme-boot-script.ts`, `web/vite.config.ts`.
+- **Why:** Members were landing on Semantic governance with no data; charts followed OS theme in profile but boot treated everything except `dark` as light.
+- **Verified:** Code review; dev smoke still expects `light` or `dark` on `<html>`.
+- **Not done:** Browser check as member role in this session.
+
+## 2026-11-11 — Ask chat: readable sent-message bubbles
+
+- **What:** Restored solid brand fill and white body text on user-sent bubbles in Ask/Inspector chat (`chatStyle` thread in `PromptCanvas`).
+- **Paths:** `src/components/workbench/PromptCanvas.tsx`.
+- **Why:** A prior tweak used a pale tinted background without strong text contrast, so outgoing messages were hard to read.
+- **Verified:** Code review against prior working styles and agent chat bubbles (`use.tsx`).
+- **Not done:** Browser snapshot in this session.
+
+## 2026-11-11 — Access status 500 when Prisma client is stale
+
+- **What:** `loadColumnPolicy` skips column-tag queries when column-access Prisma delegates are missing (stale `prisma generate` while dev servers hold the query engine), returning an empty column policy instead of throwing.
+- **Paths:** `src/lib/access/policy-store.ts`.
+- **Why:** `/api/access/status` and `/api/inspector/chat` failed with `Cannot read properties of undefined (reading 'findMany')` after an interrupted `db:generate`.
+- **Verified:** Confirmed `accessTag` delegate on disk; dev API logs show 200s after full `npm run db:generate` + `npm run dev`.
+- **Not done:** Apply `20261107_column_access` on dev DB if live queries return P2021 (tables missing).
+
 ## 2026-11-11 — Compact delete confirmation for saved agents
 
 - **What:** Deleting a saved agent from the Agents list or agent chat header opens a small modal (title, agent summary, Cancel / Delete) instead of crowding the card or header with inline Confirm and Cancel buttons.

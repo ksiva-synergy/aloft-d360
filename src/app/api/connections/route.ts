@@ -1,16 +1,20 @@
 import { handle, ok } from '@/lib/http';
 import { createConnection, listConnections } from '@/lib/connections/service';
 import { CONNECTION_KINDS, type ConnectionKind } from '@/lib/connections/types';
-import { connectionActor } from './_shared';
+import { connectionActor, connectionContext } from './_shared';
 
 export const dynamic = 'force-dynamic';
 
-/** Your connections and those shared with the organisation (no credentials). `?kind=` filters. */
+/**
+ * Your connections and those shared with the organisation (no credentials). `?kind=` filters.
+ * `canCreate` tells embedded pickers (Automate) whether to offer "add a connection": it needs
+ * Connections Manage, which the Automate section alone does not give.
+ */
 export const GET = handle(async (req) => {
-  const actor = await connectionActor(req);
+  const { actor, canManage } = await connectionContext(req);
   const kind = new URL(req.url).searchParams.get('kind');
   const filter = CONNECTION_KINDS.includes(kind as ConnectionKind) ? (kind as ConnectionKind) : undefined;
-  return ok({ connections: await listConnections(actor, filter) });
+  return ok({ connections: await listConnections(actor, filter), canCreate: canManage });
 });
 
 /** Creates a connection owned by the caller: `{ name, kind, config, secret, visibility? }` (private by default). */

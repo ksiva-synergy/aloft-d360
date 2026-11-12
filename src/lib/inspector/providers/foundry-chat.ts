@@ -7,6 +7,7 @@ import type { ToolConfiguration, Message } from '@aws-sdk/client-bedrock-runtime
 import type { BoostModel } from '../../boost/models';
 import { measureContext, type AgentLoopParams, type AgentLoopResult, type LoopMetrics, type TrajectoryEntry } from '../agent-loop';
 import { classifyToolCall } from '@/lib/boost/classify';
+import { finishCutOffReply, isOutputCapStop } from '../reply-cutoff';
 
 // ── Resource Configuration ──────────────────────────────────────────────────────
 
@@ -350,8 +351,13 @@ async function runXaiResponsesLoop(
       inputItems = inputItems.concat(completed.output as ResponseInputItem[]);
 
       if (calls.length === 0) {
-        reportLoop(0, abortSignal?.value ? 'aborted' : 'end_turn');
+        const cutOff =
+          !(abortSignal?.value) &&
+          completed.status === 'incomplete' &&
+          isOutputCapStop(completed.incomplete_details?.reason);
+        reportLoop(0, abortSignal?.value ? 'aborted' : cutOff ? 'max_tokens' : 'end_turn');
         finalText = assistantContent.trim() || null;
+        if (cutOff) finalText = finishCutOffReply(finalText ?? '');
         if (finalText) onTextReplace?.(finalText);
         return {
           finalText,
@@ -361,6 +367,8 @@ async function runXaiResponsesLoop(
           loops: loopCount,
         };
       }
+
+      if (assistantContent.trim()) onTextReplace?.('');
 
       const toolBatchStart = Date.now();
       const toolResults = await Promise.all(
@@ -494,6 +502,7 @@ export async function runFoundryAgentLoop(
       let outputTokens = 0;
       let cacheReadTokens = 0;
       let cacheWriteTokens = 0;
+      let finishReason: string | null | undefined;
       const loopStartedAt = Date.now();
       const ctx = measureContext('', messages);
       let firstTokenAt: number | null = null;
@@ -526,6 +535,7 @@ export async function runFoundryAgentLoop(
             stallTimer.refresh?.();
             // Text content delta
             const delta = chunk.choices?.[0]?.delta;
+            if (chunk.choices?.[0]?.finish_reason) finishReason = chunk.choices[0].finish_reason;
             if (firstTokenAt === null && (delta?.content || delta?.tool_calls)) firstTokenAt = Date.now();
             if (delta?.content) {
               assistantContent += delta.content;
@@ -586,6 +596,7 @@ export async function runFoundryAgentLoop(
         const response = await withTimeout(responsePromise, FOUNDRY_TOOL_TIMEOUT_MS, model.modelId) as OpenAI.Chat.Completions.ChatCompletion;
 
         const choice = response.choices[0];
+        finishReason = choice?.finish_reason;
         assistantContent = choice?.message?.content ?? '';
         inputTokens = response.usage?.prompt_tokens ?? 0;
         outputTokens = response.usage?.completion_tokens ?? 0;
@@ -627,8 +638,10 @@ export async function runFoundryAgentLoop(
 
       // ── No tool calls → model returned final answer ────────────────────────
       if (toolCalls.length === 0) {
-        reportLoop(0, abortSignal?.value ? 'aborted' : 'end_turn');
+        const cutOff = !(abortSignal?.value) && isOutputCapStop(finishReason);
+        reportLoop(0, abortSignal?.value ? 'aborted' : cutOff ? 'max_tokens' : 'end_turn');
         finalText = assistantContent.trim() || null;
+        if (cutOff) finalText = finishCutOffReply(finalText ?? '');
         // Replace accumulated interim narration (prior tool loops) with the final answer only.
         if (finalText) onTextReplace?.(finalText);
         return {
@@ -639,6 +652,8 @@ export async function runFoundryAgentLoop(
           loops: loopCount,
         };
       }
+
+      if (assistantContent.trim()) onTextReplace?.('');
 
       // ── Execute all tool calls in parallel ─────────────────────────────────
       // Build the assistant message with tool_calls for the conversation history

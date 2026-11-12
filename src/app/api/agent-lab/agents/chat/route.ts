@@ -7,6 +7,7 @@ import { resolveWorkbenchModel } from '@/lib/construction/workbench-model';
 import { getSessionUserRole } from '@/lib/inspector/session-role';
 import { runCatalogAgent } from '@/lib/agents/run-catalog-agent';
 import { clientStreamError } from '@/lib/inspector/client-stream-error';
+import { REPLY_CUT_OFF_NOTICE } from '@/lib/inspector/reply-cutoff';
 import {
   appendAgentChatMessages,
   createAgentChat,
@@ -17,11 +18,18 @@ import {
   type AgentTurn,
 } from '@/lib/agents/agent-chats';
 import { messagesForViewer, type AgentInspection } from '@/lib/agents/inspection';
-import { clearTurnStop, isTurnStopped, turnStopKey } from '@/lib/chat/turn-control';
+import { openTurn, parseTurnId, waitForTurnIdle } from '@/lib/chat/turn-control';
 import { createDraftWriter } from '@/lib/chat/turn-draft';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
+
+/**
+ * "Stop and send now" posts Stop for the old reply and this message together. The old turn
+ * saves its question and partial reply when it ends; wait that long (at most) so this turn's
+ * history includes them. A stopped run exits on its next streamed chunk.
+ */
+const PREVIOUS_TURN_WAIT_MS = 8000;
 
 // The run itself (tools, rounds, metrics) lives in src/lib/agents/run-catalog-agent.ts.
 const MAX_HISTORY = 30;
@@ -62,7 +70,7 @@ function parseHistory(raw: unknown): Turn[] | { error: string } {
  * This does not modify the workbench draft.
  */
 export async function POST(request: NextRequest) {
-  let body: { slug?: string; message?: string; history?: unknown; chatId?: unknown; model?: string };
+  let body: { slug?: string; message?: string; history?: unknown; chatId?: unknown; model?: string; turnId?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -99,6 +107,7 @@ export async function POST(request: NextRequest) {
   let chat: { id: string } | null = null;
   if (person) {
     if (chatId) {
+      await waitForTurnIdle('agent', chatId, PREVIOUS_TURN_WAIT_MS);
       const existing = await getAgentChat(chatId);
       if (!existing) return new Response('Chat not found', { status: 404 });
       // Admins may read other people's chats (agent page → Review), but nobody writes into them.
@@ -134,10 +143,10 @@ export async function POST(request: NextRequest) {
     async start(controller) {
       // `closed` means the browser went away. The model keeps running; only Stop sets `userStop`.
       const closed = { value: false };
-      const stopKey = savedChat ? turnStopKey('agent', savedChat.id) : '';
-      if (stopKey) clearTurnStop(stopKey);
-      const userStop = { get value() { return isTurnStopped(stopKey); } };
-      const draft = createDraftWriter(savedChat?.id, 'agentDraft');
+      const turn = openTurn('agent', savedChat?.id, parseTurnId(body.turnId));
+      const userStop = { get value() { return turn.isStopped(); } };
+      // A newer turn on this chat (Send now) owns the draft from then on.
+      const draft = createDraftWriter(savedChat?.id, 'agentDraft', turn.isCurrent);
       const encoder = new TextEncoder();
       request.signal.addEventListener('abort', () => {
         closed.value = true;
@@ -186,6 +195,14 @@ export async function POST(request: NextRequest) {
           },
         });
         finalText = result.text ?? '';
+        // This surface shows the streamed deltas, not text_replace, so a reply that hit the
+        // output-token cap needs its cut-off notice streamed too (otherwise it just ends mid-table).
+        if (finalText.includes(REPLY_CUT_OFF_NOTICE) && !reply.includes(REPLY_CUT_OFF_NOTICE)) {
+          const tail = `\n\n${REPLY_CUT_OFF_NOTICE}`;
+          reply += tail;
+          draft.append(tail);
+          emit({ type: 'text', delta: tail });
+        }
         inspection = result.inspection;
         const visibleNote = messagesForViewer([{ inspection }], role)[0]?.inspection;
         if (visibleNote) emit({ type: 'inspection', inspection: visibleNote });
@@ -220,6 +237,7 @@ export async function POST(request: NextRequest) {
         if (!closed.value) {
           try { controller.close(); } catch { /* already closed */ }
         }
+        turn.end();
       }
     },
   });

@@ -7,6 +7,7 @@ import {
   type ToolConfiguration,
 } from '@aws-sdk/client-bedrock-runtime';
 import { classifyToolCall, type ToolKind } from '@/lib/boost/classify';
+import { finishCutOffReply, isOutputCapStop } from './reply-cutoff';
 
 export type TrajectoryEntry = {
   seq: number;
@@ -53,7 +54,8 @@ export type LoopMetrics = {
   contextMessages: number;
   contextChars: number;
   toolCalls: number;
-  stopReason: 'tool_use' | 'end_turn' | 'max_loops' | 'aborted';
+  /** max_tokens: the final reply hit the output-token cap and was cut off. */
+  stopReason: 'tool_use' | 'end_turn' | 'max_loops' | 'aborted' | 'max_tokens';
 };
 
 export function measureContext(systemPrompt: string, messages: unknown[]): { contextMessages: number; contextChars: number } {
@@ -230,6 +232,7 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
       let outputTokens = 0;
       let cacheReadTokens = 0;
       let cacheWriteTokens = 0;
+      let providerStopReason: string | undefined;
 
       if (response.stream) {
         for await (const chunk of response.stream) {
@@ -258,6 +261,8 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
           if (chunk.contentBlockDelta?.delta?.toolUse && activeToolIdx >= 0) {
             toolUseBlocks[activeToolIdx].input += chunk.contentBlockDelta.delta.toolUse.input || '';
           }
+
+          if (chunk.messageStop?.stopReason) providerStopReason = chunk.messageStop.stopReason;
 
           if (chunk.metadata?.usage) {
             inputTokens = chunk.metadata.usage.inputTokens || 0;
@@ -289,11 +294,16 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
           stopReason,
         });
 
+      const cutOff = toolUseBlocks.length === 0 && isOutputCapStop(providerStopReason) && !(abortSignal?.value);
       if (toolUseBlocks.length === 0) {
-        onTextReplace?.(stripInspectorMarkup(fullText).trim());
+        const clean = stripInspectorMarkup(fullText).trim();
+        onTextReplace?.(cutOff ? finishCutOffReply(clean) : clean);
       }
 
       if (toolUseBlocks.length > 0 && !(abortSignal?.value)) {
+        // Grok and Claude often emit a short stakeholder preamble each tool loop; clear the
+        // streamed draft so loops do not stack duplicate paragraphs in the UI.
+        if (fullText.trim()) onTextReplace?.('');
         const toolBatchStart = Date.now();
         const toolResults = await Promise.all(
           toolUseBlocks.map(async (block) => {
@@ -352,8 +362,9 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
       }
 
       // Clean break — model returned text with no tool calls
-      reportLoop(0, abortSignal?.value ? 'aborted' : 'end_turn');
+      reportLoop(0, abortSignal?.value ? 'aborted' : cutOff ? 'max_tokens' : 'end_turn');
       finalText = stripInspectorMarkup(fullText).trim();
+      if (cutOff) finalText = finishCutOffReply(finalText);
       return {
         finalText,
         toolCalls: trajectory,

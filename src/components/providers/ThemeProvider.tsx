@@ -32,9 +32,10 @@ function AppearanceSync() {
 function ThemeCookieSync() {
   const { resolvedTheme } = useTheme();
   useEffect(() => {
-    if (!resolvedTheme || resolvedTheme === 'system') return;
+    if (!resolvedTheme) return;
     const isDark = resolvedTheme === 'dark';
     document.cookie = `${THEME_COOKIE_NAME}=${themeCookieValue(isDark)};path=/;max-age=31536000;SameSite=Lax`;
+    document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
   }, [resolvedTheme]);
   return null;
 }
@@ -45,7 +46,7 @@ export default function ThemeProvider({
   children: React.ReactNode;
 }) {
   return (
-    <NextThemesProvider attribute="class" defaultTheme="light" enableSystem={false} storageKey="theme">
+    <NextThemesProvider attribute="class" defaultTheme="system" enableSystem storageKey="theme">
       <AppearanceSync />
       <ThemeCookieSync />
       {children}

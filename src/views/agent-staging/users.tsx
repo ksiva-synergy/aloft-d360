@@ -11,6 +11,7 @@ import { UserDetailDrawer } from '@/components/users/UserDetailDrawer';
 import { InviteUserModal } from '@/components/users/InviteUserModal';
 import { ChangeRoleModal } from '@/components/users/ChangeRoleModal';
 import { SectionAccessPanel } from '@/components/users/SectionAccessPanel';
+import { RolePermissionsPanel } from '@/components/users/RolePermissionsPanel';
 import { PersonSectionAccess } from '@/components/users/PersonSectionAccess';
 import { useSectionLevels } from '@/lib/sections/useSectionLevels';
 import type { SectionLevel } from '@/lib/sections/registry';
@@ -96,7 +97,7 @@ export default function UsersPage() {
   const currentUserId = sessionUser?.id;
   const me = useSectionLevels();
   const perms = getPermissionsForLevels(me?.levels['govern.users'] ?? null, me?.levels['govern.data-access'] ?? null);
-  const [tab, setTab] = useState<'people' | 'sections'>('people');
+  const [tab, setTab] = useState<'people' | 'sections' | 'permissions'>('people');
 
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -293,9 +294,20 @@ export default function UsersPage() {
         <button role="tab" type="button" id="tab-sections" aria-selected={tab === 'sections'} aria-controls="panel-sections" className={styles.tab} onClick={() => setTab('sections')}>
           Section access
         </button>
+        <button role="tab" type="button" id="tab-permissions" aria-selected={tab === 'permissions'} aria-controls="panel-permissions" className={styles.tab} onClick={() => setTab('permissions')}>
+          Permissions
+        </button>
       </div>
 
-      {tab === 'sections' ? (
+      {tab === 'permissions' ? (
+        <section id="panel-permissions" role="tabpanel" aria-labelledby="tab-permissions" className={styles.directory}>
+          <div className={styles.directoryHeader}>
+            <h2 className="text-title-card">Permissions</h2>
+            <span className="text-caption text-muted-foreground">What each role may do inside the sections it can open</span>
+          </div>
+          <RolePermissionsPanel notify={showToast} />
+        </section>
+      ) : tab === 'sections' ? (
         <section id="panel-sections" role="tabpanel" aria-labelledby="tab-sections" className={styles.directory}>
           <div className={styles.directoryHeader}>
             <h2 className="text-title-card">Section access</h2>

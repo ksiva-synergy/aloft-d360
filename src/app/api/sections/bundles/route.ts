@@ -4,6 +4,7 @@ import { ApiError, clientMeta, created, handle, parse } from '@/lib/http';
 import { resolveAuth } from '@/middleware/auth';
 import { writeAudit } from '@/lib/audit';
 import { defaultLevels } from '@/lib/sections/registry';
+import { loadRoleDefaultOverrides } from '@/lib/sections/role-admin';
 import {
   BaseRoleSchema,
   BundleLevelsSchema,
@@ -25,7 +26,7 @@ const CreateBundle = z
   })
   .refine((b) => b.kind === 'bundle' || b.base, { message: 'A custom role needs a starting role', path: ['base'] });
 
-/** Create a bundle or a custom role (platform admins only). A custom role starts from its base role's levels. */
+/** Create a bundle or a custom role (platform admins only). A custom role starts from its base role's current levels. */
 export const POST = handle(async (req) => {
   const auth = await resolveAuth(req);
   requirePlatformAdminForBundles(auth);
@@ -39,7 +40,9 @@ export const POST = handle(async (req) => {
     data: { name: body.name, description: body.description || null, isSystem: false },
     select: { id: true, name: true },
   });
-  const keys = await setBundleLevels(role.id, body.levels ?? (base ? defaultLevels(base) : {}), base);
+  // A custom role starts from what its base role gives today, including defaults changed in the matrix.
+  const startLevels = body.levels ?? (base ? defaultLevels(base, (await loadRoleDefaultOverrides())[base]) : {});
+  const keys = await setBundleLevels(role.id, startLevels, base);
 
   await writeAudit({
     actorId: auth.userId,

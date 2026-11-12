@@ -26,6 +26,24 @@ function isMissingTable(err: unknown): boolean {
   return typeof err === 'object' && err !== null && (err as { code?: string }).code === 'P2021';
 }
 
+/** Stale or pre-migration Prisma client (column-access models not generated yet). */
+function columnAccessPrismaReady(): boolean {
+  const p = prisma as {
+    accessTag?: { findMany?: unknown };
+    accessColumnTag?: { findMany?: unknown };
+    accessTagGrant?: { findMany?: unknown };
+    accessGroup?: { findMany?: unknown };
+    accessGroupMember?: { findMany?: unknown };
+  };
+  return !!(
+    p.accessTag?.findMany &&
+    p.accessColumnTag?.findMany &&
+    p.accessTagGrant?.findMany &&
+    p.accessGroup?.findMany &&
+    p.accessGroupMember?.findMany
+  );
+}
+
 /** Current policy version (bumped on every access change). */
 export async function readPolicyVersion(orgId: string): Promise<bigint> {
   return readVersion(orgId);
@@ -110,6 +128,7 @@ export function emptyColumnPolicy(): ColumnPolicy {
  * database without the 20261107 migration still gets a valid (empty) column policy.
  */
 async function loadColumnPolicy(orgId: string): Promise<ColumnPolicy> {
+  if (!columnAccessPrismaReady()) return emptyColumnPolicy();
   const policy = emptyColumnPolicy();
   try {
     const [tagRows, columnTagRows, grantRows, groupRows] = await Promise.all([

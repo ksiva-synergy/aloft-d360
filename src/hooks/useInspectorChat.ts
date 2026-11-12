@@ -17,6 +17,7 @@ import {
   recoverInspectorTurn,
   resetInspectorLive,
   setInspectorModel,
+  stopInspectorRecovery,
   subscribeInspectorLive,
 } from '@/lib/inspector/inspector-chat-live';
 
@@ -129,6 +130,8 @@ export interface RunMetric {
 interface UseInspectorChatOptions {
   sessionId: string | null;
   contextMode?: 'harvested' | 'warehouse_only';
+  /** Optional business domain key selected on the welcome screen (e.g. 'hr', 'crewing'). */
+  domainKey?: string | null;
   /**
    * In-flight replies live outside React under this key, so leaving the page does not stop them.
    * The dashboard's scoped panel must not share the main Inspector key.
@@ -156,14 +159,15 @@ interface UseInspectorChatReturn {
   exportOffers: ExportReadyMessage[];
   /** In-flight semantic-chart progressive state (null when idle). */
   queryProgress: QueryProgress | null;
-  send: (content: string) => void;
+  /** False when a reply is already starting or streaming (nothing was sent). */
+  send: (content: string) => boolean;
   abort: () => void;
   reset: () => void;
   editMessage: (messageId: string) => { content: string } | null;
   availableModels: typeof AVAILABLE_MODELS;
 }
 
-export function useInspectorChat({ sessionId, contextMode = 'harvested', liveKey = 'inspector' }: UseInspectorChatOptions): UseInspectorChatReturn {
+export function useInspectorChat({ sessionId, contextMode = 'harvested', domainKey = null, liveKey = 'inspector' }: UseInspectorChatOptions): UseInspectorChatReturn {
   const { models: availableModels } = useInspectorChatModels();
   const snap = useSyncExternalStore(
     (listener) => subscribeInspectorLive(liveKey, listener),
@@ -229,6 +233,9 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested', liveKey
   const contextModeRef = useRef<'harvested' | 'warehouse_only'>(contextMode);
   useEffect(() => { contextModeRef.current = contextMode; }, [contextMode]);
 
+  const domainKeyRef = useRef<string | null>(domainKey ?? null);
+  useEffect(() => { domainKeyRef.current = domainKey ?? null; }, [domainKey]);
+
   useEffect(() => { sessionIdRef.current = currentSessionId; }, [currentSessionId]);
   const streamStartRef = useRef<number | null>(null);
   const firstTokenRef = useRef<number | null>(null);
@@ -237,6 +244,8 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested', liveKey
 
   // Per-stream accumulator for tool calls (reset each doSend)
   const pendingToolCallsRef = useRef<{ name: string; durationMs: number; status: 'success' | 'error'; kind: ToolKind; sqlExcerpt?: string | null }[]>([]);
+  /** `queryResults` indexes produced during the current assistant turn. */
+  const turnQueryResultIndicesRef = useRef<number[]>([]);
 
   let msgIdCounter = 0;
   function nextMsgId(): string {
@@ -259,6 +268,8 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested', liveKey
         if (getInspectorSnapshot(liveKey).isStreaming) return;
         const s = data.session;
         setLocalMessages(s.messages || []);
+        const lastMessage = s.messages?.at(-1);
+        setSuggestions(lastMessage?.role === 'assistant' && Array.isArray(lastMessage.followUps) ? lastMessage.followUps : []);
         if (s.progress?.last_model && availableModels.some(m => m.key === s.progress!.last_model)) {
           setPreviewModel(s.progress.last_model as string);
         }
@@ -311,6 +322,7 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested', liveKey
     const turnIndex = ++turnCountRef.current;
 
     pendingToolCallsRef.current = [];
+    turnQueryResultIndicesRef.current = [];
 
     const userMsg: WorkbenchMessage = { id: userMsgId, role: 'user', content, timestamp: now, turnNumber: 0 };
     const assistantMsg: WorkbenchMessage = { id: assistantMsgId, role: 'assistant', content: '', timestamp: now, turnNumber: 0 };
@@ -325,9 +337,18 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested', liveKey
     const bucket = inspectorBucket(liveKey);
     bucket.userStop = false;
     const ctrl = new AbortController();
+    const turnId = crypto.randomUUID();
     bucket.ctrl = ctrl;
+    bucket.turnId = turnId;
+    bucket.assistantId = assistantMsgId;
     abortControllerRef.current = ctrl;
     let streamFailed = false;
+    // "Send now" (or New chat followed by a send) started another turn on this bucket. That
+    // turn owns the shared streaming state, so this one must not touch it when it unwinds.
+    const replaced = () => {
+      const current = inspectorBucket(liveKey).ctrl;
+      return current !== null && current !== ctrl;
+    };
 
     try {
       const allMessages = await new Promise<WorkbenchMessage[]>(resolve => {
@@ -339,9 +360,15 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested', liveKey
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sessionId: sid,
-          messages: [...allMessages.filter(m => m.id !== assistantMsgId), userMsg],
+          // allMessages already holds userMsg (added above); appending it again sent the question twice.
+          messages: [
+            ...allMessages.filter(m => m.id !== assistantMsgId && m.id !== userMsgId),
+            userMsg,
+          ].map(forModel),
           model,
           contextMode: ctxMode,
+          ...(domainKeyRef.current ? { domainKey: domainKeyRef.current } : {}),
+          turnId,
         }),
         signal: ctrl.signal,
       });
@@ -398,10 +425,20 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested', liveKey
               });
               break;
 
-            case 'loop_start':
-              loopCount = (event.loop as number) ?? loopCount + 1;
-              setLocalMessages(prev => prev.map(message => message.id === assistantMsgId ? { ...message, activity: 'thinking' } : message));
+            case 'loop_start': {
+              const loop = (event.loop as number) ?? loopCount + 1;
+              loopCount = loop;
+              if (loop > 1) rawContent = '';
+              setLocalMessages(prev => prev.map(message => {
+                if (message.id !== assistantMsgId) return message;
+                return {
+                  ...message,
+                  activity: 'thinking',
+                  ...(loop > 1 ? { content: '' } : {}),
+                };
+              }));
               break;
+            }
 
             case 'thinking':
               setLocalMessages(prev => prev.map(message => message.id === assistantMsgId ? {
@@ -507,6 +544,14 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested', liveKey
               };
               setQueryResults(prev => {
                 const appendIndex = prev.length;
+                turnQueryResultIndicesRef.current.push(appendIndex);
+                setLocalMessages((msgs) =>
+                  msgs.map((m) =>
+                    m.id === assistantMsgId
+                      ? { ...m, queryResultIndices: [...turnQueryResultIndicesRef.current] }
+                      : m,
+                  ),
+                );
                 const sid2 = sessionIdRef.current;
                 if (sid2) {
                   fetch('/api/studio/results', {
@@ -644,17 +689,32 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested', liveKey
                   used.add(matchAt);
                   return { ...tc, status: traj[matchAt].status, durationMs: traj[matchAt].durationMs };
                 });
-                updated[idx] = { ...msg, turnOps, ...(msg.toolCalls ? { toolCalls } : {}) };
+                const indices = turnQueryResultIndicesRef.current.length
+                  ? [...turnQueryResultIndicesRef.current]
+                  : msg.queryResultIndices;
+                updated[idx] = {
+                  ...msg,
+                  turnOps,
+                  ...(msg.toolCalls ? { toolCalls } : {}),
+                  ...(indices?.length ? { queryResultIndices: indices } : {}),
+                };
                 return updated;
               });
 
               pendingToolCallsRef.current = [];
+              turnQueryResultIndicesRef.current = [];
               break;
             }
 
-            case 'suggestions':
-              setSuggestions(Array.isArray(event.items) ? event.items as string[] : []);
+            case 'suggestions': {
+              const items = Array.isArray(event.items) ? (event.items as unknown[]).map(String) : [];
+              setSuggestions(items);
+              // The server took these out of the reply text; keep them on the message for reloads.
+              if (items.length > 0) {
+                setLocalMessages(prev => prev.map(m => m.id === assistantMsgId ? { ...m, followUps: items } : m));
+              }
               break;
+            }
 
             // ── Progressive streaming (Phase 3A) ──────────────────────────────
             case 'semantic_plan':
@@ -736,10 +796,12 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested', liveKey
         }
       }
     } catch (err: unknown) {
-      const dropped = !inspectorBucket(liveKey).userStop && (
+      const dropped = !replaced() && !inspectorBucket(liveKey).userStop && (
         (err instanceof Error && err.name === 'AbortError') || err instanceof TypeError
       );
-      if (dropped) {
+      if (replaced()) {
+        // Stopped by Send now; the message is already marked stopped and a new turn runs.
+      } else if (dropped) {
         // Tab discard or a dead socket. The server keeps generating; poll the draft.
         recoverInspectorTurn(liveKey);
       } else if (err instanceof Error && err.name === 'AbortError') {
@@ -750,7 +812,7 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested', liveKey
       }
     } finally {
       const bucket = inspectorBucket(liveKey);
-      const keepStreaming = bucket.snap.recovering && !bucket.userStop;
+      const keepStreaming = replaced() || (bucket.snap.recovering && !bucket.userStop);
       if (!ctrl.signal.aborted && !streamFailed) {
         setLocalMessages(prev => prev.map(m => {
           if (m.id !== assistantMsgId || !m.toolCalls?.some(tc => tc.status === 'running')) return m;
@@ -763,15 +825,31 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested', liveKey
         }));
       }
       if (!keepStreaming) {
+        // Clear the controller first: listeners of isStreaming may send the queued message.
+        if (bucket.ctrl === ctrl) {
+          bucket.ctrl = null;
+          bucket.turnId = null;
+          bucket.assistantId = null;
+        }
+        if (abortControllerRef.current === ctrl) abortControllerRef.current = null;
         setIsStreaming(false);
         setQueryProgress(null);
-        if (bucket.ctrl === ctrl) bucket.ctrl = null;
-        abortControllerRef.current = null;
       }
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const send = useCallback((content: string) => {
+  /**
+   * Start a turn. Returns false (and sends nothing) while a reply is starting or streaming, so
+   * repeated clicks on a prompt or Send cannot post the same question several times. Callers
+   * queue the text instead (useQueuedSend); "Send now" calls abort() first.
+   */
+  const send = useCallback((content: string): boolean => {
+    const bucket = inspectorBucket(liveKey);
+    // An aborted controller is a stopped reply still unwinding; "Send now" may start the next one.
+    if (bucket.snap.isStreaming || (bucket.ctrl && !bucket.ctrl.signal.aborted)) return false;
+    bucket.userStop = false;
+    // Busy from the first click: creating the session below can take a moment.
+    setIsStreaming(true);
     setSuggestions([]);
     setInterrupted(false);
     setError(null);
@@ -793,32 +871,53 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested', liveKey
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ last_model: modelRef.current }),
           }).catch(() => {});
-          doSend(content);
+          // Stop or New chat while the session was being created: do not start the turn.
+          if (!inspectorBucket(liveKey).userStop) doSend(content);
         })
-        .catch(() => { doSend(content); });
-      return;
+        .catch(() => { if (!inspectorBucket(liveKey).userStop) doSend(content); });
+      return true;
     }
 
     doSend(content);
-  }, [currentSessionId, doSend]); // eslint-disable-line react-hooks/exhaustive-deps
+    return true;
+  }, [currentSessionId, doSend, liveKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const abort = useCallback(() => {
     const bucket = inspectorBucket(liveKey);
+    const wasStreaming = bucket.snap.isStreaming;
     bucket.userStop = true;
-    bucket.recoverGen += 1;
+    stopInspectorRecovery(liveKey);
     const sid = bucket.snap.sessionId;
     if (sid) {
       void fetch('/api/inspector/chat/cancel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId: sid }),
+        // No turnId while recovering a reply from an earlier page load: stop the session's turn.
+        body: JSON.stringify({ sessionId: sid, ...(bucket.turnId ? { turnId: bucket.turnId } : {}) }),
       }).catch(() => {});
+    }
+    if (wasStreaming) {
+      // Keep the partial reply in the thread, marked stopped, so the person and the model
+      // can both see it was cut off.
+      const targetId = bucket.assistantId;
+      setLocalMessages(prev => {
+        let idx = targetId ? prev.findIndex(m => m.id === targetId) : -1;
+        if (idx < 0) {
+          for (let i = prev.length - 1; i >= 0; i--) {
+            if (prev[i].role === 'assistant') { idx = i; break; }
+          }
+        }
+        if (idx < 0 || prev[idx].stopped) return prev;
+        const next = [...prev];
+        next[idx] = { ...next[idx], stopped: true };
+        return next;
+      });
     }
     bucket.ctrl?.abort();
     abortControllerRef.current?.abort();
     setIsStreaming(false);
     setInterrupted(true);
-  }, [liveKey]);
+  }, [liveKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const reset = useCallback(() => {
     const sid = inspectorBucket(liveKey).snap.sessionId;
@@ -872,6 +971,16 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested', liveKey
     editMessage,
     availableModels,
   };
+}
+
+/** Note on a stopped reply so the model knows the person cut it off and moved on. */
+const STOPPED_NOTE = '[The person stopped this reply before it finished.]';
+
+/** Message as sent to /api/inspector/chat. A stopped reply carries the note above. */
+function forModel(m: WorkbenchMessage): WorkbenchMessage {
+  if (m.role !== 'assistant' || !m.stopped) return m;
+  const text = typeof m.content === 'string' ? m.content.trim() : '';
+  return { ...m, content: text ? `${text}\n\n${STOPPED_NOTE}` : STOPPED_NOTE };
 }
 
 function sanitize(text: string): string {

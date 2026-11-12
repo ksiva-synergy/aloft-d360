@@ -76,7 +76,7 @@ describe('runtime prompt', () => {
     expect(live).toContain(INSTRUCTIONS);
     expect(live).toContain('Name things, not just codes');
     expect(live).toContain('HOW TO WRITE THE ANSWER');
-    expect(live).toContain('Do not add a sources or joins section');
+    expect(live).toContain('do not add a sources or joins section');
     expect(live).not.toMatch(/keep the final answer concise/i);
   });
 

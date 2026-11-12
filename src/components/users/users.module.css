@@ -395,6 +395,49 @@
 
 .bundleCell { border-left: 1px solid var(--estate-border); }
 
+/* A built-in role cell (or permission) changed from what ALOFT ships. */
+.cellChanged { background: color-mix(in srgb, var(--brand-a) 7%, transparent); }
+
+/* Section access: columns that open a section whose screen uses another one they lack. */
+.depNotice {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 20px 12px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--warn) 30%, transparent);
+  border-radius: 10px;
+  background: var(--warn-bg);
+  font-size: var(--type-caption-size, 12px);
+  color: var(--estate-ink);
+}
+
+.depItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.permCheck {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--brand-a);
+  cursor: pointer;
+}
+
+.permCheck:disabled { cursor: not-allowed; }
+
+.permMark { color: var(--ok); font-weight: 600; }
+.permNone { color: var(--estate-text-dim); }
+
+.warnTag {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--warn-bg);
+  color: var(--warn);
+  font-size: var(--type-caption-size, 12px);
+}
+
 .surface .bundleAction {
   display: inline-flex;
   align-items: center;

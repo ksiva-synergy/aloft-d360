@@ -53,6 +53,7 @@ model User {
   auditLogs    AuditLog[]    @relation("AuditActor")
   access_department_members AccessDepartmentMember[]
   access_clearances         AccessClearance[]
+  pinned_agents             UserPinnedAgent[]
 
   @@index([status])
   @@index([deletedAt])
@@ -119,7 +120,24 @@ model agent_catalog {
   @@index([type], map: "idx_agent_catalog_type")
   @@index([parent_id], map: "idx_agent_catalog_parent")
   @@index([updated_at(sort: Desc)], map: "idx_agent_catalog_updated")
+  pinned_by         UserPinnedAgent[]
+
   @@map("agent_catalog")
+}
+
+/// Agents a person pinned to their sidebar (max 5, enforced by the API). Stored per user so pins follow
+/// them across browsers and devices. Rows go away with the user or the agent.
+model UserPinnedAgent {
+  user_id   String
+  agent_id  String        @db.Uuid
+  position  Int           @default(0)
+  pinned_at DateTime      @default(now()) @db.Timestamptz(6)
+  user      User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  agent     agent_catalog @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+
+  @@id([user_id, agent_id])
+  @@index([user_id, position])
+  @@map("user_pinned_agents")
 }
 
 model bus_contract_catalog {

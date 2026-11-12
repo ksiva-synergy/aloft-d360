@@ -15,6 +15,8 @@ import { HOME_ITEM, groupForPath, isActive, primaryNavHref, showHomeInNav, type 
 import { useNavGroups } from './useNavGroups';
 import { useNavShell } from './useNavShell';
 import { AuroraGlow, NavStyleToggle } from './nav-shared';
+import { PinnedAgentBadge, isPinnedAgentActive } from './PinnedAgentBadge';
+import { usePinReorder } from './usePinReorder';
 
 const COLLAPSED_W = 64;
 const EXPANDED_W = 264;
@@ -256,6 +258,7 @@ export function CommandSidebar({ initialSession }: { initialSession?: Session | 
                     <li><Row item={HOME_ITEM} active={isActive(HOME_ITEM, pathname)} expanded={expanded} /></li>
                   </ul>
                 ) : null}
+                <PinnedAgentsSection expanded={expanded} pathname={pathname} />
                 <SectionLabel expanded={expanded}>{area.label}</SectionLabel>
                 <ul className="space-y-0.5">
                   {area.items.map((item) => (
@@ -311,6 +314,62 @@ function SectionLabel({ expanded, children }: { expanded: boolean; children: Rea
         {children}
       </span>
     </div>
+  );
+}
+
+/** The person's pinned agents (up to 5), on every page. Click opens the agent's chat. */
+function PinnedAgentsSection({ expanded, pathname }: { expanded: boolean; pathname: string }) {
+  const { list, dragId, dragProps, keyProps, setPinned } = usePinReorder();
+  if (list.length === 0) return null;
+  return (
+    <>
+      <SectionLabel expanded={expanded}>Pinned agents</SectionLabel>
+      <ul className="space-y-0.5">
+        {list.map((agent) => {
+          const active = isPinnedAgentActive(agent.useUrl, pathname);
+          return (
+            <li
+              key={agent.id}
+              {...dragProps(agent.id)}
+              className={cn('group/pin relative', dragId === agent.id && 'opacity-50')}
+            >
+              <Link
+                href={agent.useUrl}
+                aria-current={active ? 'page' : undefined}
+                title={expanded ? 'Drag or press Alt+↑/↓ to reorder' : agent.name}
+                {...keyProps(agent.id)}
+                className={cn(
+                  'relative flex h-10 items-center whitespace-nowrap rounded-xl text-[length:var(--type-ui-regular-size)] font-medium outline-none transition-colors',
+                  'focus-visible:ring-2 focus-visible:ring-[var(--rail-accent)]',
+                  active ? 'bg-[var(--rail-active)] text-[var(--rail-ink-strong)]' : 'text-[var(--rail-ink)] hover:bg-[var(--rail-hover)] hover:text-[var(--rail-ink-strong)]',
+                )}
+              >
+                {active && (
+                  <span aria-hidden className="absolute -left-3 top-2.5 bottom-2.5 w-[3px] rounded-r-full bg-[var(--rail-accent)]" />
+                )}
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center">
+                  <PinnedAgentBadge name={agent.name} active={active} />
+                </span>
+                <span className={cn('min-w-0 flex-1 truncate pr-9 transition-opacity duration-200', expanded ? 'opacity-100' : 'opacity-0')}>
+                  {agent.name}
+                </span>
+              </Link>
+              {expanded && (
+                <button
+                  type="button"
+                  onClick={() => void setPinned(agent, false)}
+                  aria-label={`Unpin ${agent.name}`}
+                  title="Unpin"
+                  className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-[var(--rail-muted)] opacity-0 transition-opacity hover:bg-[var(--rail-hover)] hover:text-[var(--rail-ink-strong)] focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rail-accent)] group-hover/pin:opacity-100"
+                >
+                  <PushPinSlashIcon size={14} />
+                </button>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 }
 

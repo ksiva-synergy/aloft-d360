@@ -38,14 +38,20 @@ export async function writeTurnDraft(
 /**
  * Throttled draft writer for one turn. `append` / `replace` save at most every 2s.
  * `finish` writes the terminal status and waits, so the poller sees the full reply.
+ * `isCurrent` false (a newer turn started on the same chat) stops all writes, so a stopped
+ * reply cannot overwrite the newer turn's draft.
  */
-export function createDraftWriter(sessionId: string | undefined, field: 'inspectorDraft' | 'agentDraft') {
+export function createDraftWriter(
+  sessionId: string | undefined,
+  field: 'inspectorDraft' | 'agentDraft',
+  isCurrent: () => boolean = () => true,
+) {
   let text = '';
   let last = 0;
   let chain: Promise<void> = Promise.resolve();
 
   const enqueue = (status: TurnDraftStatus, force: boolean) => {
-    if (!sessionId) return chain;
+    if (!sessionId || !isCurrent()) return chain;
     const now = Date.now();
     if (!force && (now - last < 2000 || text.length === 0)) return chain;
     last = now;

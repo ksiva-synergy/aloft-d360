@@ -32,6 +32,7 @@ const GUARDS = [
   'requireAccessClassify(',
   'requireAccessAudit(',
   'connectionActor(',
+  'connectionContext(',
   'requirePlatformAdminForBundles(',
   'denyUnlessEstatePipelineOperator(',
   'requireGroupMemberManager(',
@@ -78,7 +79,8 @@ describe('section access route coverage', () => {
       .filter((rel) => !EXEMPT[rel])
       .filter((rel) => !GUARDS.some((g) => readFileSync(join(API, rel), 'utf8').includes(g)));
     expect(missing).toEqual([]);
-  });
+    // Reads every route file; under a full parallel run on Windows this can pass the 5s default.
+  }, 30_000);
 
   it('exempt routes still exist (drop stale entries)', () => {
     const rels = new Set(files.map((f) => relative(API, f).split(sep).join('/')));

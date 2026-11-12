@@ -138,6 +138,7 @@ export async function authorizeSql(
       level,
       paths: [],
       requestUrl: requestUrlForAccess({}),
+      sqlReason: extracted.reason,
     });
     if (isSurfaceEnforced(ctx.surface)) throw error;
     return { tier: 'internal' };

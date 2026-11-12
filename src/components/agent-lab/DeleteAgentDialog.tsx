@@ -44,7 +44,7 @@ export function DeleteAgentDialog({
           className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg text-[var(--ink-3)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--ink-1)] disabled:opacity-50"
           aria-label="Close"
         >
-          <span className="text-lg leading-none">×</span>
+          <span className="text-size-body-lg leading-none">×</span>
         </button>
 
         <div className="flex items-start gap-3 pr-6">

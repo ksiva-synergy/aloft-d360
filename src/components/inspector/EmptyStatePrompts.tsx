@@ -105,9 +105,9 @@ export function EmptyStatePrompts({
   if (!modelId) {
     return (
       <Frame>
-        <Heading title="Ask anything about your data" />
+        <Heading title="Start with a real question" />
         <p style={{ ...type['ui-regular'], color: MUTED, lineHeight: 1.6, margin: 0, maxWidth: 420, textAlign: 'center' }}>
-          I can query your warehouse, build charts, and help you explore. Ask a question below to begin.
+          Ask for a trend, a comparison, or an explanation — I’ll pull the numbers and chart what matters.
         </p>
       </Frame>
     );
@@ -140,7 +140,7 @@ export function EmptyStatePrompts({
         <span style={{ ...type['ui-regular'], color: MUTED }}>Reading the model…</span>
       ) : finalPrompts.length === 0 ? (
         <p style={{ ...type['ui-regular'], color: MUTED, lineHeight: 1.6, margin: 0, maxWidth: 420, textAlign: 'center' }}>
-          This model has no governed fields yet. Ask a question to explore the warehouse directly.
+          This area isn’t fully set up yet. Ask your question anyway — I’ll work from what’s available.
         </p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%', maxWidth: 420 }}>
@@ -159,7 +159,7 @@ export function EmptyStatePrompts({
                 borderRadius: 6,
                 border: '1px solid color-mix(in srgb, var(--brand-a) 20%, transparent)',
                 background: 'color-mix(in srgb, var(--brand-a) 4%, transparent)',
-                color: 'var(--wb-ink, #E6ECF5)',
+                color: 'var(--ink-1)',
                 cursor: 'pointer',
                 transition: 'border-color 0.15s, background 0.15s',
               }}
@@ -170,7 +170,7 @@ export function EmptyStatePrompts({
               {taught
                 ? <Sparkles size={13} color={GOLD} style={{ flexShrink: 0 }} />
                 : <BarChart3 size={13} color={GOLD} style={{ flexShrink: 0 }} />}
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{text}</span>
+              <span style={{ lineHeight: 1.45 }}>{text}</span>
             </button>
           ))}
         </div>
@@ -204,7 +204,7 @@ function Heading({ title }: { title: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <Sparkles size={15} color={GOLD} />
-      <span style={{ ...type['ui-regular'], color: 'var(--wb-ink, #E6ECF5)' }}>{title}</span>
+      <span style={{ ...type['ui-regular'], color: 'var(--ink-1)' }}>{title}</span>
     </div>
   );
 }

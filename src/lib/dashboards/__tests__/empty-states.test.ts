@@ -14,7 +14,7 @@ describe('generateStarterPrompts', () => {
       [dim('d1', 'Order Date', 'temporal')],
       [msr('m1', 'Total Revenue')],
     );
-    expect(prompts).toContain('Show Total Revenue over Order Date');
+    expect(prompts).toContain('How has Total Revenue trended over Order Date?');
   });
 
   it('builds breakdown + top-N prompts from a categorical dimension + measure', () => {
@@ -22,8 +22,8 @@ describe('generateStarterPrompts', () => {
       [dim('d1', 'Region', 'categorical')],
       [msr('m1', 'Total Revenue')],
     );
-    expect(prompts).toContain('Break down Total Revenue by Region');
-    expect(prompts).toContain('Top 10 Region by Total Revenue');
+    expect(prompts).toContain('Where is Total Revenue coming from — split by Region?');
+    expect(prompts).toContain('Who are the top 10 Regions for Total Revenue?');
   });
 
   it('builds a comparison prompt when there are 2+ measures', () => {
@@ -31,17 +31,17 @@ describe('generateStarterPrompts', () => {
       [],
       [msr('m1', 'Total Revenue'), msr('m2', 'Order Count')],
     );
-    expect(prompts).toContain('Compare Total Revenue vs Order Count');
+    expect(prompts).toContain('How does Total Revenue compare to Order Count?');
   });
 
   it('builds a single-value prompt for one measure and no dimensions', () => {
     const prompts = generateStarterPrompts([], [msr('m1', 'Total Revenue')]);
-    expect(prompts).toContain('What is the total Total Revenue?');
+    expect(prompts).toContain("What's the total Total Revenue right now?");
   });
 
   it('falls back to a count prompt when there is a dimension but no measure', () => {
     const prompts = generateStarterPrompts([dim('d1', 'Region', 'categorical')], []);
-    expect(prompts).toEqual(['Count records by Region']);
+    expect(prompts).toEqual(['How much do we have in each Region?']);
   });
 
   it('returns an empty array when the model has no fields', () => {
@@ -62,6 +62,8 @@ describe('generateStarterPrompts', () => {
   });
 
   it('exposes the "what is this data" spotter prompt', () => {
-    expect(WHAT_IS_THIS_DATA_PROMPT).toBe('What is this data?');
+    expect(WHAT_IS_THIS_DATA_PROMPT).toBe(
+      'Give me a plain-English tour of what I can ask about here.',
+    );
   });
 });

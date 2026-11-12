@@ -4,6 +4,7 @@
  */
 import { NextResponse } from 'next/server';
 import { denyUnlessSection, minForMethod } from './server';
+import { embeddedCallRequirements } from './uses';
 
 type ApiSectionRule = { prefix: string; sectionId: string };
 
@@ -42,9 +43,13 @@ export function sectionIdForApiPath(pathname: string): string | null {
   return rule?.sectionId ?? null;
 }
 
-/** Returns a 401/403 JSON response, or null when the caller may call this API path. */
+/**
+ * Returns a 401/403 JSON response, or null when the caller may call this API path: they have the
+ * path's section, or a section whose screen embeds this exact call (src/lib/sections/uses.ts).
+ */
 export async function denyUnlessSectionForApi(req: Request): Promise<NextResponse | null> {
-  const sectionId = sectionIdForApiPath(new URL(req.url).pathname);
+  const pathname = new URL(req.url).pathname;
+  const sectionId = sectionIdForApiPath(pathname);
   if (!sectionId) return null;
-  return denyUnlessSection(req, [sectionId, minForMethod(req.method)]);
+  return denyUnlessSection(req, [sectionId, minForMethod(req.method)], ...embeddedCallRequirements(req.method, pathname));
 }

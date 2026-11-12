@@ -17,6 +17,8 @@ import { useNavGroups } from './useNavGroups';
 import { TOGGLE_EVENT, useNavShell } from './useNavShell';
 import { AuroraGlow, NavStyleToggle, useNavStyle } from './nav-shared';
 import { CommandSidebar } from './CommandSidebar';
+import { PinnedAgentBadge, isPinnedAgentActive } from './PinnedAgentBadge';
+import { usePinReorder } from './usePinReorder';
 
 const RAIL_W = 64;
 const PANEL_W = 240;
@@ -126,6 +128,8 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
               />
             ))}
           </div>
+
+          <RailPinnedAgents pathname={pathname} />
 
           <div className="relative mt-auto flex w-full justify-center">
             <UserMenu initialSession={initialSession} />
@@ -269,6 +273,36 @@ function RailButton({
     <button onClick={onClick} aria-pressed={selected} className={railItemClass}>
       <RailItem label={label} icon={icon} active={selected} dot={hasActive && !selected} />
     </button>
+  );
+}
+
+/** Pinned agents as initials badges under the area buttons; hover shows the name. */
+function RailPinnedAgents({ pathname }: { pathname: string }) {
+  const { list, dragId, dragProps, keyProps } = usePinReorder();
+  if (list.length === 0) return null;
+  return (
+    <>
+      <span aria-hidden className="relative my-2 h-px w-6 rounded-full bg-[var(--rail-line)]" />
+      <ul aria-label="Pinned agents" className="relative flex flex-col items-center gap-1">
+        {list.map((agent) => {
+          const active = isPinnedAgentActive(agent.useUrl, pathname);
+          return (
+            <li key={agent.id} {...dragProps(agent.id)} className={cn(dragId === agent.id && 'opacity-50')}>
+              <Link
+                href={agent.useUrl}
+                aria-label={agent.name}
+                aria-current={active ? 'page' : undefined}
+                title={`${agent.name} (drag or Alt+↑/↓ to reorder)`}
+                {...keyProps(agent.id)}
+                className="flex h-9 w-10 items-center justify-center rounded-full outline-none transition-colors hover:bg-[var(--rail-hover)] focus-visible:ring-2 focus-visible:ring-[var(--rail-accent)]"
+              >
+                <PinnedAgentBadge name={agent.name} active={active} />
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 }
 

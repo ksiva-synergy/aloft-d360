@@ -9,17 +9,22 @@ import { agentChatHref } from '@/lib/sessions/surfaces';
 import { ArrowLeft, ArrowUp, ArrowUpRight, Check, ChevronsLeft, ChevronsRight, Compass, Database, Eye, Lightbulb, MessageSquare, Pencil, Plus, Sparkles, Square, Trash2, X } from 'lucide-react';
 import { AgentAvatar } from '@/components/agent-lab/AgentAvatar';
 import { DeleteAgentDialog } from '@/components/agent-lab/DeleteAgentDialog';
+import { PinAgentButton } from '@/components/agent-lab/PinAgentButton';
+import { forgetPinnedAgent } from '@/lib/agents/usePinnedAgents';
 import { AssistantContent } from '@/components/chat/AssistantContent';
 import { AnswerInspection } from '@/components/agent-lab/AnswerInspection';
-import { CaptainStatus } from '@/components/companion/CaptainStatus';
+import { ResponseLoading } from '@/components/workbench/ResponseLoading';
 import type { ToolCall } from '@/components/agent-lab/workbench/types';
 import { DEFAULT_INSPECTOR_MODEL_KEY } from '@/lib/inspector/default-model';
 import { useInspectorChatModels } from '@/hooks/useInspectorChatModels';
 import { ModelSelector } from '@/components/workbench/InputComposer';
+import { QueuedMessageBar } from '@/components/workbench/QueuedMessageBar';
+import { mergeIntoDraft, useQueuedSend } from '@/hooks/useQueuedSend';
 import {
   getAgentUseChatSnapshot,
   isAgentUseChatRunning,
   openAgentUseChat,
+  resumeAgentUseChat,
   resetAgentUseChat,
   startAgentUseChat,
   stopAgentUseChat,
@@ -28,6 +33,7 @@ import {
 } from '@/lib/agents/agent-use-chat-stream';
 import { useDeveloperMode } from '@/hooks/useDeveloperMode';
 import { friendlyActivityStatus } from '@/lib/client/tool-activity-labels';
+import { StreamingAssistantBody } from '@/components/chat/StreamingAssistantBody';
 
 /** Centered empty-state + thread composer width cap (px) — not full-bleed, not phone-narrow. */
 const CHAT_COMPOSER_MAX_PX = 760;
@@ -213,7 +219,13 @@ export default function UseAgentPage() {
       try {
         const res = await fetch(`/api/agent-lab/agents/chats/${encodeURIComponent(chatParam)}`);
         const data = (await res.json().catch(() => ({}))) as {
-          chat?: { id: string; slug: string | null; messages: AgentUseChatMessage[]; readOnly: boolean };
+          chat?: {
+            id: string;
+            slug: string | null;
+            messages: AgentUseChatMessage[];
+            readOnly: boolean;
+            draft?: { status?: string; text?: string } | null;
+          };
           error?: string;
         };
         if (cancelled) return;
@@ -227,7 +239,20 @@ export default function UseAgentPage() {
         } else {
           setListTab('mine');
         }
-        openAgentUseChat(slug, data.chat.id, data.chat.messages);
+        const draft = data.chat.draft;
+        const draftRunning = draft?.status === 'running' && typeof draft.text === 'string' && draft.text.length > 0;
+        let messages = data.chat.messages;
+        if (draftRunning) {
+          const last = messages[messages.length - 1];
+          if (last?.role === 'user') {
+            messages = [...messages, { id: crypto.randomUUID(), role: 'assistant', content: draft.text! }];
+          } else if (last?.role === 'assistant') {
+            messages = [...messages.slice(0, -1), { ...last, content: draft.text! }];
+          }
+          resumeAgentUseChat(slug, data.chat.id, messages);
+        } else {
+          openAgentUseChat(slug, data.chat.id, messages);
+        }
       } catch (err: unknown) {
         if (!cancelled) setChatLoadFailure({ id: chatParam, error: err instanceof Error ? err.message : 'Could not open this chat' });
       } finally {
@@ -286,22 +311,39 @@ export default function UseAgentPage() {
     bottomRef.current?.scrollIntoView({ block: 'end' });
   }, [messages, running]);
 
-  const send = (raw?: string) => {
-    const text = (raw ?? draft).trim();
-    if (!text || !slug || readOnly) return;
-    setDraft('');
+  /** Start a turn now. Use `submit` (below) from buttons, so a busy chat queues instead. */
+  const send = (text: string): boolean => {
+    if (!text.trim() || !slug || readOnly) return false;
     setRunError(null);
     startAgentUseChat({
       slug,
       chatId: getAgentUseChatSnapshot(slug).chatId,
-      message: text,
+      message: text.trim(),
       priorMessages: messagesRef.current,
       model: modelRef.current,
       onSettled: refreshChats,
     });
+    return true;
   };
 
   const chatBusy = running || isAgentUseChatRunning(slug);
+
+  // Sends when idle, queues while a reply streams (Send now stops it), ignores repeat clicks.
+  const sendQueue = useQueuedSend({
+    isStreaming: chatBusy,
+    isBusy: () => isAgentUseChatRunning(slug),
+    hasError: !!runError,
+    send,
+    stop: () => stopAgentUseChat(slug),
+    restoreDraft: (text) => setDraft((current) => mergeIntoDraft(current, text)),
+    resetKey: chatId,
+  });
+
+  const submitDraft = (force: boolean) => {
+    if (force && chatBusy) sendQueue.sendNow(draft);
+    else sendQueue.submit(draft);
+    setDraft('');
+  };
 
   if (loading) {
     return (
@@ -352,12 +394,19 @@ export default function UseAgentPage() {
       {runError && (
         <p className="mb-2 w-full rounded-[20px] bg-red-500/10 px-4 py-2 text-size-body text-red-500">{runError}</p>
       )}
+      <QueuedMessageBar
+        text={sendQueue.queued}
+        onSendNow={() => sendQueue.sendNow()}
+        onEdit={sendQueue.takeBack}
+        onDiscard={sendQueue.discard}
+        maxWidth={CHAT_COMPOSER_MAX_PX}
+      />
       <form
         className="mx-auto flex w-full items-end gap-2 rounded-[26px] border border-[var(--line-1)] bg-[var(--surface-1)] py-1.5 pl-1.5 pr-2 shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-[border-color,box-shadow] duration-hover focus-within:border-[color-mix(in_srgb,var(--brand-a)_45%,var(--line-1))] focus-within:shadow-[var(--focus-ring),0_8px_30px_rgba(0,0,0,0.12)]"
         style={{ maxWidth: CHAT_COMPOSER_MAX_PX }}
         onSubmit={(e) => {
           e.preventDefault();
-          send();
+          submitDraft(false);
         }}
       >
         <textarea
@@ -371,12 +420,11 @@ export default function UseAgentPage() {
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
-              send();
+              submitDraft(e.ctrlKey || e.metaKey);
             }
           }}
           rows={1}
-          placeholder={`Message ${name}…`}
-          disabled={chatBusy}
+          placeholder={chatBusy ? 'Ask a follow-up — it sends when this reply finishes' : `Message ${name}…`}
           className="max-h-40 min-h-[40px] flex-1 resize-none bg-transparent py-2 pl-4 pr-2 text-size-body leading-relaxed text-[var(--ink-1)] outline-none placeholder:text-[var(--ink-3)]"
         />
         {/* Same height as one line of text, so the controls sit centred in the pill and stay on the last line when it grows. */}
@@ -388,10 +436,20 @@ export default function UseAgentPage() {
             disabled={chatBusy || chatModels.length === 0}
             align="right"
           />
+          {chatBusy && draft.trim() && (
+            <button
+              type="submit"
+              aria-label="Queue message"
+              title="Queue — sends when this reply finishes (Enter). Ctrl+Enter sends now."
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--brand-a)_14%,transparent)] text-[var(--brand-a-ink)] transition-transform duration-hover active:scale-[0.94]"
+            >
+              <ArrowUp className="h-4 w-4" />
+            </button>
+          )}
           {chatBusy ? (
             <button
               type="button"
-              onClick={() => stopAgentUseChat(slug)}
+              onClick={sendQueue.stop}
               aria-label="Stop"
               className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--line-1)] text-[var(--ink-1)] transition-colors hover:bg-[var(--surface-2)]"
             >
@@ -410,7 +468,7 @@ export default function UseAgentPage() {
         </div>
       </form>
       <p className="mt-2 w-full text-center text-[length:var(--type-caption-size)] text-[var(--ink-3)]">
-        Enter to send · Shift+Enter for a new line
+        {chatBusy ? 'Enter to queue · Ctrl+Enter to stop and send now' : 'Enter to send · Shift+Enter for a new line'}
       </p>
     </>
   );
@@ -424,6 +482,7 @@ export default function UseAgentPage() {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(data.error ?? 'Could not delete this agent');
       }
+      forgetPinnedAgent(catalogId);
       router.push(AGENTS_LIST_HREF);
     } catch (err: unknown) {
       setLoadError(err instanceof Error ? err.message : 'Could not delete this agent');
@@ -458,6 +517,11 @@ export default function UseAgentPage() {
         >
           <Plus className="h-3.5 w-3.5" /> New chat
         </button>
+        {catalogId && (
+          <PinAgentButton
+            agent={{ id: catalogId, name, slug, description, useUrl: `/agent-lab/agents/${slug}` }}
+          />
+        )}
         <Link href={`/docs/agents/${slug}`} className="inline-flex h-8 items-center rounded-lg px-2.5 text-size-ui font-medium text-[var(--ink-2)] hover:bg-[var(--surface-2)]">
           View
         </Link>
@@ -531,7 +595,7 @@ export default function UseAgentPage() {
                   <button
                     key={s.prompt}
                     type="button"
-                    onClick={() => send(s.prompt)}
+                    onClick={() => sendQueue.submit(s.prompt)}
                     title={s.prompt}
                     className="wl-in group inline-flex h-8 items-center gap-1.5 rounded-full border border-[var(--line-1)] bg-[var(--surface-1)] px-3 text-size-ui text-[var(--ink-2)] transition-[background-color,border-color,color,transform] duration-hover hover:border-[var(--line-2)] hover:bg-[var(--surface-2)] hover:text-[var(--ink-1)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] active:scale-[0.97]"
                     style={{ animationDelay: `${80 + i * 50}ms` }}
@@ -826,31 +890,51 @@ function MessageRow({
       </div>
     );
   }
+
+  const showLiveSteps =
+    developerMode
+    && status
+    && status.toolCalls.length > 0
+    && (status.running || status.toolCalls.some((t) => t.status === 'error'));
+
+  const running = Boolean(status?.running);
+  const showStreamingBody = running && message.content.trim().length > 0;
+
   return (
     <div className="flex w-full items-start gap-3">
       <Mark name={name} hint={hint} />
       <div className="min-w-0 flex-1 pt-1">
         <p className="mb-1 text-size-ui font-medium text-[var(--ink-3)]">{name}</p>
-        {message.content && (
+        {showStreamingBody && (
+          <div className="w-full min-w-0 break-words text-size-body leading-relaxed text-[var(--ink-1)]">
+            <StreamingAssistantBody content={message.content} />
+          </div>
+        )}
+        {!running && message.content && (
           <div className="w-full min-w-0 text-size-body leading-relaxed text-[var(--ink-1)]">
             <AssistantContent content={message.content} />
           </div>
         )}
+        {message.stopped && !running && (
+          <p className="mt-1.5 text-[length:var(--type-caption-size)] text-[var(--ink-3)]">Stopped</p>
+        )}
         {developerMode && message.inspection && <AnswerInspection inspection={message.inspection} />}
-        {status && status.toolCalls.length > 0 && (status.running || status.toolCalls.some(t => t.status === 'error')) && (
+        {showLiveSteps && (
           <LiveSteps toolCalls={status.toolCalls} running={status.running} developerMode={developerMode} />
         )}
-        {/* Live companion trails the reply so a pause for a tool call never looks frozen. */}
-        {status && (
-          <CaptainStatus
-            className="!px-0 !py-1.5"
-            isStreaming={status.running}
+        {status?.running && (
+          <ResponseLoading
+            active
+            isStreaming
             content={message.content}
             toolCalls={status.toolCalls}
-            error={status.error}
-            startedAt={status.startedAt}
             showTechnicalToolNames={developerMode}
           />
+        )}
+        {!status?.running && status?.error && (
+          <p role="alert" className="mt-2 text-size-body text-red-500">
+            {status.error}
+          </p>
         )}
       </div>
     </div>

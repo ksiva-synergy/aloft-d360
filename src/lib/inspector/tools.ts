@@ -1,6 +1,7 @@
 import { ACCESS_DENIED_MODEL_HINT, friendlyDataLabel, requestUrlForAccess } from '@/lib/access/denial-ui';
 import { prisma } from '@/lib/db';
 import { ReadOnlyViolationError, MultiStatementError, ExternalLinksError } from '@/lib/databricks/execute';
+import { largeResultDisplayNote } from './result-display';
 import { profileResultSet } from '@/lib/studio/profiler';
 import type { QueryResult } from '@/hooks/useInspectorChat';
 import type { SemanticQuery } from '@/lib/semantic/types';
@@ -27,6 +28,12 @@ export interface InspectorToolContext {
   connectionId: string | null;
   /** Required when ACCESS_MODE is observe or enforce. */
   dataPrincipal?: AccessPrincipal | null;
+  /**
+   * True when the surface renders every `query_result` row in its own table
+   * (Inspector's Results pane). The model is then told not to retype large
+   * results, because a typed table runs into the reply's output-token cap.
+   */
+  resultsPanel?: boolean;
 }
 
 function resolveWarehousePrincipal(context?: InspectorToolContext): AccessPrincipal | null {
@@ -467,13 +474,28 @@ export async function executeInspectorTool(
           ...('access_note' in sqlResult && sqlResult.access_note ? { accessNote: sqlResult.access_note } : {}),
         });
 
-        return JSON.stringify(sqlResult);
+        const displayNote = largeResultDisplayNote(sqlResult.rows.length, context?.resultsPanel === true);
+        return JSON.stringify(displayNote ? { display_note: displayNote, ...sqlResult } : sqlResult);
       }
 
       const errMsg = `Tool '${toolSlug}' is not a db_query type — Inspector only supports Databricks SQL tools`;
       emit({ type: 'tool_call_error', callId, error: errMsg, retryable: false });
       return JSON.stringify({ error: errMsg });
     } catch (err: unknown) {
+      if (err instanceof AccessDeniedError && err.detail.reason === 'sql_unresolved') {
+        // The checker could not tell which tables the SQL reads (SHOW, DESCRIBE, short names, …).
+        // That is a query to rewrite, not missing access: no Request access banner, and the model retries.
+        const reason = err.detail.sqlReason ?? 'Use fully qualified catalog.schema.table names in SQL.';
+        emit({ type: 'tool_call_error', callId, error: reason, retryable: true });
+        return JSON.stringify({
+          error: 'SQL_NOT_CHECKABLE',
+          message: reason,
+          model_hint:
+            'Rewrite as one SELECT or WITH statement that names every table as catalog.schema.table. ' +
+            'Do not use SHOW, DESCRIBE or USE — call describe_schema to find tables and columns. ' +
+            'This is not an access problem: do not tell the person they lack access.',
+        });
+      }
       if (err instanceof AccessDeniedError) {
         const msg = err.message;
         const failedPath = err.detail.failedPath ?? err.detail.paths?.[0];

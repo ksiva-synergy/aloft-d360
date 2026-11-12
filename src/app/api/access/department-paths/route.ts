@@ -7,6 +7,7 @@ import { requireAccessAdmin } from '@/lib/access/admin-api';
 import { normalizeCatalogPath } from '@/lib/access/paths';
 import { OptionalReasonSchema } from '@/lib/access/column-admin';
 import { assertActiveDepartment, assertNotWideningOwnAccess, commitDepartmentChange } from '@/lib/access/department-admin';
+import { evictWelcomeCache } from '@/lib/inspector/welcome-cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,6 +37,7 @@ export const POST = handle(async (req) => {
     metadata: { reason: body.reason },
     ...clientMeta(req),
   });
+  evictWelcomeCache(orgId);
   return ok({ ok: true, path });
 });
 
@@ -58,5 +60,6 @@ export const DELETE = handle(async (req) => {
     metadata: { reason: body.reason },
     ...clientMeta(req),
   });
+  evictWelcomeCache(orgId);
   return ok({ ok: true, path });
 });

@@ -1,8 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Layers, Loader2, Pencil, Plus, Search, Shield, Trash2, Users as UsersIcon } from 'lucide-react';
+import { AlertTriangle, Layers, Loader2, Pencil, Plus, RotateCcw, Search, Shield, Trash2, Users as UsersIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SECTION_BY_ID } from '@/lib/sections/registry';
+import { sectionUseGaps, usesOf, type SectionUseGap } from '@/lib/sections/uses';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { UserDialogContent } from './UserDialogContent';
@@ -18,7 +20,10 @@ interface SectionInfo {
   group: string;
   view: string;
   manage: string;
+  /** What each built-in role gives today (includes changes made in this matrix). */
   defaults: Record<DefaultRole, Level>;
+  /** Shipped defaults, for "changed" marks and Reset. */
+  builtInDefaults: Record<DefaultRole, Level>;
   viewOnly: boolean;
   platformAdminActionsOnly: boolean;
   enforced: boolean;
@@ -45,7 +50,8 @@ interface Matrix {
 
 const LEVEL_LABEL: Record<Level, string> = { none: 'No access', view: 'View', manage: 'Manage' };
 const BASE_LABEL: Record<DefaultRole, string> = { readonly: 'Read only', member: 'Member', admin: 'Admin' };
-const ROLE_COLUMNS: { key: DefaultRole | 'platform_admin'; label: string }[] = [
+type RoleColumn = DefaultRole | 'platform_admin';
+const ROLE_COLUMNS: { key: RoleColumn; label: string }[] = [
   { key: 'readonly', label: 'Read only' },
   { key: 'member', label: 'Member' },
   { key: 'admin', label: 'Admin' },
@@ -64,9 +70,20 @@ async function send(url: string, method: string, body?: unknown): Promise<void> 
   }
 }
 
-function roleLevel(s: SectionInfo, role: DefaultRole | 'platform_admin'): Level {
-  if (role === 'platform_admin') return s.viewOnly ? 'view' : 'manage';
-  return s.defaults[role];
+function capLevel(s: SectionInfo, level: Level): Level {
+  return level === 'manage' && s.bundleCeiling === 'view' ? 'view' : level;
+}
+
+function LevelSelect({ label, value, section, onChange }: { label: string; value: Level; section: SectionInfo; onChange: (l: Level) => void }) {
+  return (
+    <select aria-label={label} className={styles.cellSelect} value={value} onChange={(e) => onChange(e.target.value as Level)}>
+      <option value="none">—</option>
+      <option value="view">View</option>
+      <option value="manage" disabled={section.bundleCeiling === 'view'}>
+        {section.bundleCeiling === 'view' ? 'Manage (not allowed)' : 'Manage'}
+      </option>
+    </select>
+  );
 }
 
 function LevelChip({ level, muted }: { level: Level; muted?: boolean }) {
@@ -79,9 +96,10 @@ function LevelChip({ level, muted }: { level: Level; muted?: boolean }) {
 
 /**
  * Users → Section access. Rows are sections (grouped like the sidebar), columns are the built-in
- * roles (fixed defaults) and each bundle (editable by platform admins). A person's level on a
- * section is the highest of their role default and their bundles. Data Estate actions stay with
- * platform admins whatever a bundle says.
+ * roles and each bundle or custom role. Platform admins can change all of them except Platform
+ * admin (always everything): a built-in role change applies to everyone with that role. A person's
+ * level on a section is the highest of their role default and their bundles. Data Estate actions
+ * stay with platform admins whatever a role or bundle says.
  */
 export function SectionAccessPanel({ users, onMembersChanged, notify }: {
   users: UserRow[];
@@ -91,6 +109,7 @@ export function SectionAccessPanel({ users, onMembersChanged, notify }: {
   const [matrix, setMatrix] = useState<Matrix | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, Record<string, Level>>>({});
+  const [roleDrafts, setRoleDrafts] = useState<Partial<Record<DefaultRole, Record<string, Level>>>>({});
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<Bundle | 'new-role' | 'new-bundle' | null>(null);
   const [membersOf, setMembersOf] = useState<Bundle | null>(null);
@@ -128,8 +147,22 @@ export function SectionAccessPanel({ users, onMembersChanged, notify }: {
   const levelOf = (b: Bundle, sectionId: string): Level => drafts[b.id]?.[sectionId] ?? b.levels[sectionId] ?? 'none';
 
   function setLevel(b: Bundle, s: SectionInfo, level: Level) {
-    const capped: Level = level === 'manage' && s.bundleCeiling === 'view' ? 'view' : level;
-    setDrafts((d) => ({ ...d, [b.id]: { ...(d[b.id] ?? {}), [s.id]: capped } }));
+    setDrafts((d) => ({ ...d, [b.id]: { ...(d[b.id] ?? {}), [s.id]: capLevel(s, level) } }));
+  }
+
+  const roleLevelOf = (role: RoleColumn, s: SectionInfo): Level => {
+    if (role === 'platform_admin') return s.viewOnly ? 'view' : 'manage';
+    return roleDrafts[role]?.[s.id] ?? s.defaults[role];
+  };
+
+  function setRoleLevel(role: DefaultRole, s: SectionInfo, level: Level) {
+    setRoleDrafts((d) => ({ ...d, [role]: { ...(d[role] ?? {}), [s.id]: capLevel(s, level) } }));
+  }
+
+  function resetRole(role: DefaultRole) {
+    const next: Record<string, Level> = {};
+    for (const s of matrix?.sections ?? []) next[s.id] = s.builtInDefaults[role];
+    setRoleDrafts((d) => ({ ...d, [role]: next }));
   }
 
   const dirtyIds = Object.keys(drafts).filter((id) => {
@@ -138,19 +171,54 @@ export function SectionAccessPanel({ users, onMembersChanged, notify }: {
     return Object.entries(drafts[id]).some(([sid, l]) => (b.levels[sid] ?? 'none') !== l);
   });
 
+  const dirtyRoles = (Object.keys(roleDrafts) as DefaultRole[]).filter((role) =>
+    (matrix?.sections ?? []).some((s) => roleLevelOf(role, s) !== s.defaults[role]),
+  );
+  const changedFromShipped = (role: DefaultRole) => (matrix?.sections ?? []).some((s) => roleLevelOf(role, s) !== s.builtInDefaults[role]);
+  const dirtyCount = dirtyIds.length + dirtyRoles.length;
+
+  function discard() {
+    setDrafts({});
+    setRoleDrafts({});
+  }
+
+  // Columns that open a section whose screen uses another one they do not have (src/lib/sections/uses.ts).
+  const gaps: { column: string; bundle: boolean; gap: SectionUseGap; fix: () => void }[] = [];
+  for (const r of ROLE_COLUMNS) {
+    if (r.key === 'platform_admin') continue;
+    const role = r.key;
+    const levels = Object.fromEntries((matrix?.sections ?? []).map((s) => [s.id, roleLevelOf(role, s)]));
+    for (const gap of sectionUseGaps(levels)) {
+      const target = matrix?.sections.find((s) => s.id === gap.use.uses);
+      gaps.push({ column: r.label, bundle: false, gap, fix: () => target && setRoleLevel(role, target, gap.needed) });
+    }
+  }
+  for (const b of matrix?.bundles ?? []) {
+    const levels = Object.fromEntries((matrix?.sections ?? []).map((s) => [s.id, levelOf(b, s.id)]));
+    for (const gap of sectionUseGaps(levels)) {
+      const target = matrix?.sections.find((s) => s.id === gap.use.uses);
+      gaps.push({ column: b.name, bundle: b.kind === 'bundle', gap, fix: () => target && setLevel(b, target, gap.needed) });
+    }
+  }
+
   async function saveAll() {
     if (!matrix) return;
     setSaving(true);
     try {
+      for (const role of dirtyRoles) {
+        const levels: Record<string, Level> = {};
+        for (const s of matrix.sections) levels[s.id] = roleLevelOf(role, s);
+        await send(`/api/sections/role-defaults/${role}`, 'PUT', { levels });
+      }
       for (const id of dirtyIds) {
         const b = matrix.bundles.find((x) => x.id === id)!;
         const levels: Record<string, Level> = {};
         for (const s of matrix.sections) levels[s.id] = levelOf(b, s.id);
         await send(`/api/sections/bundles/${id}`, 'PATCH', { levels });
       }
-      setDrafts({});
+      discard();
       await load();
-      notify(dirtyIds.length === 1 ? 'Bundle saved' : `${dirtyIds.length} bundles saved`);
+      notify(dirtyCount === 1 ? 'Section access saved' : `${dirtyCount} columns saved`);
     } catch (e) {
       notify(e instanceof Error ? e.message : 'Failed to save', 'error');
     } finally {
@@ -176,9 +244,10 @@ export function SectionAccessPanel({ users, onMembersChanged, notify }: {
     <div>
       <div className={styles.toolbar}>
         <p className="mr-auto max-w-3xl text-size-ui text-muted-foreground">
+          <strong className="font-medium text-[var(--foreground)]">Built-in roles</strong> apply to everyone who has them.{' '}
           <strong className="font-medium text-[var(--foreground)]">Custom roles</strong> set every section exactly, starting from a built-in role.{' '}
           <strong className="font-medium text-[var(--foreground)]">Bundles</strong> add sections on top of whatever role a person has.
-          {canEdit ? ' Change the columns here, then choose who has each one (or open a person in People).' : ' Only platform admins can change these.'}{' '}
+          {canEdit ? ' Change any column except Platform admin, then choose who has each custom role or bundle (or open a person in People).' : ' Only platform admins can change these.'}{' '}
           Data Estate actions stay with platform admins either way.
         </p>
         {canEdit && (
@@ -195,10 +264,34 @@ export function SectionAccessPanel({ users, onMembersChanged, notify }: {
         )}
       </div>
 
-      {dirtyIds.length > 0 && (
+      {gaps.length > 0 && (
+        <div className={styles.depNotice} role="note" aria-label="Sections that depend on other sections">
+          {gaps.map((g) => (
+            <div key={`${g.column}-${g.gap.use.id}`} className={styles.depItem}>
+              <AlertTriangle aria-hidden className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--warn)]" />
+              <span className="mr-auto">
+                <strong className="font-medium">{g.column}:</strong> {g.gap.message}
+                {g.bundle && <> This bundle adds {g.gap.hostLabel}; people whose role already gives {g.gap.usesLabel} are fine.</>}
+              </span>
+              {canEdit && (
+                <button type="button" className={styles.bundleAction} onClick={g.fix}>
+                  Give {g.gap.usesLabel}: {g.gap.needed === 'manage' ? 'Manage' : 'View'}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {dirtyCount > 0 && (
         <div className={styles.saveBar} role="status">
-          <span>Unsaved changes in {dirtyIds.length === 1 ? '1 bundle' : `${dirtyIds.length} bundles`}</span>
-          <Button variant="outline" size="sm" className={cn(styles.secondaryButton, 'text-size-ui')} onClick={() => setDrafts({})} disabled={saving}>
+          <span>
+            Unsaved changes in {dirtyCount === 1 ? '1 column' : `${dirtyCount} columns`}
+            {dirtyRoles.length > 0 && (
+              <> · {dirtyRoles.map((r) => BASE_LABEL[r]).join(', ')} changes apply to everyone with {dirtyRoles.length === 1 ? 'that role' : 'those roles'}</>
+            )}
+          </span>
+          <Button variant="outline" size="sm" className={cn(styles.secondaryButton, 'text-size-ui')} onClick={discard} disabled={saving}>
             Discard
           </Button>
           <Button size="sm" className={cn(styles.primary, 'gap-2 text-size-ui')} onClick={() => void saveAll()} disabled={saving}>
@@ -213,7 +306,31 @@ export function SectionAccessPanel({ users, onMembersChanged, notify }: {
             <tr>
               <th scope="col" className={styles.matrixSection}>Section</th>
               {ROLE_COLUMNS.map((r) => (
-                <th key={r.key} scope="col">{r.label}</th>
+                <th key={r.key} scope="col">
+                  <div>{r.label}</div>
+                  {r.key === 'platform_admin' ? (
+                    <div className="mt-0.5 text-caption font-normal text-muted-foreground">Always everything</div>
+                  ) : (
+                    <>
+                      <div className="mt-0.5 text-caption font-normal text-muted-foreground">
+                        {changedFromShipped(r.key) ? 'Built-in · changed' : 'Built-in'}
+                      </div>
+                      {canEdit && changedFromShipped(r.key) && (
+                        <div className="mt-1 flex justify-center">
+                          <button
+                            type="button"
+                            className={styles.bundleAction}
+                            onClick={() => resetRole(r.key as DefaultRole)}
+                            title={`Go back to the shipped ${r.label} defaults (save to apply)`}
+                          >
+                            <RotateCcw aria-hidden className="h-3 w-3" />
+                            Reset
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </th>
               ))}
               {bundles.map((b) => (
                 <th key={b.id} scope="col" className={styles.bundleHead}>
@@ -263,6 +380,8 @@ export function SectionAccessPanel({ users, onMembersChanged, notify }: {
                 canEdit={canEdit}
                 levelOf={levelOf}
                 setLevel={setLevel}
+                roleLevelOf={roleLevelOf}
+                setRoleLevel={setRoleLevel}
               />
             ))}
           </tbody>
@@ -330,41 +449,69 @@ export function SectionAccessPanel({ users, onMembersChanged, notify }: {
   );
 }
 
-function GroupRows({ label, sections, bundles, canEdit, levelOf, setLevel }: {
+function GroupSelect({ label, value, onChange }: { label: string; value: Level | ''; onChange: (l: Level) => void }) {
+  return (
+    <select
+      aria-label={label}
+      className={styles.cellSelect}
+      value={value}
+      onChange={(e) => {
+        const v = e.target.value as Level | '';
+        if (v) onChange(v);
+      }}
+    >
+      <option value="">Mixed</option>
+      <option value="none">All: no access</option>
+      <option value="view">All: view</option>
+      <option value="manage">All: manage</option>
+    </select>
+  );
+}
+
+function GroupRows({ label, sections, bundles, canEdit, levelOf, setLevel, roleLevelOf, setRoleLevel }: {
   label: string;
   sections: SectionInfo[];
   bundles: Bundle[];
   canEdit: boolean;
   levelOf: (b: Bundle, sectionId: string) => Level;
   setLevel: (b: Bundle, s: SectionInfo, level: Level) => void;
+  roleLevelOf: (role: RoleColumn, s: SectionInfo) => Level;
+  setRoleLevel: (role: DefaultRole, s: SectionInfo, level: Level) => void;
 }) {
-  const groupValue = (b: Bundle): Level | '' => {
-    const ls = new Set(sections.map((s) => levelOf(b, s.id)));
+  const same = (levels: Level[]): Level | '' => {
+    const ls = new Set(levels);
     return ls.size === 1 ? [...ls][0] : '';
   };
+  const groupValue = (b: Bundle): Level | '' => same(sections.map((s) => levelOf(b, s.id)));
   return (
     <>
       <tr className={styles.groupRow}>
-        <th scope="rowgroup" colSpan={1 + ROLE_COLUMNS.length} className="text-left">
+        <th scope="rowgroup" className="text-left">
           {label}
         </th>
+        {ROLE_COLUMNS.map((r) => (
+          <td key={r.key}>
+            {canEdit && r.key !== 'platform_admin' ? (
+              <GroupSelect
+                label={`${r.label}: set every ${label} section`}
+                value={same(sections.map((s) => roleLevelOf(r.key, s)))}
+                onChange={(v) => {
+                  for (const s of sections) setRoleLevel(r.key as DefaultRole, s, v);
+                }}
+              />
+            ) : null}
+          </td>
+        ))}
         {bundles.map((b) => (
           <td key={b.id}>
             {canEdit ? (
-              <select
-                aria-label={`${b.name}: set every ${label} section`}
-                className={styles.cellSelect}
+              <GroupSelect
+                label={`${b.name}: set every ${label} section`}
                 value={groupValue(b)}
-                onChange={(e) => {
-                  const v = e.target.value as Level;
-                  if (v) for (const s of sections) setLevel(b, s, v);
+                onChange={(v) => {
+                  for (const s of sections) setLevel(b, s, v);
                 }}
-              >
-                <option value="">Mixed</option>
-                <option value="none">All: no access</option>
-                <option value="view">All: view</option>
-                <option value="manage">All: manage</option>
-              </select>
+              />
             ) : null}
           </td>
         ))}
@@ -381,29 +528,32 @@ function GroupRows({ label, sections, bundles, canEdit, levelOf, setLevel }: {
               View: {s.view}
               {s.manage ? <> · Manage: {s.manage}</> : null}
             </div>
+            {usesOf(s.id).length > 0 && (
+              <div className="mt-0.5 text-caption text-muted-foreground">
+                Uses {usesOf(s.id).map((u) => SECTION_BY_ID.get(u.uses)?.label ?? u.uses).join(' and ')} inside it, without opening them
+              </div>
+            )}
           </th>
-          {ROLE_COLUMNS.map((r) => (
-            <td key={r.key}>
-              <LevelChip level={roleLevel(s, r.key)} muted={!s.enforced} />
-            </td>
-          ))}
+          {ROLE_COLUMNS.map((r) => {
+            const level = roleLevelOf(r.key, s);
+            const shipped = r.key === 'platform_admin' ? level : s.builtInDefaults[r.key];
+            const changed = level !== shipped;
+            return (
+              <td key={r.key} className={cn(changed && styles.cellChanged)} title={changed ? `Shipped default: ${LEVEL_LABEL[shipped]}` : undefined}>
+                {canEdit && r.key !== 'platform_admin' ? (
+                  <LevelSelect label={`${r.label}: ${s.label}`} value={level} section={s} onChange={(l) => setRoleLevel(r.key as DefaultRole, s, l)} />
+                ) : (
+                  <LevelChip level={level} muted={!s.enforced} />
+                )}
+              </td>
+            );
+          })}
           {bundles.map((b) => {
             const level = levelOf(b, s.id);
             return (
               <td key={b.id} className={styles.bundleCell}>
                 {canEdit ? (
-                  <select
-                    aria-label={`${b.name}: ${s.label}`}
-                    className={styles.cellSelect}
-                    value={level}
-                    onChange={(e) => setLevel(b, s, e.target.value as Level)}
-                  >
-                    <option value="none">—</option>
-                    <option value="view">View</option>
-                    <option value="manage" disabled={s.bundleCeiling === 'view'}>
-                      {s.bundleCeiling === 'view' ? 'Manage (not allowed)' : 'Manage'}
-                    </option>
-                  </select>
+                  <LevelSelect label={`${b.name}: ${s.label}`} value={level} section={s} onChange={(l) => setLevel(b, s, l)} />
                 ) : (
                   <LevelChip level={level} />
                 )}

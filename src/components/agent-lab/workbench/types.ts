@@ -34,6 +34,12 @@ export interface WorkbenchMessage {
   turnNumber: number;
   /** Set when a warehouse query was refused for data access (enforce mode). */
   accessDenial?: { message: string; request: string | null; label?: string; path?: string };
+  /** The person stopped this reply before it finished (Stop, or Send now on a queued message). */
+  stopped?: boolean;
+  /** Follow-up questions shown as pills under this reply (kept so they survive a reload). */
+  followUps?: string[];
+  /** Indexes into the session `queryResults` array for warehouse tables tied to this reply. */
+  queryResultIndices?: number[];
 }
 
 export interface ToolCall {

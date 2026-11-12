@@ -196,5 +196,6 @@ describe('role grants', () => {
     expect(decideObject(admin, 'ops_gold.marine.t', 'query', p).decision).toBe('allow');
     expect(decideObject(viewer, 'ops_gold.marine.t', 'discover', p).decision).toBe('deny');
     expect(explainUserPath(admin, 'ops_gold.marine.t', p).allow?.principalType).toBe('role');
-  });
+    // roles.ts imports the Prisma client; its first (cold) load can exceed the 5s default.
+  }, 30_000);
 });
