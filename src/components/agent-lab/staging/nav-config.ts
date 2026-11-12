@@ -141,3 +141,15 @@ export function primaryNavHref(levels: SectionLevels | null): string {
   }
   return '/inspector';
 }
+
+/**
+ * One visible nav group (typical Member: Ask Data, Agents, History). Skip Build/Memory/Estate tabs
+ * and list those pages directly in the sidebar.
+ */
+export function isFlatNav(groups: NavGroup[]): boolean {
+  return groups.length === 1;
+}
+
+export function flatNavItems(groups: NavGroup[]): NavItem[] {
+  return groups.length === 1 ? groups[0].items : [];
+}

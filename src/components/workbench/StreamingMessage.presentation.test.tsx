@@ -13,7 +13,7 @@ describe('clean chat presentation', () => {
     render(<StreamingMessage cleanPresentation content="The purchase order total is **296,225**." isStreaming={false} tokenCount={1200} />);
     await waitFor(() => expect(screen.getByText('296,225')).toBeVisible());
     expect(screen.getByRole('button', { name: 'Copy' })).toBeVisible();
-    expect(screen.getByText('Details').closest('details')).not.toHaveAttribute('open');
+    expect(screen.queryByText('Details')).not.toBeInTheDocument();
     expect(screen.queryByText('Companion status')).not.toBeInTheDocument();
   });
 

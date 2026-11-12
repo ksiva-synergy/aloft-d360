@@ -93,7 +93,7 @@ export default function LoginPage() {
     if (!alreadySignedIn) return;
     const next = new URLSearchParams(window.location.search).get('callbackUrl');
     const dest =
-      next && next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/\\') ? next : '/dashboard';
+      next && next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/\\') ? next : '/';
     router.replace(dest);
   }, [alreadySignedIn, router]);
 
@@ -127,13 +127,13 @@ export default function LoginPage() {
         email: email.trim().toLowerCase(),
         password,
         redirect: false,
-        callbackUrl: '/dashboard',
+        callbackUrl: '/',
       });
       if (result?.error) {
         setError('Invalid email or password.');
         return;
       }
-      router.push(result?.url ?? '/dashboard');
+      router.push(result?.url ?? '/');
     } catch {
       setError('Unable to sign in. Please try again.');
     } finally {
@@ -145,7 +145,7 @@ export default function LoginPage() {
     setSsoLoading(true);
     setError('');
     try {
-      await signIn('azure-ad', { callbackUrl: '/dashboard' });
+      await signIn('azure-ad', { callbackUrl: '/' });
     } catch {
       setError('Unable to connect to Azure AD. Please try again.');
       setSsoLoading(false);

@@ -1,3 +1,114 @@
+## 2026-11-12 — Ask Data (members): hide reply **Details** metadata
+
+- **What:** Collapsible **Details** (timestamp, duration, tokens, model) is omitted on the member chat presentation; **Copy** stays.
+- **Paths:** `StreamingMessage.tsx`, `StreamingMessage.presentation.test.tsx`.
+- **Verified:** `StreamingMessage.presentation.test.tsx`.
+
+## 2026-11-12 — Ask Data: **All rows** re-runs SQL past LIMIT 100
+
+- **What:** The popup only showed ~100 rows because Ask Data prompts the model to sample with `LIMIT 100`. Opening **All rows** now calls `POST /api/inspector/query/full` to re-run the same SQL with `LIMIT 5000` (up to `CHAT_QUERY_RESULT_MAX_ROWS`).
+- **Paths:** `ChatFullTableDialog.tsx`, `sql-full-fetch.ts`, `api/inspector/query/full/route.ts`, `StreamingMessage.tsx`, `PromptCanvas.tsx`, `sql-full-fetch.test.ts`.
+- **Verified:** `vitest` for `sql-full-fetch.test.ts`.
+
+## 2026-11-12 — Ask Data: compact “All rows” on markdown tables
+
+- **What:** Warehouse toolbar uses short `25 / 1,236` count, compact **Filter…** field, and small **All rows** button on one line (full open label on hover via `title`).
+- **Paths:** `StreamingMessage.tsx`.
+- **Verified:** Not checked in browser.
+
+## 2026-11-12 — Ask Data: wider column + inset markdown tables
+
+- **What:** Inspector chat column 800→920px; thread side padding slightly tighter. Markdown tables use `.tableInset` (inset side shadow, full column width — no negative-margin bleed that scroll parents clipped). Horizontal scroll for wide column sets; Ask Data message card `overflow: visible`.
+- **Paths:** `PromptCanvas.tsx`, `StreamingMessage.tsx`, `ChatPresentation.module.css`.
+- **Verified:** Not checked in browser.
+
+## 2026-11-12 — Ask Data (members): full table on the markdown table, not below
+
+- **What:** **Open full table** and “Showing 25 of 1,236 rows” live in the **same** markdown table in the reply (toolbar on that table → popup). No separate warehouse block under the message for members.
+- **Paths:** `StreamingMessage.tsx`, `PromptCanvas.tsx`, `result-display.ts`.
+- **Verified:** Not checked in browser.
+
+## 2026-11-12 — Ask Data (members): popup table only when reply has a markdown table
+
+- **What:** Members no longer get a full warehouse grid under every SQL call. If the assistant’s message includes a markdown table and the query returned more rows than that typed table, only **Open full table** appears (modal via `ChatFullTableDialog`). Probe queries and prose-only answers show nothing extra.
+- **Paths:** `AssistantQueryTableOffer.tsx`, `result-display.ts`, `PromptCanvas.tsx`.
+- **Verified:** Superseded by in-table toolbar above.
+
+## 2026-11-12 — Ask Data (members): hide multi-query table chrome
+
+- **What:** Member-style Inspector passes `simpleQueryTables` so inline results skip warehouse-query explanations, tabs, and supporting-query subtitles — only the main dataset table under the reply.
+- **Paths:** `InspectorShell.tsx`, `PromptCanvas.tsx`, `AssistantQueryTableOffer.tsx`.
+- **Verified:** Not checked in browser.
+
+## 2026-11-12 — Ask Data: one inline table per reply (multi-query tabs)
+
+- **What:** Each successful `execute_tool` in a turn used to stack a full table under the reply (samples + main query). Chat now picks the main dataset first, explains when several queries ran, and uses tabs to switch — no raw warehouse table names in headers.
+- **Paths:** `AssistantQueryTableOffer.tsx`, `result-display.ts`.
+- **Verified:** Not checked in browser.
+
+## 2026-11-12 — Ask Data (members): no right Results pane; named inline tables
+
+- **What:** Member-style Inspector (no Semantic/Developer tabs) keeps chat full width — the Results strip/tab never opens when a query returns. Inline tables under replies use the queried table name from SQL instead of “Table 1”. Non–agent-ops users get `resultsPanel: false` on `execute_tool` so model guidance matches chat-only tables.
+- **Paths:** `InspectorShell.tsx`, `AssistantQueryTableOffer.tsx`, `result-display.ts`, `src/app/api/inspector/chat/route.ts`.
+- **Verified:** Not checked in browser.
+
+## 2026-11-12 — Command sidebar: collapsed logo not clipped
+
+- **What:** When the command sidebar is narrow (64px), the header no longer reserves invisible space for the title and pin control, and the workspace header sits outside the `overflow-hidden` body so the Synergy mark stays centered and fully visible. Header uses `pt-1.5 pb-1` so the logo sits slightly below the top edge (rail layout matches).
+- **Paths:** `src/components/agent-lab/staging/CommandSidebar.tsx`, `StagingSidebar.tsx`.
+- **Verified:** Not checked in browser.
+
+## 2026-11-12 — Ask Data: chat/Results tables up to 5,000 rows
+
+- **What:** `CHAT_QUERY_RESULT_MAX_ROWS = 5000` for Inspector `execute_tool` — Databricks `row_limit` and the SSE/browser payload (inline table under replies + Results pane) were capped at 1,000.
+- **Paths:** `src/lib/inspector/result-display.ts`, `src/lib/inspector/tools.ts`, `src/lib/access/warehouse.ts`.
+- **Verified:** Not run against warehouse in this session.
+
+## 2026-11-12 — Ask Data: restore “Open full table” under replies
+
+- **What:** `PromptCanvas` in Inspector was not passed `queryResults`, so **Open full table** (searchable popup via `AssistantQueryTableOffer` / `ChatFullTableDialog`) never appeared under assistant messages — only the Results pane had data. Chat inline tables: row filter moves to the **right** of the toolbar; full-table dialog search stays on the right of the title.
+- **Paths:** `InspectorShell.tsx`, `StreamingMessage.tsx`, `ChatFullTableDialog.tsx`.
+- **Verified:** Not checked in browser.
+
+## 2026-11-12 — Members: sidebar pinned by default
+
+- **What:** Member and readonly users get the command/rail sidebar **pinned open** on first visit (`localStorage` still wins after they pin or unpin with `[`).
+- **Paths:** `useNavShell.ts`, `CommandSidebar.tsx`, `StagingSidebar.tsx`.
+- **Verified:** Not checked in browser.
+
+## 2026-11-12 — Ask Data (members): hide empty Results pane
+
+- **What:** Members no longer see an open **Results** tab or “No results yet” placeholder — chat stays full width until a query table, chart, or in-flight progress arrives; the collapsed rail then shows only an icon (no “Results” label).
+- **Paths:** `src/components/inspector/InspectorShell.tsx`.
+- **Verified:** Not checked in browser.
+
+## 2026-11-12 — Member sidebar: drop flat-nav “Pages” label
+
+- **What:** Flat nav (typical Member) no longer shows a “Pages” section heading in the command sidebar; the rail panel title uses the current page name instead.
+- **Paths:** `CommandSidebar.tsx`, `StagingSidebar.tsx`.
+- **Verified:** Not checked in browser.
+
+## 2026-11-12 — Dev script: set credentials password for a user
+
+- **What:** Added `scripts/users/set-credentials-password.ts` to rotate email/password sign-in for credentials users without delete-and-reinvite. Used to reset `ana.costa@access-test.aloft.local` for access testing.
+- **Paths:** `scripts/users/set-credentials-password.ts`.
+- **Usage:** `node --env-file=.env ./node_modules/tsx/dist/cli.mjs --require ./scripts/context/noserver.cjs scripts/users/set-credentials-password.ts <email> <password>` (min 8 chars).
+- **Verified:** Ran successfully against dev DB; login not checked in browser.
+
+## 2026-11-12 — Sidebar: pinned agents below page / area tabs
+
+- **What:** In the command sidebar, pinned agents render under the Home row and the current area’s page list (below the Build/Memory/Estate/Govern switcher), not above those system pages.
+- **Paths:** `src/components/agent-lab/staging/CommandSidebar.tsx`.
+- **Verified:** Visual order only; rail layout was already home/areas → pinned → account.
+
+## 2026-11-12 — Member sidebar: flat page list + login lands on first allowed page
+
+- **What:** Members have no Home section (`home` = none) but login and SSO still sent everyone to `/dashboard`, so they hit the "No access to Home" gate. Default sign-in callback is now `/`, which runs `LandingRedirect` → Ask Data. When section filtering leaves only one nav group (typical Member: Ask Data, Agents, History), the Build/Memory/Estate/Govern area tabs are hidden and those pages list directly (`Pages` in command sidebar; per-page rail icons in rail layout).
+- **Paths:** `src/views/login.tsx`, `src/components/agent-lab/staging/nav-config.ts`, `CommandSidebar.tsx`, `StagingSidebar.tsx`, `src/components/agent-lab/staging/__tests__/nav-config.test.ts`.
+- **Why:** Member UX should not show a Build sub-nav they cannot use or land on Home.
+- **Verified:** `npx vitest run src/components/agent-lab/staging/__tests__/nav-config.test.ts`.
+- **Not done:** Browser pass with a Member account; brief flash of full nav while `/api/me/sections` loads (unchanged).
+
 ## 2026-11-12 — PR #47: merge `main` (ui-redesign #46) into `feature/automate-runs`
 
 - **What:** Merged `synergy-marine/main` into `feature/automate-runs` so [PR #47](https://github.com/Synergy-Marine-Group/aloft-d360/pull/47) is mergeable. Overlapping edits were mostly `docs/CHANGELOG.md` and estate Jobs/object UI (`main`’s executor/usage/expanded-row work from PR #46) alongside this branch’s Inspector, section access, and Automate work — Git `ort` merged cleanly; no conflict markers left.

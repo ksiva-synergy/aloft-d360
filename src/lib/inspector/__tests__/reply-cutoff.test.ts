@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { finishCutOffReply, isOutputCapStop, REPLY_CUT_OFF_NOTICE } from '@/lib/inspector/reply-cutoff';
-import { largeResultDisplayNote, CHAT_TABLE_ROWS_WITH_PANEL, CHAT_TABLE_ROWS_WITHOUT_PANEL } from '@/lib/inspector/result-display';
+import {
+  largeResultDisplayNote,
+  CHAT_TABLE_ROWS_WITH_PANEL,
+  CHAT_TABLE_ROWS_WITHOUT_PANEL,
+  countMarkdownTableDataRows,
+  shouldOfferChatFullTable,
+} from '@/lib/inspector/result-display';
+import type { QueryResult } from '@/hooks/useInspectorChat';
 
 describe('isOutputCapStop', () => {
   it('recognises each provider output-cap reason', () => {
@@ -40,15 +47,37 @@ describe('largeResultDisplayNote', () => {
     expect(largeResultDisplayNote(CHAT_TABLE_ROWS_WITH_PANEL, true)).toBeNull();
     expect(largeResultDisplayNote(CHAT_TABLE_ROWS_WITHOUT_PANEL, false)).toBeNull();
   });
-  it('points at the Results table when the surface has one', () => {
+  it('points at the Results panel and in-chat table when the surface has one', () => {
     const note = largeResultDisplayNote(225, true)!;
     expect(note).toContain('225');
-    expect(note).toContain('Results table');
+    expect(note).toContain('Results panel');
+    expect(note).toContain('searchable table under your reply');
     expect(note).toContain(`at most ${CHAT_TABLE_ROWS_WITH_PANEL} rows`);
   });
   it('asks for a "Showing X of N" line when the chat is the only view', () => {
     const note = largeResultDisplayNote(225, false)!;
-    expect(note).not.toContain('Results table');
+    expect(note).not.toContain('Results panel');
     expect(note).toContain(`Showing ${CHAT_TABLE_ROWS_WITHOUT_PANEL} of 225.`);
+    expect(note).toContain('Open full table');
+  });
+});
+
+describe('shouldOfferChatFullTable', () => {
+  const result = (rowCount: number, rows: number): QueryResult => ({
+    columns: [{ name: 'a', type_name: 'string' }],
+    rows: Array.from({ length: rows }, () => ({ a: 'x' })),
+    sql: 'SELECT 1',
+    rowCount,
+    truncated: false,
+  });
+
+  it('needs a markdown table in the message', () => {
+    expect(shouldOfferChatFullTable('Just prose.', result(100, 100))).toBe(false);
+  });
+
+  it('offers popup when warehouse has more rows than the typed table', () => {
+    const md = '| name |\n|---|---|\n| a |\n| b |\n| c |';
+    expect(countMarkdownTableDataRows(md)).toBe(3);
+    expect(shouldOfferChatFullTable(md, result(225, 225))).toBe(true);
   });
 });

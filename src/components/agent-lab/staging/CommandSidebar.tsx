@@ -11,7 +11,7 @@ import { UserMenu } from '@/components/shell/UserMenu';
 import { BrandMark } from '@/components/shell/BrandMark';
 import type { SectionLevels } from '@/lib/sections/registry';
 import { useSectionLevels } from '@/lib/sections/useSectionLevels';
-import { HOME_ITEM, groupForPath, isActive, primaryNavHref, showHomeInNav, type NavGroup, type NavItem } from './nav-config';
+import { HOME_ITEM, flatNavItems, groupForPath, isActive, isFlatNav, primaryNavHref, showHomeInNav, type NavGroup, type NavItem } from './nav-config';
 import { useNavGroups } from './useNavGroups';
 import { useNavShell } from './useNavShell';
 import { AuroraGlow, NavStyleToggle } from './nav-shared';
@@ -40,13 +40,15 @@ export function CommandSidebar({ initialSession }: { initialSession?: Session | 
   const pathname = usePathname();
   const router = useRouter();
   const { data: session } = useSession();
-  const shell = useNavShell();
+  const shellRole = (session ?? initialSession)?.user?.role as string | undefined;
+  const shell = useNavShell({ initialRole: shellRole });
   const { expanded, pinned, mobileOpen } = shell;
   const groups = useNavGroups();
   const me = useSectionLevels();
   const levels = me?.levels ?? null;
   const logoHref = primaryNavHref(levels);
   const showHome = showHomeInNav(levels);
+  const flatNav = isFlatNav(groups);
 
   const [areaId, setAreaId] = useState(() => groupForPath(pathname));
   const [query, setQuery] = useState('');
@@ -72,8 +74,9 @@ export function CommandSidebar({ initialSession }: { initialSession?: Session | 
   }, [shell.open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const areaIndex = Math.max(0, groups.findIndex((g) => g.id === areaId));
-  const area = groups[areaIndex];
-  const AreaIcon = area.icon;
+  const area = groups[areaIndex] ?? groups[0];
+  const AreaIcon = area?.icon;
+  const pageItems = flatNav ? flatNavItems(groups) : (area?.items ?? []);
 
   const q = query.trim().toLowerCase();
   const results = useMemo(
@@ -123,35 +126,48 @@ export function CommandSidebar({ initialSession }: { initialSession?: Session | 
       >
         <AuroraGlow />
 
-        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden px-3">
-          {/* ── Workspace header (height matches StagingHeader in light and dark) ─ */}
-          <div className="-mx-3 flex h-[var(--shell-header-h)] shrink-0 items-center gap-3 border-b border-[var(--header-border)] px-3">
-            <Link
-              href={logoHref}
-              aria-label="Synergy Group — ALOFT home"
-              className="shrink-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--rail-accent)]"
-            >
-              <BrandMark size={30} className="!rounded-xl" />
-            </Link>
-            <div className={cn('min-w-0 flex-1 whitespace-nowrap leading-tight', fade)}>
-              <p className="truncate text-[length:var(--type-body-size)] font-semibold text-[var(--rail-ink-strong)]">ALOFT</p>
-              <p className="truncate text-[length:var(--type-caption-size)] text-[var(--rail-muted)]">Synergy Group · Agent Lab</p>
-            </div>
-            <button
-              onClick={() => (mobileOpen ? shell.setMobileOpen(false) : shell.togglePin())}
-              aria-label={mobileOpen ? 'Close menu' : pinned ? 'Unpin sidebar' : 'Pin sidebar'}
-              aria-pressed={pinned}
-              tabIndex={expanded ? 0 : -1}
-              title={pinned ? 'Unpin sidebar  [' : 'Keep sidebar open  ['}
-              className={cn(
-                'flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors',
-                pinned && !mobileOpen ? 'bg-[var(--rail-active)] text-[var(--rail-ink-strong)]' : 'text-[var(--rail-muted)] hover:bg-[var(--rail-hover)] hover:text-[var(--rail-ink-strong)]',
-                fade,
-              )}
-            >
-              {mobileOpen ? <XIcon size={16} /> : pinned ? <PushPinSlashIcon size={16} weight="fill" /> : <PushPinIcon size={16} />}
-            </button>
+        {/* Header sits above the clipped body so the logo is not squeezed in the narrow rail. */}
+        <div
+          className={cn(
+            'relative flex min-h-[var(--shell-header-h)] shrink-0 items-center border-b border-[var(--header-border)] px-3 pt-1.5 pb-1',
+            expanded || mobileOpen ? 'gap-3' : 'justify-center',
+          )}
+        >
+          <Link
+            href={logoHref}
+            aria-label="Synergy Group — ALOFT home"
+            className="shrink-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--rail-accent)]"
+          >
+            <BrandMark size={30} className="!rounded-xl" />
+          </Link>
+          <div
+            className={cn(
+              'min-w-0 flex-1 whitespace-nowrap leading-tight',
+              fade,
+              !expanded && !mobileOpen && 'hidden',
+            )}
+          >
+            <p className="truncate text-[length:var(--type-body-size)] font-semibold text-[var(--rail-ink-strong)]">ALOFT</p>
+            <p className="truncate text-[length:var(--type-caption-size)] text-[var(--rail-muted)]">Synergy Group · Agent Lab</p>
           </div>
+          <button
+            onClick={() => (mobileOpen ? shell.setMobileOpen(false) : shell.togglePin())}
+            aria-label={mobileOpen ? 'Close menu' : pinned ? 'Unpin sidebar' : 'Pin sidebar'}
+            aria-pressed={pinned}
+            tabIndex={expanded ? 0 : -1}
+            title={pinned ? 'Unpin sidebar  [' : 'Keep sidebar open  ['}
+            className={cn(
+              'flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors',
+              pinned && !mobileOpen ? 'bg-[var(--rail-active)] text-[var(--rail-ink-strong)]' : 'text-[var(--rail-muted)] hover:bg-[var(--rail-hover)] hover:text-[var(--rail-ink-strong)]',
+              fade,
+              !expanded && !mobileOpen && 'hidden',
+            )}
+          >
+            {mobileOpen ? <XIcon size={16} /> : pinned ? <PushPinSlashIcon size={16} weight="fill" /> : <PushPinIcon size={16} />}
+          </button>
+        </div>
+
+        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden px-3">
 
           {/* ── Jump-to search ─────────────────────────────── */}
           <label
@@ -182,57 +198,62 @@ export function CommandSidebar({ initialSession }: { initialSession?: Session | 
             </kbd>
           </label>
 
-          {/* ── Area switcher ──────────────────────────────── */}
-          <div className="relative mt-3 h-[52px] shrink-0">
-            {/* collapsed: current area only */}
-            <span
-              aria-hidden
-              className={cn(
-                'absolute left-0 top-1.5 flex h-10 w-10 items-center justify-center rounded-xl text-[var(--rail-ink-strong)] transition-opacity duration-150',
-                'bg-[var(--rail-active)]',
-                expanded ? 'opacity-0' : 'opacity-100',
-              )}
-            >
-              <AreaIcon size={18} />
-            </span>
-            {/* expanded: segmented control with a sliding highlight */}
-            <div
-              role="tablist"
-              aria-label="Area"
-              className={cn('absolute inset-y-0 left-0 grid grid-cols-4 rounded-2xl bg-[var(--rail-hover)] p-1', fade)}
-              style={{ width: EXPANDED_W - 24 }}
-            >
+          {/* ── Area switcher (hidden when the person only has one group, e.g. Member) ─ */}
+          {!flatNav && area && AreaIcon ? (
+            <div className="relative mt-3 h-[52px] shrink-0">
+              {/* collapsed: current area only */}
               <span
                 aria-hidden
-                className="absolute bottom-1 left-1 top-1 rounded-xl bg-[var(--rail-active)] transition-transform ease-sidebar [transition-duration:400ms]"
-                style={{ width: 'calc((100% - 8px) / 4)', transform: `translateX(${areaIndex * 100}%)` }}
-              />
-              {groups.map((g) => {
-                const Icon = g.icon;
-                const selected = g.id === areaId;
-                const hasActive = g.items.some((i) => isActive(i, pathname));
-                return (
-                  <button
-                    key={g.id}
-                    role="tab"
-                    aria-selected={selected}
-                    tabIndex={expanded ? 0 : -1}
-                    onClick={() => setAreaId(g.id)}
-                    className={cn(
-                      'relative z-[1] flex flex-col items-center justify-center gap-0.5 rounded-xl text-[length:var(--type-caption-size)] font-medium transition-colors',
-                      selected ? 'text-[var(--rail-ink-strong)]' : 'text-[var(--rail-muted)] hover:text-[var(--rail-ink-strong)]',
-                    )}
-                  >
-                    <Icon size={17} weight={selected ? 'fill' : 'regular'} />
-                    {g.railLabel}
-                    {hasActive && !selected && (
-                      <span aria-hidden className="absolute right-2 top-1.5 h-1.5 w-1.5 rounded-full bg-[var(--rail-accent)]" />
-                    )}
-                  </button>
-                );
-              })}
+                className={cn(
+                  'absolute left-0 top-1.5 flex h-10 w-10 items-center justify-center rounded-xl text-[var(--rail-ink-strong)] transition-opacity duration-150',
+                  'bg-[var(--rail-active)]',
+                  expanded ? 'opacity-0' : 'opacity-100',
+                )}
+              >
+                <AreaIcon size={18} />
+              </span>
+              {/* expanded: segmented control with a sliding highlight */}
+              <div
+                role="tablist"
+                aria-label="Area"
+                className={cn('absolute inset-y-0 left-0 grid rounded-2xl bg-[var(--rail-hover)] p-1', fade)}
+                style={{ width: EXPANDED_W - 24, gridTemplateColumns: `repeat(${groups.length}, minmax(0, 1fr))` }}
+              >
+                <span
+                  aria-hidden
+                  className="absolute bottom-1 left-1 top-1 rounded-xl bg-[var(--rail-active)] transition-transform ease-sidebar [transition-duration:400ms]"
+                  style={{
+                    width: `calc((100% - 8px) / ${groups.length})`,
+                    transform: `translateX(${areaIndex * 100}%)`,
+                  }}
+                />
+                {groups.map((g) => {
+                  const Icon = g.icon;
+                  const selected = g.id === areaId;
+                  const hasActive = g.items.some((i) => isActive(i, pathname));
+                  return (
+                    <button
+                      key={g.id}
+                      role="tab"
+                      aria-selected={selected}
+                      tabIndex={expanded ? 0 : -1}
+                      onClick={() => setAreaId(g.id)}
+                      className={cn(
+                        'relative z-[1] flex flex-col items-center justify-center gap-0.5 rounded-xl text-[length:var(--type-caption-size)] font-medium transition-colors',
+                        selected ? 'text-[var(--rail-ink-strong)]' : 'text-[var(--rail-muted)] hover:text-[var(--rail-ink-strong)]',
+                      )}
+                    >
+                      <Icon size={17} weight={selected ? 'fill' : 'regular'} />
+                      {g.railLabel}
+                      {hasActive && !selected && (
+                        <span aria-hidden className="absolute right-2 top-1.5 h-1.5 w-1.5 rounded-full bg-[var(--rail-accent)]" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          ) : null}
 
           {/* ── Pages ──────────────────────────────────────── */}
           <div className="-mx-3 mt-2 min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-3 pb-3 [scrollbar-width:none]">
@@ -258,15 +279,21 @@ export function CommandSidebar({ initialSession }: { initialSession?: Session | 
                     <li><Row item={HOME_ITEM} active={isActive(HOME_ITEM, pathname)} expanded={expanded} /></li>
                   </ul>
                 ) : null}
+                {pageItems.length > 0 ? (
+                  <>
+                    {!flatNav && area?.label ? (
+                      <SectionLabel expanded={expanded}>{area.label}</SectionLabel>
+                    ) : null}
+                    <ul className="space-y-0.5">
+                      {pageItems.map((item) => (
+                        <li key={item.href}>
+                          <Row item={item} active={isActive(item, pathname)} expanded={expanded} />
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                ) : null}
                 <PinnedAgentsSection expanded={expanded} pathname={pathname} />
-                <SectionLabel expanded={expanded}>{area.label}</SectionLabel>
-                <ul className="space-y-0.5">
-                  {area.items.map((item) => (
-                    <li key={item.href}>
-                      <Row item={item} active={isActive(item, pathname)} expanded={expanded} />
-                    </li>
-                  ))}
-                </ul>
               </>
             )}
           </div>
