@@ -12,7 +12,7 @@ const bodySchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const caller = await requireMemoryCaller();
+  const caller = await requireMemoryCaller(req);
   if (caller instanceof NextResponse) return caller;
 
   let rawBody: unknown;

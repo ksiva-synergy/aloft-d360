@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 import type { WorkbenchMessage } from '@/components/agent-lab/workbench/types';
 import { AVAILABLE_MODELS } from '@/components/agent-lab/workbench/types';
 import { DEFAULT_INSPECTOR_MODEL_KEY } from '@/lib/inspector/default-model';
@@ -9,6 +9,17 @@ import { classifyToolCall, type ToolKind } from '@/lib/boost/classify';
 import type { ChartDSLSpec } from '@/lib/studio/chart-dsl';
 import type { SemanticQuery } from '@/lib/semantic/types';
 import type { ChartRecommendation } from '@/lib/dashboards/chart-defaults';
+import {
+  applyInspectorDraft,
+  getInspectorSnapshot,
+  inspectorBucket,
+  inspectorSetters,
+  recoverInspectorTurn,
+  resetInspectorLive,
+  setInspectorModel,
+  stopInspectorRecovery,
+  subscribeInspectorLive,
+} from '@/lib/inspector/inspector-chat-live';
 
 export interface QueryResult {
   columns: { name: string; type_name: string }[];
@@ -16,6 +27,8 @@ export interface QueryResult {
   sql: string;
   rowCount: number;
   truncated: boolean;
+  /** Protected columns were hidden (•••) or totals were limited; never contains values. */
+  accessNote?: { message: string; request: string | null };
   persistedId?: string;
   cachedProfiles?: import('@/lib/studio/types').ColumnProfile[];
   cachedSpecs?: import('@/lib/studio/types').ChartSpec[];
@@ -117,6 +130,13 @@ export interface RunMetric {
 interface UseInspectorChatOptions {
   sessionId: string | null;
   contextMode?: 'harvested' | 'warehouse_only';
+  /** Optional business domain key selected on the welcome screen (e.g. 'hr', 'crewing'). */
+  domainKey?: string | null;
+  /**
+   * In-flight replies live outside React under this key, so leaving the page does not stop them.
+   * The dashboard's scoped panel must not share the main Inspector key.
+   */
+  liveKey?: string;
 }
 
 interface UseInspectorChatReturn {
@@ -139,26 +159,57 @@ interface UseInspectorChatReturn {
   exportOffers: ExportReadyMessage[];
   /** In-flight semantic-chart progressive state (null when idle). */
   queryProgress: QueryProgress | null;
-  send: (content: string) => void;
+  /** False when a reply is already starting or streaming (nothing was sent). */
+  send: (content: string) => boolean;
   abort: () => void;
   reset: () => void;
   editMessage: (messageId: string) => { content: string } | null;
   availableModels: typeof AVAILABLE_MODELS;
 }
 
-export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseInspectorChatOptions): UseInspectorChatReturn {
+export function useInspectorChat({ sessionId, contextMode = 'harvested', domainKey = null, liveKey = 'inspector' }: UseInspectorChatOptions): UseInspectorChatReturn {
   const { models: availableModels } = useInspectorChatModels();
-  const [queryResults, setQueryResults] = useState<QueryResult[]>([]);
-  const [semanticChartMessages, setSemanticChartMessages] = useState<SemanticChartMessage[]>([]);
-  const [disambiguations, setDisambiguations] = useState<DisambiguationMessage[]>([]);
-  const [exportOffers, setExportOffers] = useState<ExportReadyMessage[]>([]);
-  const [queryProgress, setQueryProgress] = useState<QueryProgress | null>(null);
+  const snap = useSyncExternalStore(
+    (listener) => subscribeInspectorLive(liveKey, listener),
+    () => getInspectorSnapshot(liveKey),
+    () => getInspectorSnapshot(liveKey),
+  );
+  const {
+    setLocalMessages,
+    setIsStreaming,
+    setInterrupted,
+    setSuggestions,
+    setError,
+    setSessionLoadError,
+    setCompletionMeta,
+    setRunMetrics,
+    setCurrentSessionId,
+    setQueryResults,
+    setSemanticChartMessages,
+    setDisambiguations,
+    setExportOffers,
+    setQueryProgress,
+    setPreviewModel,
+  } = inspectorSetters(liveKey);
+  const localMessages = snap.messages;
+  const isStreaming = snap.isStreaming;
+  const interrupted = snap.interrupted;
+  const suggestions = snap.suggestions;
+  const error = snap.error;
+  const sessionLoadError = snap.sessionLoadError;
+  const completionMeta = snap.completionMeta;
+  const runMetrics = snap.runMetrics;
+  const currentSessionId = snap.sessionId;
+  const queryResults = snap.queryResults;
+  const semanticChartMessages = snap.semanticChartMessages;
+  const disambiguations = snap.disambiguations;
+  const exportOffers = snap.exportOffers;
+  const queryProgress = snap.queryProgress;
+  const previewModel = snap.selectedModel;
   const resolveDefaultModelKey = (list: typeof AVAILABLE_MODELS) =>
     list.some(m => m.key === DEFAULT_INSPECTOR_MODEL_KEY)
       ? DEFAULT_INSPECTOR_MODEL_KEY
       : (list[0]?.key ?? DEFAULT_INSPECTOR_MODEL_KEY);
-
-  const [previewModel, setPreviewModel] = useState(() => resolveDefaultModelKey(AVAILABLE_MODELS));
 
   useEffect(() => {
     if (availableModels.length === 0) return;
@@ -170,10 +221,11 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
   // Inspector owns its session id locally (see currentSessionId below). This ref
   // mirrors it for use inside async stream callbacks. Init matches the prop, which
   // is exactly the initial value the removed workbench hook exposed on mount.
-  const sessionIdRef = useRef<string | null>(sessionId);
+  const sessionIdRef = useRef<string | null>(currentSessionId ?? sessionId);
 
   const modelRef = useRef<string>(previewModel);
   useEffect(() => { modelRef.current = previewModel; }, [previewModel]);
+  useEffect(() => { setInspectorModel(liveKey, previewModel); }, [liveKey, previewModel]);
 
   const modelsRef = useRef(availableModels);
   useEffect(() => { modelsRef.current = availableModels; }, [availableModels]);
@@ -181,17 +233,10 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
   const contextModeRef = useRef<'harvested' | 'warehouse_only'>(contextMode);
   useEffect(() => { contextModeRef.current = contextMode; }, [contextMode]);
 
-  const [localMessages, setLocalMessages] = useState<WorkbenchMessage[]>([]);
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [interrupted, setInterrupted] = useState(false);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [completionMeta, setCompletionMeta] = useState<Record<string, { durationMs: number; tokenCount: number; modelName: string }>>({});
-  const [runMetrics, setRunMetrics] = useState<Record<string, RunMetric>>({});
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(sessionId);
+  const domainKeyRef = useRef<string | null>(domainKey ?? null);
+  useEffect(() => { domainKeyRef.current = domainKey ?? null; }, [domainKey]);
+
   useEffect(() => { sessionIdRef.current = currentSessionId; }, [currentSessionId]);
-  const [sessionLoadError, setSessionLoadError] = useState<string | null>(null);
-  const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const streamStartRef = useRef<number | null>(null);
   const firstTokenRef = useRef<number | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -199,29 +244,42 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
 
   // Per-stream accumulator for tool calls (reset each doSend)
   const pendingToolCallsRef = useRef<{ name: string; durationMs: number; status: 'success' | 'error'; kind: ToolKind; sqlExcerpt?: string | null }[]>([]);
+  /** `queryResults` indexes produced during the current assistant turn. */
+  const turnQueryResultIndicesRef = useRef<number[]>([]);
 
   let msgIdCounter = 0;
   function nextMsgId(): string {
     return `insp_${Date.now()}_${++msgIdCounter}`;
   }
 
-  // Load session on mount if sessionId provided
+  // Load session on mount if sessionId provided. A reply that is still streaming
+  // (including one started before this page unmounted) owns the transcript.
   useEffect(() => {
     if (!sessionId) return;
+    const live = getInspectorSnapshot(liveKey);
+    if (live.isStreaming && live.sessionId) return;
     fetch(`/api/agent-lab/workbench/sessions/${sessionId}`)
       .then(r => {
         if (!r.ok) throw new Error(`Session load failed: ${r.status}`);
         return r.json();
       })
-      .then((data: { session?: { id: string; title?: string; messages?: WorkbenchMessage[]; progress?: { last_model?: string } } } | null) => {
+      .then((data: { session?: { id: string; title?: string; messages?: WorkbenchMessage[]; progress?: { last_model?: string; inspectorDraft?: { status?: string; text?: string } } } } | null) => {
         if (!data?.session) { setSessionLoadError(`Session not found (id: ${sessionId})`); return; }
+        if (getInspectorSnapshot(liveKey).isStreaming) return;
         const s = data.session;
         setLocalMessages(s.messages || []);
+        const lastMessage = s.messages?.at(-1);
+        setSuggestions(lastMessage?.role === 'assistant' && Array.isArray(lastMessage.followUps) ? lastMessage.followUps : []);
         if (s.progress?.last_model && availableModels.some(m => m.key === s.progress!.last_model)) {
           setPreviewModel(s.progress.last_model as string);
         }
         setCurrentSessionId(s.id);
         setSessionLoadError(null);
+        const draft = s.progress?.inspectorDraft;
+        if (draft && typeof draft.text === 'string' && draft.text) {
+          applyInspectorDraft(liveKey, draft.text, draft.status !== 'running');
+          if (draft.status === 'running') recoverInspectorTurn(liveKey);
+        }
 
         fetch(`/api/studio/results?sessionId=${s.id}`)
           .then(r => r.ok ? r.json() : null)
@@ -251,21 +309,7 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
       .catch((err: unknown) => {
         setSessionLoadError(err instanceof Error ? err.message : 'Failed to load session');
       });
-  }, [sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Autosave
-  useEffect(() => {
-    if (!currentSessionId) return;
-    if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
-    autosaveTimer.current = setTimeout(() => {
-      fetch(`/api/agent-lab/workbench/sessions/${currentSessionId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: localMessages, last_model: modelRef.current }),
-      }).catch(() => {});
-    }, 2000);
-    return () => { if (autosaveTimer.current) clearTimeout(autosaveTimer.current); };
-  }, [currentSessionId, localMessages]);
+  }, [sessionId, liveKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const doSend = useCallback(async (content: string) => {
     const sid = sessionIdRef.current;
@@ -278,6 +322,7 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
     const turnIndex = ++turnCountRef.current;
 
     pendingToolCallsRef.current = [];
+    turnQueryResultIndicesRef.current = [];
 
     const userMsg: WorkbenchMessage = { id: userMsgId, role: 'user', content, timestamp: now, turnNumber: 0 };
     const assistantMsg: WorkbenchMessage = { id: assistantMsgId, role: 'assistant', content: '', timestamp: now, turnNumber: 0 };
@@ -289,9 +334,21 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
     streamStartRef.current = Date.now();
     firstTokenRef.current = null;
 
+    const bucket = inspectorBucket(liveKey);
+    bucket.userStop = false;
     const ctrl = new AbortController();
+    const turnId = crypto.randomUUID();
+    bucket.ctrl = ctrl;
+    bucket.turnId = turnId;
+    bucket.assistantId = assistantMsgId;
     abortControllerRef.current = ctrl;
     let streamFailed = false;
+    // "Send now" (or New chat followed by a send) started another turn on this bucket. That
+    // turn owns the shared streaming state, so this one must not touch it when it unwinds.
+    const replaced = () => {
+      const current = inspectorBucket(liveKey).ctrl;
+      return current !== null && current !== ctrl;
+    };
 
     try {
       const allMessages = await new Promise<WorkbenchMessage[]>(resolve => {
@@ -303,9 +360,15 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sessionId: sid,
-          messages: [...allMessages.filter(m => m.id !== assistantMsgId), userMsg],
+          // allMessages already holds userMsg (added above); appending it again sent the question twice.
+          messages: [
+            ...allMessages.filter(m => m.id !== assistantMsgId && m.id !== userMsgId),
+            userMsg,
+          ].map(forModel),
           model,
           contextMode: ctxMode,
+          ...(domainKeyRef.current ? { domainKey: domainKeyRef.current } : {}),
+          turnId,
         }),
         signal: ctrl.signal,
       });
@@ -362,15 +425,43 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
               });
               break;
 
-            case 'loop_start':
-              loopCount = (event.loop as number) ?? loopCount + 1;
-              setLocalMessages(prev => prev.map(message => message.id === assistantMsgId ? { ...message, activity: 'thinking' } : message));
+            case 'loop_start': {
+              const loop = (event.loop as number) ?? loopCount + 1;
+              loopCount = loop;
+              if (loop > 1) rawContent = '';
+              setLocalMessages(prev => prev.map(message => {
+                if (message.id !== assistantMsgId) return message;
+                return {
+                  ...message,
+                  activity: 'thinking',
+                  ...(loop > 1 ? { content: '' } : {}),
+                };
+              }));
               break;
+            }
 
             case 'thinking':
               setLocalMessages(prev => prev.map(message => message.id === assistantMsgId ? {
                 ...message, activity: 'thinking', thinking: (message.thinking ?? '') + String(event.delta ?? ''),
               } : message));
+              break;
+
+            case 'access_denied':
+              setLocalMessages((prev) => {
+                const idx = prev.findIndex((m) => m.id === assistantMsgId);
+                if (idx < 0) return prev;
+                const updated = [...prev];
+                updated[idx] = {
+                  ...updated[idx],
+                  accessDenial: {
+                    message: String(event.message ?? ''),
+                    request: event.request != null ? String(event.request) : null,
+                    label: event.label != null ? String(event.label) : undefined,
+                    path: event.path != null ? String(event.path) : undefined,
+                  },
+                };
+                return updated;
+              });
               break;
 
             case 'tool_call_suggested':
@@ -449,9 +540,18 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
                 sql: event.sql as string,
                 rowCount: event.rowCount as number,
                 truncated: event.truncated as boolean,
+                ...(event.accessNote ? { accessNote: event.accessNote as QueryResult['accessNote'] } : {}),
               };
               setQueryResults(prev => {
                 const appendIndex = prev.length;
+                turnQueryResultIndicesRef.current.push(appendIndex);
+                setLocalMessages((msgs) =>
+                  msgs.map((m) =>
+                    m.id === assistantMsgId
+                      ? { ...m, queryResultIndices: [...turnQueryResultIndicesRef.current] }
+                      : m,
+                  ),
+                );
                 const sid2 = sessionIdRef.current;
                 if (sid2) {
                   fetch('/api/studio/results', {
@@ -589,17 +689,32 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
                   used.add(matchAt);
                   return { ...tc, status: traj[matchAt].status, durationMs: traj[matchAt].durationMs };
                 });
-                updated[idx] = { ...msg, turnOps, ...(msg.toolCalls ? { toolCalls } : {}) };
+                const indices = turnQueryResultIndicesRef.current.length
+                  ? [...turnQueryResultIndicesRef.current]
+                  : msg.queryResultIndices;
+                updated[idx] = {
+                  ...msg,
+                  turnOps,
+                  ...(msg.toolCalls ? { toolCalls } : {}),
+                  ...(indices?.length ? { queryResultIndices: indices } : {}),
+                };
                 return updated;
               });
 
               pendingToolCallsRef.current = [];
+              turnQueryResultIndicesRef.current = [];
               break;
             }
 
-            case 'suggestions':
-              setSuggestions(Array.isArray(event.items) ? event.items as string[] : []);
+            case 'suggestions': {
+              const items = Array.isArray(event.items) ? (event.items as unknown[]).map(String) : [];
+              setSuggestions(items);
+              // The server took these out of the reply text; keep them on the message for reloads.
+              if (items.length > 0) {
+                setLocalMessages(prev => prev.map(m => m.id === assistantMsgId ? { ...m, followUps: items } : m));
+              }
               break;
+            }
 
             // ── Progressive streaming (Phase 3A) ──────────────────────────────
             case 'semantic_plan':
@@ -681,13 +796,23 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
         }
       }
     } catch (err: unknown) {
-      if (err instanceof Error && err.name === 'AbortError') {
+      const dropped = !replaced() && !inspectorBucket(liveKey).userStop && (
+        (err instanceof Error && err.name === 'AbortError') || err instanceof TypeError
+      );
+      if (replaced()) {
+        // Stopped by Send now; the message is already marked stopped and a new turn runs.
+      } else if (dropped) {
+        // Tab discard or a dead socket. The server keeps generating; poll the draft.
+        recoverInspectorTurn(liveKey);
+      } else if (err instanceof Error && err.name === 'AbortError') {
         setInterrupted(true);
       } else {
         streamFailed = true;
         setError(err instanceof Error ? err.message : 'Stream failed');
       }
     } finally {
+      const bucket = inspectorBucket(liveKey);
+      const keepStreaming = replaced() || (bucket.snap.recovering && !bucket.userStop);
       if (!ctrl.signal.aborted && !streamFailed) {
         setLocalMessages(prev => prev.map(m => {
           if (m.id !== assistantMsgId || !m.toolCalls?.some(tc => tc.status === 'running')) return m;
@@ -699,13 +824,32 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
           };
         }));
       }
-      setIsStreaming(false);
-      setQueryProgress(null);
-      abortControllerRef.current = null;
+      if (!keepStreaming) {
+        // Clear the controller first: listeners of isStreaming may send the queued message.
+        if (bucket.ctrl === ctrl) {
+          bucket.ctrl = null;
+          bucket.turnId = null;
+          bucket.assistantId = null;
+        }
+        if (abortControllerRef.current === ctrl) abortControllerRef.current = null;
+        setIsStreaming(false);
+        setQueryProgress(null);
+      }
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const send = useCallback((content: string) => {
+  /**
+   * Start a turn. Returns false (and sends nothing) while a reply is starting or streaming, so
+   * repeated clicks on a prompt or Send cannot post the same question several times. Callers
+   * queue the text instead (useQueuedSend); "Send now" calls abort() first.
+   */
+  const send = useCallback((content: string): boolean => {
+    const bucket = inspectorBucket(liveKey);
+    // An aborted controller is a stopped reply still unwinding; "Send now" may start the next one.
+    if (bucket.snap.isStreaming || (bucket.ctrl && !bucket.ctrl.signal.aborted)) return false;
+    bucket.userStop = false;
+    // Busy from the first click: creating the session below can take a moment.
+    setIsStreaming(true);
     setSuggestions([]);
     setInterrupted(false);
     setError(null);
@@ -727,39 +871,67 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ last_model: modelRef.current }),
           }).catch(() => {});
-          doSend(content);
+          // Stop or New chat while the session was being created: do not start the turn.
+          if (!inspectorBucket(liveKey).userStop) doSend(content);
         })
-        .catch(() => { doSend(content); });
-      return;
+        .catch(() => { if (!inspectorBucket(liveKey).userStop) doSend(content); });
+      return true;
     }
 
     doSend(content);
-  }, [currentSessionId, doSend]); // eslint-disable-line react-hooks/exhaustive-deps
+    return true;
+  }, [currentSessionId, doSend, liveKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const abort = useCallback(() => {
+    const bucket = inspectorBucket(liveKey);
+    const wasStreaming = bucket.snap.isStreaming;
+    bucket.userStop = true;
+    stopInspectorRecovery(liveKey);
+    const sid = bucket.snap.sessionId;
+    if (sid) {
+      void fetch('/api/inspector/chat/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // No turnId while recovering a reply from an earlier page load: stop the session's turn.
+        body: JSON.stringify({ sessionId: sid, ...(bucket.turnId ? { turnId: bucket.turnId } : {}) }),
+      }).catch(() => {});
+    }
+    if (wasStreaming) {
+      // Keep the partial reply in the thread, marked stopped, so the person and the model
+      // can both see it was cut off.
+      const targetId = bucket.assistantId;
+      setLocalMessages(prev => {
+        let idx = targetId ? prev.findIndex(m => m.id === targetId) : -1;
+        if (idx < 0) {
+          for (let i = prev.length - 1; i >= 0; i--) {
+            if (prev[i].role === 'assistant') { idx = i; break; }
+          }
+        }
+        if (idx < 0 || prev[idx].stopped) return prev;
+        const next = [...prev];
+        next[idx] = { ...next[idx], stopped: true };
+        return next;
+      });
+    }
+    bucket.ctrl?.abort();
     abortControllerRef.current?.abort();
     setIsStreaming(false);
     setInterrupted(true);
-  }, []);
+  }, [liveKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const reset = useCallback(() => {
-    abortControllerRef.current?.abort();
-    setLocalMessages([]);
-    setQueryResults([]);
-    setSemanticChartMessages([]);
-    setDisambiguations([]);
-    setExportOffers([]);
-    setQueryProgress(null);
-    setSuggestions([]);
-    setInterrupted(false);
-    setIsStreaming(false);
-    setCurrentSessionId(null);
+    const sid = inspectorBucket(liveKey).snap.sessionId;
+    if (sid) {
+      void fetch('/api/inspector/chat/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: sid }),
+      }).catch(() => {});
+    }
+    resetInspectorLive(liveKey);
     sessionIdRef.current = null;
-    setError(null);
-    setCompletionMeta({});
-    setRunMetrics({});
     turnCountRef.current = 0;
-  }, []);
+  }, [liveKey]);
 
   const editMessage = useCallback((messageId: string): { content: string } | null => {
     const idx = localMessages.findIndex(m => m.id === messageId);
@@ -799,6 +971,16 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
     editMessage,
     availableModels,
   };
+}
+
+/** Note on a stopped reply so the model knows the person cut it off and moved on. */
+const STOPPED_NOTE = '[The person stopped this reply before it finished.]';
+
+/** Message as sent to /api/inspector/chat. A stopped reply carries the note above. */
+function forModel(m: WorkbenchMessage): WorkbenchMessage {
+  if (m.role !== 'assistant' || !m.stopped) return m;
+  const text = typeof m.content === 'string' ? m.content.trim() : '';
+  return { ...m, content: text ? `${text}\n\n${STOPPED_NOTE}` : STOPPED_NOTE };
 }
 
 function sanitize(text: string): string {

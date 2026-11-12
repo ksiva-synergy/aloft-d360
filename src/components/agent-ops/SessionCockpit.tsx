@@ -168,7 +168,7 @@ export function SessionCockpit({ title, surface, contextMode, cockpit, openHref 
             }}
           >
             No tool rows in the audit log for this session yet. Open the <strong>Turns</strong> tab for conversation structure.
-            {a.invocationSource === 'none' && <> Run a <strong>new</strong> chat turn after the latest deploy so tools are logged; older sessions may only show Bandit trajectory for Inspector.</>}
+            {a.invocationSource === 'none' && <> Run a <strong>new</strong> chat turn after the latest deploy so tools are logged; older sessions may only show Bandit trajectory for Ask Data.</>}
             {a.invocationSource === 'bandit' && <> Showing tools recovered from <strong>Bandit trajectory</strong> (last scored turn).</>}
           </div>
         )}

@@ -3,11 +3,12 @@ import { clientStreamError } from '@/lib/inspector/client-stream-error';
 import type { ContentBlock, Message } from '@aws-sdk/client-bedrock-runtime';
 import { prisma } from '@/lib/db';
 import { guardInspectorChat } from '@/lib/inspector/session-auth';
-import { runAgentLoop, type AgentLoopResult } from '@/lib/inspector/agent-loop';
+import { type AgentLoopResult } from '@/lib/inspector/agent-loop';
 import { hasLlmLiteCredentials, inspectorLlmConfigured } from '@/lib/inspector/llm-configured';
 import { dispatchAgentLoop } from '@/lib/inspector/providers/factory';
 import { INSPECTOR_TOOLS } from '@/lib/inspector/prompts';
 import { executeInspectorTool, resolveToolCatalogEntry } from '@/lib/inspector/tools';
+import { principalForUser } from '@/lib/access/principal';
 import type { QueryResult } from '@/hooks/useInspectorChat';
 import { withAgentOpsToolLog } from '@/lib/agent-ops/log-tool-invocation';
 import { buildTestRunSystemPrompt } from '@/lib/construction/prompts';
@@ -50,7 +51,8 @@ export async function POST(request: NextRequest) {
   const role = await getSessionUserRole();
   const resolved = resolveWorkbenchModel(body.model, role);
   if (!resolved) return new Response('Model not available for workbench', { status: 400 });
-  const { option, boostModel, effectiveModelId } = resolved;
+  const { option, boostModel } = resolved;
+  let effectiveModelId = resolved.effectiveModelId;
 
   const row = await prisma.workbench_sessions.findUnique({
     where: { id: body.sessionId },
@@ -80,6 +82,7 @@ export async function POST(request: NextRequest) {
   } catch { /* no warehouse — describe_schema still works */ }
 
   const sessionId = body.sessionId;
+  const dataPrincipal = row.user_id ? await principalForUser(row.user_id, org.id) : null;
   const runId = `test-run-${crypto.randomUUID()}`;
   const turnMetrics = new TurnMetricsRecorder({ sessionId, surface: 'workbench_test_run' });
   const messages: Message[] = [{ role: 'user', content: [{ text: question } as ContentBlock] }];
@@ -128,18 +131,22 @@ export async function POST(request: NextRequest) {
                 lastUserMessage: question,
                 sessionId,
                 connectionId,
+                dataPrincipal,
               }),
             );
           },
           maxLoops: TEST_RUN_MAX_LOOPS,
           supportsTools: option.supportsTools,
           supportsThinking: false,
+          // Bedrock Claude only: cache system+tools and the growing conversation across loops.
+          cacheConversation: true,
           abortSignal: closed,
           onTextChunk: (delta: string) => {
             answer += delta;
             emit({ type: 'text', delta });
           },
           onLoopMetrics: (m: import('@/lib/inspector/agent-loop').LoopMetrics) => turnMetrics.addLoop(m),
+          onModelSwitch: (modelId: string) => { effectiveModelId = modelId; },
           onToolCallEvent: (event: import('@/lib/inspector/agent-loop').ToolCallEvent) => {
             if (event.type === 'tool_call_running') {
               emit({ type: 'tool_call_running', callId: event.callId, toolName: event.toolName, input: event.input });
@@ -151,9 +158,7 @@ export async function POST(request: NextRequest) {
           },
         };
 
-        const result: AgentLoopResult = boostModel
-          ? await dispatchAgentLoop(boostModel, loopParams)
-          : await runAgentLoop(loopParams);
+        const result: AgentLoopResult = await dispatchAgentLoop(boostModel, loopParams);
 
         if (result.outcome === 'errored' && result.errorDetail) {
           emit({ type: 'error', message: clientStreamError(result.errorDetail, 'workbench/test-run') });

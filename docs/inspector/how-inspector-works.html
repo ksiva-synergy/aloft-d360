@@ -1,0 +1,716 @@
+<title>How Inspector Finds Data</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one reading column (≈72ch) with wider "figure" panels that break out for diagrams; nautical-chart cool greys, teal for the catalog path, amber for cost and warnings. */
+:root{
+  --paper:#F2F5F7; --surface:#FFFFFF; --sunk:#E8EDF1; --ink:#13212E; --muted:#566878; --line:#D3DCE4;
+  --sea:#0E6C78; --sea-soft:#D6ECEE; --signal:#B8661A; --signal-soft:#F6E6D3;
+  --ok:#2F7D4F; --bad:#B3402F; --dot-off:#A9B6C1;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#0D161E; --surface:#142029; --sunk:#1A2833; --ink:#E3EBF1; --muted:#93A5B4; --line:#273847;
+  --sea:#52C0C8; --sea-soft:#163B40; --signal:#F0A355; --signal-soft:#3B2A17;
+  --ok:#6BC48E; --bad:#F08A78; --dot-off:#4C5E6C; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#0D161E; --surface:#142029; --sunk:#1A2833; --ink:#E3EBF1; --muted:#93A5B4; --line:#273847;
+  --sea:#52C0C8; --sea-soft:#163B40; --signal:#F0A355; --signal-soft:#3B2A17;
+  --ok:#6BC48E; --bad:#F08A78; --dot-off:#4C5E6C; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:17px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 64px}
+.wrap{max-width:1040px;margin:0 auto}
+.col{max-width:72ch}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;line-height:1.15;margin:0}
+h1{font-size:clamp(2rem,5vw,3.1rem);font-weight:700;letter-spacing:-.01em}
+h2{font-size:clamp(1.45rem,3vw,1.9rem);font-weight:700;margin-bottom:.5rem}
+h3{font-size:1.1rem;font-weight:700}
+p{margin:.5rem 0 0}
+code,.mono{font-family:var(--f-mono);font-size:.86em}
+code{background:var(--sunk);padding:.1em .35em;border-radius:4px}
+a{color:var(--sea)}
+.eyebrow{font-family:var(--f-mono);font-size:.74rem;letter-spacing:.12em;text-transform:uppercase;color:var(--sea);font-weight:600}
+.muted{color:var(--muted)}
+.small{font-size:.9rem}
+
+header.hero{padding-block:48px 28px;border-bottom:1px solid var(--line);display:grid;gap:14px}
+.hero p.lede{font-size:1.15rem;color:var(--muted);max-width:62ch;margin:0}
+nav.toc{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+nav.toc a{font-family:var(--f-mono);font-size:.8rem;text-decoration:none;color:var(--ink);border:1px solid var(--line);padding:5px 10px;border-radius:999px;background:var(--surface)}
+nav.toc a:hover,nav.toc a:focus-visible{border-color:var(--sea);color:var(--sea);outline:none}
+
+section{padding-block:44px 8px;display:grid;gap:18px}
+.figure{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px;min-width:0}
+.figcap{font-size:.85rem;color:var(--muted);margin-top:10px}
+.scroll{overflow-x:auto}
+
+/* ---------- architecture ---------- */
+.arch{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:stretch}
+.node{border:1px solid var(--line);border-radius:8px;padding:12px;background:var(--paper);display:grid;gap:4px;align-content:start;min-width:0}
+.node .tag{font-family:var(--f-mono);font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.node b{font-family:var(--f-display);font-size:1.02rem}
+.node.sea{border-color:var(--sea);background:var(--sea-soft)}
+.node.sig{border-color:var(--signal);background:var(--signal-soft)}
+.arrow{font-family:var(--f-mono);font-size:.78rem;color:var(--muted);text-align:center;align-self:center}
+.arch-row{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:10px;align-items:center}
+.arch-split{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.lane{border:1px dashed var(--line);border-radius:8px;padding:12px;display:grid;gap:10px;min-width:0}
+.lane h3{font-size:.95rem}
+.chain{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.chain .node{flex:1 1 130px}
+
+/* ---------- loop stepper ---------- */
+.stepper{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px}
+.steps-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.steps-bar button{font-family:var(--f-mono);font-size:.8rem;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:6px;padding:6px 10px;cursor:pointer}
+.steps-bar button[aria-pressed="true"]{background:var(--sea);border-color:var(--sea);color:var(--surface)}
+.steps-bar button:focus-visible{outline:2px solid var(--sea);outline-offset:2px}
+.ctrl{display:flex;gap:8px;margin-top:14px}
+.ctrl button{font-family:var(--f-body);font-weight:600;font-size:.92rem;border:1px solid var(--sea);color:var(--sea);background:transparent;border-radius:6px;padding:7px 14px;cursor:pointer}
+.ctrl button:disabled{opacity:.4;cursor:default}
+.ctrl button:focus-visible{outline:2px solid var(--sea);outline-offset:2px}
+.turn{display:grid;gap:10px}
+.bubble{border-left:3px solid var(--line);padding:4px 0 4px 12px}
+.bubble .who{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.bubble.think{border-color:var(--muted)}
+.bubble.tool{border-color:var(--sea)}
+.bubble.res{border-color:var(--ok)}
+.bubble.done{border-color:var(--signal)}
+.callbox{font-family:var(--f-mono);font-size:.82rem;background:var(--sunk);border-radius:6px;padding:8px 10px;margin-top:4px;overflow-x:auto;white-space:pre}
+.stack{display:flex;flex-direction:column-reverse;gap:3px;min-height:280px;justify-content:flex-start}
+.blk{border-radius:4px;padding:5px 9px;font-size:.8rem;font-family:var(--f-mono);display:flex;justify-content:space-between;gap:8px}
+.blk.base{background:var(--sunk);color:var(--muted)}
+.blk.call{background:var(--sea-soft);color:var(--ink)}
+.blk.res{background:var(--signal-soft);color:var(--ink)}
+.blk.new{outline:2px solid var(--sea)}
+.stack-title{font-family:var(--f-mono);font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+
+/* ---------- stat strip ---------- */
+.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.stat{border-top:2px solid var(--sea);padding-top:8px}
+.stat .v{font-family:var(--f-display);font-size:1.6rem;font-weight:700;font-variant-numeric:tabular-nums}
+.stat .l{font-size:.85rem;color:var(--muted)}
+.stat.warn{border-color:var(--signal)}
+
+/* ---------- tables ---------- */
+table{border-collapse:collapse;width:100%;font-size:.94rem}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--f-mono);font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.pill{display:inline-block;font-family:var(--f-mono);font-size:.72rem;padding:2px 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.pill.ok{color:var(--ok)} .pill.bad{color:var(--bad)} .pill.sig{color:var(--signal)}
+
+/* ---------- workflow ---------- */
+.flow{display:grid;gap:8px}
+.fstep{display:grid;grid-template-columns:5.5rem minmax(0,1fr);gap:12px;align-items:start;padding:10px 0;border-bottom:1px solid var(--line)}
+.fstep:last-child{border-bottom:0}
+.fstep .k{font-family:var(--f-mono);font-size:.8rem;color:var(--sea);font-weight:600;padding-top:2px}
+
+/* ---------- embedding pipeline ---------- */
+.pipe{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto minmax(0,1fr);gap:10px;align-items:center}
+.pipe .arrow{font-size:1.2rem}
+.cardtext{font-family:var(--f-mono);font-size:.78rem;background:var(--sunk);border-radius:6px;padding:10px;line-height:1.5;word-break:break-word}
+.cardtext .hl{color:var(--sea);font-weight:600}
+.vec{display:grid;grid-template-columns:repeat(16,1fr);gap:2px}
+.vec span{aspect-ratio:1;border-radius:2px;max-width:100%}
+.vecnums{font-family:var(--f-mono);font-size:.74rem;color:var(--muted);margin-top:6px;word-break:break-all}
+
+/* ---------- map ---------- */
+.mapgrid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:18px}
+.qbtns{display:flex;flex-wrap:wrap;gap:6px}
+.qbtns button{font-family:var(--f-body);font-size:.9rem;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:999px;padding:5px 12px;cursor:pointer}
+.qbtns button[aria-pressed="true"]{border-color:var(--signal);background:var(--signal-soft)}
+.qbtns button:focus-visible{outline:2px solid var(--sea);outline-offset:2px}
+svg text{font-family:var(--f-body)}
+.m-grid{stroke:var(--line);stroke-width:1}
+.m-on{fill:var(--sea)}
+.m-off{fill:var(--paper);stroke:var(--dot-off);stroke-width:1.5}
+.m-label{fill:var(--muted);font-size:11px}
+.m-label.hit{fill:var(--ink);font-weight:600}
+.m-q{fill:var(--signal)}
+.m-qlabel{fill:var(--signal);font-size:12px;font-weight:600}
+.m-line{stroke:var(--signal);stroke-width:1.5;stroke-dasharray:4 3}
+.m-ring{fill:none;stroke:var(--signal);stroke-width:1;opacity:.35}
+.m-rank{fill:var(--surface);font-size:10px;font-weight:700}
+.m-rankbg{fill:var(--signal)}
+.m-cluster{fill:var(--muted);font-size:11px;letter-spacing:.1em;text-transform:uppercase;opacity:.7}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:.85rem;color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+.results ol{margin:8px 0 0;padding-left:1.3rem;display:grid;gap:6px}
+.results li{font-size:.92rem}
+.results .path{font-family:var(--f-mono);font-size:.8rem}
+
+/* ---------- similarity scale ---------- */
+.scale-wrap{position:relative;padding:44px 6px 54px}
+.scale{height:10px;border-radius:5px;background:linear-gradient(90deg,var(--sunk),var(--sea))}
+.tick{position:absolute;top:0;transform:translateX(-50%);text-align:center;font-size:.78rem;width:7.5rem}
+.tick .val{font-family:var(--f-mono);font-weight:600;font-variant-numeric:tabular-nums}
+.tick::after{content:"";display:block;width:2px;height:18px;background:var(--ink);margin:3px auto 0}
+.tick.below{top:auto;bottom:0}
+.tick.below::after{display:none}
+.tick.below::before{content:"";display:block;width:2px;height:18px;background:var(--ink);margin:0 auto 3px}
+.scale-ends{display:flex;justify-content:space-between;font-family:var(--f-mono);font-size:.74rem;color:var(--muted)}
+
+/* ---------- score blend ---------- */
+.blend{display:flex;height:34px;border-radius:6px;overflow:hidden;font-family:var(--f-mono);font-size:.8rem}
+.blend div{display:flex;align-items:center;justify-content:center;color:var(--surface);font-weight:600;min-width:0;white-space:nowrap;overflow:hidden}
+.b1{background:var(--sea);flex:70}.b2{background:var(--signal);flex:15}.b3{background:var(--muted);flex:15}
+
+/* ---------- coverage ---------- */
+.cover{display:flex;height:42px;border-radius:6px;overflow:hidden}
+.cover div{min-width:0}
+.c1{background:var(--sea)} .c2{background:var(--bad)} .c3{background:var(--signal)} .c4{background:var(--dot-off)}
+.ckey{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:12px}
+.ckey div{font-size:.88rem;border-left:4px solid;padding-left:8px}
+.ckey b{font-family:var(--f-display);font-size:1.25rem;display:block;font-variant-numeric:tabular-nums}
+.catbars{display:grid;gap:10px}
+.catrow{display:grid;grid-template-columns:11rem minmax(0,1fr) 6.5rem;gap:10px;align-items:center;font-size:.9rem}
+.catrow .track{height:14px;background:var(--sunk);border-radius:3px;overflow:hidden}
+.catrow .fill{height:100%;background:var(--sea)}
+.catrow .n{font-family:var(--f-mono);font-size:.8rem;text-align:right;font-variant-numeric:tabular-nums}
+
+.two{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.callout{border-left:4px solid var(--signal);background:var(--signal-soft);padding:12px 14px;border-radius:0 8px 8px 0}
+.callout.sea{border-color:var(--sea);background:var(--sea-soft)}
+dl.gloss{display:grid;grid-template-columns:12rem minmax(0,1fr);gap:8px 16px;margin:0}
+dl.gloss dt{font-weight:600}
+dl.gloss dd{margin:0;color:var(--muted)}
+footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);font-size:.85rem;color:var(--muted)}
+
+@media (max-width:820px){
+  .arch-row,.pipe{grid-template-columns:1fr}
+  .arch-row .arrow,.pipe .arrow{transform:rotate(90deg)}
+  .arch-split,.stepper,.mapgrid,.two{grid-template-columns:1fr}
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ckey{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .catrow{grid-template-columns:1fr;gap:4px}
+  .catrow .n{text-align:left}
+  dl.gloss{grid-template-columns:1fr}
+  dl.gloss dd{margin-bottom:6px}
+  .fstep{grid-template-columns:1fr;gap:2px}
+}
+@media (prefers-reduced-motion:no-preference){
+  .blk.new{animation:pop .35s ease-out}
+  @keyframes pop{from{transform:translateY(-6px);opacity:.3}to{transform:none;opacity:1}}
+}
+</style>
+
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">ALOFT · Inspector · how it works</div>
+  <h1>How Inspector finds your data</h1>
+  <p class="lede">When you ask Inspector a question, a model works in small steps: look up tables, read their columns, write SQL, then answer. This page shows how that loop runs, what the <code>describe_schema</code> tool does, and how embeddings let it search tables by meaning.</p>
+  <nav class="toc" aria-label="Sections">
+    <a href="#big-picture">The big picture</a>
+    <a href="#loop">The ReAct loop</a>
+    <a href="#describe">describe_schema</a>
+    <a href="#workflow">The prompt's rules</a>
+    <a href="#embeddings">How embeddings work</a>
+    <a href="#ranking">How search ranks</a>
+    <a href="#coverage">Coverage today</a>
+    <a href="#problems">Why it repeats lookups</a>
+    <a href="#glossary">Glossary</a>
+  </nav>
+</header>
+
+<!-- ================= BIG PICTURE ================= -->
+<section id="big-picture">
+  <div class="col">
+    <div class="eyebrow">1 · The big picture</div>
+    <h2>Two paths: prepare ahead, answer live</h2>
+    <p>Before anyone asks a question, the <b>Estate harvest</b> copies Databricks metadata into ALOFT's own Postgres database. When a question arrives, the model reads that copy (fast and free) and only goes to Databricks to run the final SQL.</p>
+  </div>
+  <div class="figure">
+    <div class="arch-split">
+      <div class="lane">
+        <h3>Ahead of time · Estate harvest jobs</h3>
+        <div class="chain">
+          <div class="node sig"><span class="tag">source</span><b>Databricks</b><span class="small muted">tables, columns, comments</span></div>
+          <span class="arrow">→</span>
+          <div class="node"><span class="tag">harvest</span><b>Estate jobs</b><span class="small muted">stats, AI summaries, relations</span></div>
+          <span class="arrow">→</span>
+          <div class="node sea"><span class="tag">postgres</span><b>Catalog copy</b><span class="small muted">+ embeddings (vectors)</span></div>
+        </div>
+      </div>
+      <div class="lane">
+        <h3>When you ask · one Inspector turn</h3>
+        <div class="chain">
+          <div class="node"><span class="tag">you</span><b>Question</b><span class="small muted">in the chat</span></div>
+          <span class="arrow">→</span>
+          <div class="node"><span class="tag">model</span><b>Grok 4.7</b><span class="small muted">via LLM Lite gateway</span></div>
+          <span class="arrow">⇄</span>
+          <div class="node"><span class="tag">tools</span><b>Catalog + SQL</b><span class="small muted">picks one per step</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="arch-row" style="margin-top:14px">
+      <div class="node sea"><span class="tag">tool · no warehouse cost</span><b>describe_schema</b><span class="small">Reads the Postgres catalog copy. Finds tables, columns, stats, joins. Milliseconds.</span></div>
+      <span class="arrow">then</span>
+      <div class="node sig"><span class="tag">tool · uses the warehouse</span><b>execute_tool</b><span class="small">Runs one read-only SQL statement on Databricks. Seconds.</span></div>
+      <span class="arrow">then</span>
+      <div class="node"><span class="tag">output</span><b>Answer</b><span class="small">Text, tables, an optional chart (<code>emit_chart</code>) or a CSV (<code>export_query_result</code>).</span></div>
+    </div>
+    <p class="figcap">The model can only see tables the harvest has copied. A table missing from the catalog is invisible to Inspector, even though it exists in Databricks.</p>
+  </div>
+</section>
+
+<!-- ================= LOOP ================= -->
+<section id="loop">
+  <div class="col">
+    <div class="eyebrow">2 · The ReAct loop</div>
+    <h2>Think, act, look, repeat</h2>
+    <p><b>ReAct</b> stands for <i>Reason + Act</i>. The model does not plan the whole answer up front. It takes one step, sees the result, and decides the next step. It stops when it replies with text and no tool call, or after 15 steps.</p>
+    <p>Step through a real-shaped example below. Watch the right-hand side: <b>every step re-sends the whole conversation to the model</b>, so each step is a full model call that gets bigger.</p>
+  </div>
+
+  <div class="figure">
+    <div class="small muted" style="margin-bottom:8px">Example question: <b style="color:var(--ink)">“How many crew certificates expire next month, by vessel?”</b></div>
+    <div class="steps-bar" role="group" aria-label="Loop step" id="stepsBar"></div>
+    <div class="stepper">
+      <div>
+        <div class="turn" id="turnView" aria-live="polite"></div>
+        <div class="ctrl">
+          <button type="button" id="prevBtn">← Previous</button>
+          <button type="button" id="nextBtn">Next step →</button>
+        </div>
+      </div>
+      <div>
+        <div class="stack-title" id="stackTitle">What model call #1 reads</div>
+        <div class="stack" id="stack"></div>
+      </div>
+    </div>
+    <p class="figcap">Within one turn, about 80% of the input is served from the gateway's prompt cache, which makes repeated context cheaper. The model still has to work through all of it on every step, and nothing is cached across turns.</p>
+  </div>
+
+  <div class="figure">
+    <h3 style="margin-bottom:10px">A typical completed turn on dev (last 30 days, median)</h3>
+    <div class="stats">
+      <div class="stat"><div class="v">5</div><div class="l">model calls (loops)</div></div>
+      <div class="stat"><div class="v">7</div><div class="l">tool calls</div></div>
+      <div class="stat"><div class="v">39 s</div><div class="l">total time</div></div>
+      <div class="stat warn"><div class="v">~19 s</div><div class="l">of it is the model thinking</div></div>
+      <div class="stat"><div class="v">~3 s</div><div class="l">of it is tools running</div></div>
+    </div>
+    <p class="figcap">Measured from <code>agent_turn_log</code> and <code>tool_invocation_log</code> on dev (30 completed turns). The time goes into model calls, not database lookups. Fewer steps means faster answers.</p>
+  </div>
+
+  <div class="two">
+    <div class="callout sea">
+      <h3>Why ReAct fits Inspector</h3>
+      <p class="small">The model can't plan SQL before it knows which tables exist and what their columns are. Each step depends on the last result. ReAct also lets it recover in the same turn: if SQL fails, it sees the error and tries again.</p>
+    </div>
+    <div class="callout">
+      <h3>What it costs</h3>
+      <p class="small">Every small step is a full model call that re-reads everything. Ten tiny lookups means ten big calls. The design works best when each step does more.</p>
+    </div>
+  </div>
+  <p class="small muted col">Code: the loop is <code>runFoundryAgentLoop</code> in <code>src/lib/inspector/providers/foundry-chat.ts</code>. Tools requested in the same step run in parallel. The 15-step limit is set in <code>src/app/api/inspector/chat/route.ts</code>.</p>
+</section>
+
+<!-- ================= DESCRIBE ================= -->
+<section id="describe">
+  <div class="col">
+    <div class="eyebrow">3 · The describe_schema tool</div>
+    <h2>One tool, seven actions</h2>
+    <p><code>describe_schema</code> reads the harvested catalog in Postgres. It never touches Databricks, which is why the prompt calls it “free”. The model picks an <code>action</code> each time it calls it.</p>
+  </div>
+  <div class="figure scroll">
+    <table>
+      <thead><tr><th>Action</th><th>You give it</th><th>It returns</th><th>Answers</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td><code>search</code></td><td>A short phrase</td><td>The k best-matching tables: path, summary, score. <b>No columns.</b></td><td>“Which table holds this?”</td><td><span class="pill ok">available</span></td></tr>
+        <tr><td><code>describe</code></td><td>One table path</td><td>Columns, types, comments, freshness, summary, related tables. <code>compact</code> or <code>full</code>.</td><td>“What columns does it have?”</td><td><span class="pill ok">available</span></td></tr>
+        <tr><td><code>profile</code></td><td>One table path</td><td>Per column: null rate, distinct count, top values</td><td>“Which status values exist?”</td><td><span class="pill ok">available</span></td></tr>
+        <tr><td><code>relations</code></td><td>One table path</td><td>Likely join keys and related tables</td><td>“How do I join to vessels?”</td><td><span class="pill ok">available</span></td></tr>
+        <tr><td><code>list</code></td><td>Connection</td><td>Every table</td><td>Rarely useful</td><td><span class="pill ok">available</span></td></tr>
+        <tr><td><code>research</code></td><td>A phrase</td><td>Search <b>plus</b> describe and relations for the top 5, in one call</td><td>All of the above at once</td><td><span class="pill bad">built, not exposed</span></td></tr>
+        <tr><td><code>usage</code></td><td>One table path</td><td>How people actually query it: common filters, key columns, tables it's usually joined with</td><td>“How is this table normally used?”</td><td><span class="pill bad">built, not exposed</span></td></tr>
+      </tbody>
+    </table>
+    <p class="figcap"><code>research</code> and <code>usage</code> are handled in <code>src/lib/context/dispatch.ts</code> but are missing from the tool's allowed actions in <code>src/lib/inspector/prompts.ts</code>, so Inspector's model can't call them. The Agent Lab builder already uses <code>research</code>. The server also runs no more than 2 <code>describe_schema</code> calls at once, so a burst of describes queues up.</p>
+  </div>
+
+  <div class="figure">
+    <h3 style="margin-bottom:12px">How Inspector actually uses it (dev, last 30 days)</h3>
+    <div class="catbars">
+      <div class="catrow"><span class="mono small">search</span><div class="track"><div class="fill" style="width:100%"></div></div><span class="n">123 calls</span></div>
+      <div class="catrow"><span class="mono small">describe</span><div class="track"><div class="fill" style="width:85.4%"></div></div><span class="n">105 calls</span></div>
+      <div class="catrow"><span class="mono small">profile</span><div class="track"><div class="fill" style="width:7.3%"></div></div><span class="n">9 calls</span></div>
+      <div class="catrow"><span class="mono small">list</span><div class="track"><div class="fill" style="width:2.4%"></div></div><span class="n">3 calls</span></div>
+      <div class="catrow"><span class="mono small">relations</span><div class="track"><div class="fill" style="width:1.6%"></div></div><span class="n">2 calls</span></div>
+    </div>
+    <p class="figcap">Discovery is almost entirely search followed by describe. 49 of the 105 describes (47%) asked for every column, making describe the largest result at about 5,700 characters on average. Profile, list and relations are rarely used.</p>
+  </div>
+
+  <div class="figure scroll">
+    <h3 style="margin-bottom:10px">Recommended action set for Inspector</h3>
+    <table>
+      <thead><tr><th>Action</th><th>Change</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td><code>research</code></td><td><span class="pill ok">expose · default first call</span></td><td>One call replaces search → describe → relations</td></tr>
+        <tr><td><code>describe</code></td><td><span class="pill sig">add filters</span> several paths at once, only the columns you need, cap <code>full</code></td><td>Half of describes ask for every column</td></tr>
+        <tr><td><code>profile</code></td><td><span class="pill sig">add filter</span> only the columns you need</td><td>Rare, so make it cheap when used</td></tr>
+        <tr><td><code>search</code></td><td><span class="pill sig">enrich</span> add up to 8 key columns per hit</td><td>A good hit can go straight to SQL</td></tr>
+        <tr><td><code>usage</code></td><td><span class="pill ok">expose</span> ideally as a short block inside <code>describe</code></td><td>Real filters and joins help the first SQL be right</td></tr>
+        <tr><td><code>relations</code></td><td><span class="pill">fold in</span> covered by <code>research</code> and <code>describe</code></td><td>2 calls in 30 days</td></tr>
+        <tr><td><code>list</code></td><td><span class="pill bad">remove</span> from Inspector</td><td>3 calls in 30 days, and the output grows with the catalog</td></tr>
+      </tbody>
+    </table>
+    <p class="figcap">Target turn: <b>research → SQL → answer</b> (3 model calls), or <b>SQL → answer</b> once <code>research</code> runs before the first step. Today it's search → describe ×2 → profile → relations → SQL → answer. Proposal only, not built yet.</p>
+  </div>
+</section>
+
+<!-- ================= WORKFLOW ================= -->
+<section id="workflow">
+  <div class="col">
+    <div class="eyebrow">4 · The prompt's rules</div>
+    <h2>The order the model is told to follow</h2>
+    <p>The system prompt sets this workflow. It's the reason a typical turn goes search → describe → profile → SQL, with one model call each.</p>
+  </div>
+  <div class="figure">
+    <div class="flow">
+      <div class="fstep"><span class="k">Step 0</span><div><b>Check memory.</b> If the injected operating memory already names the table, skip searching.</div></div>
+      <div class="fstep"><span class="k">Step 0b</span><div><b>Check session knowledge.</b> Table paths already confirmed in this chat shouldn't be searched again. Columns aren't carried over, so the model often describes them again.</div></div>
+      <div class="fstep"><span class="k">Step 1</span><div><b>Search the catalog first</b>, e.g. <code>search “crew certificates” k:8</code>.</div></div>
+      <div class="fstep"><span class="k">Step 2A</span><div><b>Found:</b> <code>describe</code> the tables, then <code>profile</code> them, and only then run SQL with <code>execute_tool</code>.</div></div>
+      <div class="fstep"><span class="k">Step 2B</span><div><b>Not found:</b> don't explore Databricks with SQL. Tell the user the domain isn't harvested yet.</div></div>
+      <div class="fstep"><span class="k">Rules</span><div>“describe_schema is free… use it liberally.” “If SQL fails, fall back to describe_schema.” Both rules push the model toward more lookups.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= EMBEDDINGS ================= -->
+<section id="embeddings">
+  <div class="col">
+    <div class="eyebrow">5 · How embeddings work</div>
+    <h2>Turning a table's meaning into numbers</h2>
+    <p><code>search</code> has to find “crew certificates” even when the table is called <code>crw_cert_dtl</code>. Matching words isn't enough, so it compares <b>meaning</b>. An embedding model reads a sentence and turns it into a list of 1,024 numbers. Sentences that mean similar things get similar lists.</p>
+  </div>
+
+  <div class="figure">
+    <h3 style="margin-bottom:12px">Step 1 · From a table to a vector (done once, during harvest)</h3>
+    <div class="pipe">
+      <div>
+        <div class="eyebrow" style="margin-bottom:6px">A · the text we build</div>
+        <div class="cardtext"><span class="hl">curated_db.crew.crew_certificates</span> (table): Certificates held by each seafarer, with issue and expiry dates and issuing authority. Grain: one row per certificate per crew member. Key columns: crew_id, cert_type, expiry_date, vessel_id.</div>
+        <p class="figcap">Example. The real format is <code>path (kind): summary. Grain: …. Key columns: ….</code> from <code>src/lib/context/embed.ts</code>.</p>
+      </div>
+      <span class="arrow">→</span>
+      <div class="node sea" style="text-align:center">
+        <span class="tag">embedding model</span>
+        <b>Amazon Titan v2</b>
+        <span class="small">via Bedrock. Reads the whole sentence and outputs 1,024 numbers.</span>
+      </div>
+      <span class="arrow">→</span>
+      <div>
+        <div class="eyebrow" style="margin-bottom:6px">B · the vector we store</div>
+        <div class="vec" id="vecStrip" aria-hidden="true"></div>
+        <div class="vecnums" id="vecNums"></div>
+        <p class="figcap">First 64 of 1,024 numbers, coloured by value. Stored in Postgres with pgvector.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="figure">
+    <h3>Step 2 · Search is “find the nearest points”</h3>
+    <p class="small muted" style="margin-top:4px">Think of every table as a point on a map, placed by meaning. Your question becomes a point too. Search returns the closest points. Pick a question:</p>
+    <div class="qbtns" role="group" aria-label="Example question" id="qbtns" style="margin-top:10px"></div>
+    <div class="mapgrid" style="margin-top:12px">
+      <div class="scroll"><svg id="map" viewBox="0 0 640 400" role="img" aria-label="Illustrative map of tables placed by meaning, with the question's nearest tables highlighted" style="width:100%;min-width:420px;height:auto;display:block"></svg></div>
+      <div class="results" id="results"></div>
+    </div>
+    <div class="legend">
+      <span><i style="background:var(--sea)"></i>Has a Titan embedding: search can find it</span>
+      <span><i style="background:var(--paper);border:1.5px solid var(--dot-off)"></i>No usable embedding: invisible to meaning search</span>
+      <span><i style="background:var(--signal)"></i>Your question</span>
+    </div>
+    <p class="figcap"><b>Illustration, not real positions.</b> Real vectors have 1,024 dimensions, which can't be drawn. Table names are examples. The idea holds: the question lands near tables with similar meaning, and tables without an embedding can only be found by name or keyword.</p>
+  </div>
+
+  <div class="figure">
+    <h3>Step 3 · “Close” is measured as cosine similarity</h3>
+    <div class="two" style="margin-top:10px">
+      <div>
+        <svg viewBox="0 0 300 170" role="img" aria-label="Two arrows with a small angle score high; two arrows with a wide angle score low" style="width:100%;max-width:340px;height:auto">
+          <g transform="translate(20,150)">
+            <line x1="0" y1="0" x2="120" y2="-110" stroke="var(--sea)" stroke-width="3"/>
+            <line x1="0" y1="0" x2="140" y2="-80" stroke="var(--sea)" stroke-width="3"/>
+            <path d="M 46 -42 A 62 62 0 0 1 54 -31" fill="none" stroke="var(--ink)" stroke-width="1.5"/>
+            <text x="18" y="-120" font-size="12" fill="var(--ink)" font-weight="600">small angle ≈ 0.8</text>
+            <text x="18" y="-104" font-size="11" fill="var(--muted)">similar meaning</text>
+          </g>
+          <g transform="translate(170,150)">
+            <line x1="0" y1="0" x2="20" y2="-120" stroke="var(--signal)" stroke-width="3"/>
+            <line x1="0" y1="0" x2="120" y2="-10" stroke="var(--signal)" stroke-width="3"/>
+            <path d="M 9 -56 A 56 56 0 0 1 56 -5" fill="none" stroke="var(--ink)" stroke-width="1.5"/>
+            <text x="30" y="-120" font-size="12" fill="var(--ink)" font-weight="600">wide angle ≈ 0.2</text>
+            <text x="30" y="-104" font-size="11" fill="var(--muted)">unrelated</text>
+          </g>
+        </svg>
+      </div>
+      <div class="small">
+        <p style="margin-top:0">Each vector is an arrow. Similarity is how closely two arrows point the same way: <b>1</b> means identical direction, <b>0</b> means unrelated.</p>
+        <p>The numbers below are measured on our catalog. Real tables are well spread out, so the vectors work. But for a typical question, the best match and the fifth match score almost the same, so search isn't confident about which table is right.</p>
+      </div>
+    </div>
+    <div class="scale-wrap" aria-label="Similarity scale with measured values">
+      <div class="tick" style="left:18%"><div class="val">0.18</div><div class="muted">two random tables</div></div>
+      <div class="tick" style="left:79%"><div class="val">0.79</div><div class="muted">a table's nearest neighbour</div></div>
+      <div class="scale"></div>
+      <div class="tick below" style="left:35%"><div class="val">0.35</div><div class="muted">5th search result</div></div>
+      <div class="tick below" style="left:46%"><div class="val">0.42</div><div class="muted">1st search result</div></div>
+    </div>
+    <div class="scale-ends"><span>0 · unrelated</span><span>1 · identical</span></div>
+    <p class="figcap">Measured on dev: 150 sampled tables for the spread; 111 logged Inspector searches for result scores (medians).</p>
+  </div>
+</section>
+
+<!-- ================= RANKING ================= -->
+<section id="ranking">
+  <div class="col">
+    <div class="eyebrow">6 · How search ranks</div>
+    <h2>Meaning first, then two word checks</h2>
+    <p>Meaning alone can miss exact names, so the final score blends three signals. Results scoring under 0.15 on meaning are dropped. Tables in the same entity group as a strong hit get a small +0.05 boost.</p>
+  </div>
+  <div class="figure">
+    <div class="blend" role="img" aria-label="Score is 70 percent meaning, 15 percent keyword, 15 percent exact name">
+      <div class="b1">70% meaning (embedding)</div><div class="b2">15% keyword</div><div class="b3">15% name</div>
+    </div>
+    <div class="scroll" style="margin-top:14px">
+      <table>
+        <thead><tr><th>Example candidate for “crew certificates”</th><th class="num">Meaning</th><th class="num">Keyword</th><th class="num">Name</th><th class="num">Score</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">crew.crew_certificates</td><td class="num">0.52</td><td class="num">1</td><td class="num">1</td><td class="num"><b>0.66</b></td></tr>
+          <tr><td class="mono">crew.training_records</td><td class="num">0.44</td><td class="num">0</td><td class="num">0</td><td class="num">0.31</td></tr>
+          <tr><td class="mono">crew.crw_doc_dtl</td><td class="num">0.47</td><td class="num">0</td><td class="num">0</td><td class="num">0.33</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="figcap">Worked example with made-up inputs: score = 0.7 × meaning + 0.15 × keyword + 0.15 × name. Weights from <code>src/lib/context/search-ranking.ts</code>. A table with a cryptic name and no embedding scores zero on all three, so it never appears.</p>
+  </div>
+</section>
+
+<!-- ================= COVERAGE ================= -->
+<section id="coverage">
+  <div class="col">
+    <div class="eyebrow">7 · Coverage today (dev, 5 Nov 2026)</div>
+    <h2>Only 28% of tables can be found by meaning</h2>
+    <p>The vectors themselves are good. The gap is that most tables don't have a usable one.</p>
+  </div>
+  <div class="figure">
+    <div class="cover" role="img" aria-label="Of 3,232 active tables: 921 searchable, 463 wrong model, 756 summary but no embedding, about 1,092 no summary">
+      <div class="c1" style="flex:921"></div><div class="c2" style="flex:463"></div><div class="c3" style="flex:756"></div><div class="c4" style="flex:1092"></div>
+    </div>
+    <div class="ckey">
+      <div style="border-color:var(--sea)"><b>921</b>Searchable (Titan embedding)</div>
+      <div style="border-color:var(--bad)"><b>463</b>Embedded with a different model (OpenAI, 22 Oct), so search ignores them</div>
+      <div style="border-color:var(--signal)"><b>756</b>Have a summary but no embedding. Only need an embedding job.</div>
+      <div style="border-color:var(--dot-off)"><b>~1,092</b>No summary yet. Need the summary step first.</div>
+    </div>
+    <p class="figcap">3,232 active tables in total. Re-embedding the red and amber groups would take searchable coverage from about 28% to about 66%, for a few cents of Titan usage.</p>
+  </div>
+  <div class="figure">
+    <h3 style="margin-bottom:12px">Searchable tables by catalog</h3>
+    <div class="catbars">
+      <div class="catrow"><span class="mono small">curated_db</span><div class="track"><div class="fill" style="width:85.7%"></div></div><span class="n">818 / 955</span></div>
+      <div class="catrow"><span class="mono small">open_analytics_zone</span><div class="track"><div class="fill" style="width:0.65%"></div></div><span class="n">8 / 1,232</span></div>
+      <div class="catrow"><span class="mono small">reporting_layer</span><div class="track"><div class="fill" style="width:1.2%"></div></div><span class="n">7 / 586</span></div>
+    </div>
+    <p class="figcap">open_analytics_zone has 458 tables with the wrong-model vectors. reporting_layer has 330 tables with a summary but no embedding.</p>
+  </div>
+  <div class="figure">
+    <h3 style="margin-bottom:10px">Does the first search find the right table?</h3>
+    <div class="stats">
+      <div class="stat"><div class="v">29%</div><div class="l">queried table ranked 1st</div></div>
+      <div class="stat"><div class="v">59%</div><div class="l">in the top 5</div></div>
+      <div class="stat warn"><div class="v">35%</div><div class="l">not in the results at all</div></div>
+      <div class="stat warn"><div class="v">18%</div><div class="l">of embeddings older than their summary</div></div>
+      <div class="stat"><div class="v">31k</div><div class="l">column embeddings, unused by search</div></div>
+    </div>
+    <p class="figcap">“Right table” means the table the turn's SQL eventually queried. That's a proxy, measured over 17 turns on dev, so read it as a direction, not a precise rate.</p>
+  </div>
+</section>
+
+<!-- ================= PROBLEMS ================= -->
+<section id="problems">
+  <div class="col">
+    <div class="eyebrow">8 · Putting it together</div>
+    <h2>Why Inspector repeats schema lookups</h2>
+  </div>
+  <div class="figure scroll">
+    <table>
+      <thead><tr><th>Cause</th><th>Effect</th><th>Fix (from the architecture review)</th></tr></thead>
+      <tbody>
+        <tr><td>The prompt says lookups are “free” and to “use it liberally”</td><td>The model looks up more than it needs. Each lookup costs a whole model call.</td><td>D1 · rewrite the discovery rules</td></tr>
+        <tr><td><code>search</code> returns no columns</td><td>A <code>describe</code> always follows, as one more step</td><td>D6 · return key columns with search results, or D4 · fetch likely tables before the first step</td></tr>
+        <tr><td><code>research</code> is hidden</td><td>Search, describe and relations take 3+ steps instead of 1</td><td>D2 · expose <code>research</code></td></tr>
+        <tr><td>Weak coverage and flat ranking</td><td>The model describes several tables to be safe. Only 53% end up in the SQL.</td><td>E1–E3 · re-embed, remove the duplicate model setting, re-embed on summary change</td></tr>
+        <tr><td>Columns aren't remembered between turns</td><td>27% of tables are described again in a later turn</td><td>D3 · carry confirmed columns in session knowledge</td></tr>
+      </tbody>
+    </table>
+    <p class="figcap">Measured on dev over 27 turns that used schema tools: median 6 schema calls per turn, 5 of them before the first SQL. Full detail in <code>docs/inspector/architecture-review.md</code>, sections 3A and 3B.</p>
+  </div>
+</section>
+
+<!-- ================= GLOSSARY ================= -->
+<section id="glossary">
+  <div class="col">
+    <div class="eyebrow">9 · Glossary</div>
+    <h2>Terms on this page</h2>
+  </div>
+  <div class="figure">
+    <dl class="gloss">
+      <dt>ReAct</dt><dd>Reason + Act. The model takes one step at a time, reads each result, and decides the next step.</dd>
+      <dt>Loop / step</dt><dd>One model call. It returns tool calls (keep going) or a final answer (stop).</dd>
+      <dt>Tool</dt><dd>A function the model can ask ALOFT to run, such as <code>describe_schema</code> or <code>execute_tool</code>.</dd>
+      <dt>Harvest</dt><dd>Estate jobs that copy Databricks metadata into Postgres and enrich it with stats, summaries and relations.</dd>
+      <dt>Semantic card</dt><dd>The AI-written summary of a table: what it holds, its grain, key columns.</dd>
+      <dt>Embedding / vector</dt><dd>1,024 numbers that represent the meaning of a sentence. Similar meanings give similar numbers.</dd>
+      <dt>Titan v2</dt><dd>Amazon's embedding model on Bedrock, used for every searchable vector.</dd>
+      <dt>pgvector</dt><dd>The Postgres extension that stores vectors and finds the nearest ones quickly.</dd>
+      <dt>Cosine similarity</dt><dd>How closely two vectors point the same way. 1 means the same direction, 0 means unrelated.</dd>
+      <dt>Prompt cache</dt><dd>The gateway reuses the unchanged start of a request, which makes repeated context cheaper within a turn.</dd>
+    </dl>
+  </div>
+</section>
+
+<footer>
+  Source: ALOFT code on <code>feature/ui-redesign</code> and read-only queries on the dev database, 5 Nov 2026. Production wasn't measured. Companion to <code>docs/inspector/architecture-review.md</code>.
+</footer>
+</div>
+
+<script>
+(function(){
+  /* ---------- loop stepper ---------- */
+  var steps = [
+    {think:"I don't know which table holds certificates. The rules say: search the catalog first.",
+     tool:"describe_schema", call:"action: 'search'\nquery:  'crew certificates'\nk:      8",
+     res:"8 candidate tables, each with a path, summary and score. No columns yet.",
+     add:[["call","model asks: search"],["res","result: 8 candidates"]]},
+    {think:"Two candidates look right. I need their columns before I can write SQL.",
+     tool:"describe_schema × 2 (in parallel)", call:"action: 'describe', path: crew.crew_certificates\naction: 'describe', path: crew.crw_doc_dtl",
+     res:"Columns, types, comments and related tables for both.",
+     add:[["call","model asks: describe ×2"],["res","result: 2 table cards"]]},
+    {think:"The rules say profile before SQL. Is expiry_date filled? What values does status take?",
+     tool:"describe_schema", call:"action: 'profile'\npath:   crew.crew_certificates",
+     res:"expiry_date is 2% null; status has 'valid', 'expired', 'pending'.",
+     add:[["call","model asks: profile"],["res","result: column stats"]]},
+    {think:"The question says \"by vessel\". How does this table join to vessels?",
+     tool:"describe_schema", call:"action: 'relations'\npath:   crew.crew_certificates",
+     res:"Join on vessel_id to vessel.vessel_master.",
+     add:[["call","model asks: relations"],["res","result: join keys"]]},
+    {think:"I know the table, the columns, the filter and the join. Time to run SQL.",
+     tool:"execute_tool", call:"SELECT v.vessel_name, COUNT(*) AS expiring\nFROM crew.crew_certificates c\nJOIN vessel.vessel_master v ON v.vessel_id = c.vessel_id\nWHERE c.expiry_date >= date_trunc('month', add_months(current_date, 1))\n  AND c.expiry_date <  date_trunc('month', add_months(current_date, 2))\nGROUP BY v.vessel_name\nORDER BY expiring DESC\nLIMIT 100",
+     res:"Rows: one per vessel with a count.",
+     add:[["call","model asks: run SQL"],["res","result: rows from Databricks"]]},
+    {think:"I have the numbers. Write the answer.",
+     tool:null, call:null,
+     res:"Final answer with a table and 2–3 follow-up suggestions. No tool call, so the loop stops.",
+     add:[]}
+  ];
+  var base = [["base","system prompt + memory + session knowledge"],["base","tool definitions (all tools, every call)"],["base","your question"]];
+  var cur = 0;
+  var bar = document.getElementById('stepsBar');
+  steps.forEach(function(_,i){
+    var b=document.createElement('button'); b.type='button'; b.textContent='Loop '+(i+1);
+    b.addEventListener('click',function(){cur=i;render();}); bar.appendChild(b);
+  });
+  function esc(s){return s.replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+  function render(){
+    var s=steps[cur];
+    Array.prototype.forEach.call(bar.children,function(b,i){b.setAttribute('aria-pressed',i===cur?'true':'false');});
+    var h='<div class="bubble think"><div class="who">model thinks · call #'+(cur+1)+'</div>'+esc(s.think)+'</div>';
+    if(s.tool){
+      h+='<div class="bubble tool"><div class="who">model asks for a tool · '+esc(s.tool)+'</div><div class="callbox">'+esc(s.call)+'</div></div>';
+      h+='<div class="bubble res"><div class="who">ALOFT runs it and adds the result</div>'+esc(s.res)+'</div>';
+    } else {
+      h+='<div class="bubble done"><div class="who">model answers · loop stops</div>'+esc(s.res)+'</div>';
+    }
+    document.getElementById('turnView').innerHTML=h;
+    var blocks=base.slice();
+    for(var i=0;i<cur;i++){blocks=blocks.concat(steps[i].add);}
+    var stack=document.getElementById('stack'); stack.innerHTML='';
+    var newFrom = cur>0 ? blocks.length - steps[cur-1].add.length : blocks.length;
+    blocks.forEach(function(b,i){
+      var d=document.createElement('div'); d.className='blk '+b[0]+(i>=newFrom?' new':'');
+      d.innerHTML='<span>'+esc(b[1])+'</span>'; stack.appendChild(d);
+    });
+    document.getElementById('stackTitle').textContent='What model call #'+(cur+1)+' reads ('+blocks.length+' blocks)';
+    document.getElementById('prevBtn').disabled=cur===0;
+    document.getElementById('nextBtn').disabled=cur===steps.length-1;
+  }
+  document.getElementById('prevBtn').addEventListener('click',function(){if(cur>0){cur--;render();}});
+  document.getElementById('nextBtn').addEventListener('click',function(){if(cur<steps.length-1){cur++;render();}});
+  render();
+
+  /* ---------- vector strip ---------- */
+  var seed=7; function rnd(){seed=(seed*16807)%2147483647;return seed/2147483647;}
+  var strip=document.getElementById('vecStrip'), nums=[];
+  for(var i=0;i<64;i++){
+    var v=(rnd()*2-1)*(rnd()<.2?1:.45); nums.push(v);
+    var sp=document.createElement('span');
+    var a=Math.min(1,Math.abs(v)*1.6);
+    sp.style.background = v>=0 ? 'color-mix(in srgb, var(--sea) '+Math.round(a*100)+'%, var(--sunk))' : 'color-mix(in srgb, var(--signal) '+Math.round(a*100)+'%, var(--sunk))';
+    strip.appendChild(sp);
+  }
+  document.getElementById('vecNums').textContent='['+nums.slice(0,6).map(function(n){return n.toFixed(3);}).join(', ')+', … 1,018 more]';
+
+  /* ---------- meaning map (illustrative) ---------- */
+  var pts=[
+    {n:"crew_certificates",x:120,y:110,on:1},{n:"crew_contracts",x:175,y:80,on:1},{n:"training_records",x:95,y:160,on:1},
+    {n:"crew_list",x:185,y:140,on:1},{n:"crw_doc_dtl",x:140,y:70,on:0},{n:"medical_fitness",x:70,y:100,on:0},
+    {n:"noon_reports",x:430,y:95,on:1},{n:"fuel_consumption",x:490,y:130,on:1},{n:"vessel_positions",x:400,y:150,on:1},
+    {n:"bunker_delivery",x:540,y:90,on:0},{n:"voyage_legs",x:460,y:60,on:0},{n:"vessel_master",x:330,y:200,on:1},
+    {n:"invoices",x:250,y:320,on:1},{n:"purchase_orders",x:320,y:300,on:1},{n:"budget_lines",x:210,y:360,on:0},
+    {n:"payments_ap",x:300,y:355,on:0},{n:"vendor_master",x:370,y:340,on:1},{n:"rpt_opex_monthly",x:430,y:300,on:0}
+  ];
+  var clusters=[{t:"crew",x:60,y:40},{t:"vessel operations",x:400,y:32},{t:"finance",x:190,y:290}];
+  var qs=[
+    {q:"crew certificates expiring",x:110,y:125},
+    {q:"fuel used per voyage",x:505,y:105},
+    {q:"unpaid supplier invoices",x:290,y:335}
+  ];
+  var svg=document.getElementById('map'), NS='http://www.w3.org/2000/svg', qi=0;
+  function el(t,a,txt){var e=document.createElementNS(NS,t);for(var k in a)e.setAttribute(k,a[k]);if(txt)e.textContent=txt;return e;}
+  var qb=document.getElementById('qbtns');
+  qs.forEach(function(q,i){var b=document.createElement('button');b.type='button';b.textContent='“'+q.q+'”';b.addEventListener('click',function(){qi=i;drawMap();});qb.appendChild(b);});
+  function drawMap(){
+    while(svg.firstChild)svg.removeChild(svg.firstChild);
+    Array.prototype.forEach.call(qb.children,function(b,i){b.setAttribute('aria-pressed',i===qi?'true':'false');});
+    for(var gx=40;gx<640;gx+=80)svg.appendChild(el('line',{x1:gx,y1:0,x2:gx,y2:400,'class':'m-grid'}));
+    for(var gy=40;gy<400;gy+=80)svg.appendChild(el('line',{x1:0,y1:gy,x2:640,y2:gy,'class':'m-grid'}));
+    clusters.forEach(function(c){svg.appendChild(el('text',{x:c.x,y:c.y,'class':'m-cluster'},c.t.toUpperCase()));});
+    var q=qs[qi];
+    var ranked=pts.filter(function(p){return p.on;}).map(function(p){return {p:p,d:Math.hypot(p.x-q.x,p.y-q.y)};}).sort(function(a,b){return a.d-b.d;}).slice(0,3);
+    svg.appendChild(el('circle',{cx:q.x,cy:q.y,r:ranked[2].d+6,'class':'m-ring'}));
+    ranked.forEach(function(r){svg.appendChild(el('line',{x1:q.x,y1:q.y,x2:r.p.x,y2:r.p.y,'class':'m-line'}));});
+    var hitNames=ranked.map(function(r){return r.p.n;});
+    pts.forEach(function(p){
+      svg.appendChild(el('circle',{cx:p.x,cy:p.y,r:6,'class':p.on?'m-on':'m-off'}));
+      var lx=p.x+9, anchor='start'; if(p.x>540){lx=p.x-9;anchor='end';}
+      svg.appendChild(el('text',{x:lx,y:p.y+4,'text-anchor':anchor,'class':'m-label'+(hitNames.indexOf(p.n)>=0?' hit':'')},p.n));
+    });
+    ranked.forEach(function(r,i){
+      svg.appendChild(el('circle',{cx:r.p.x,cy:r.p.y-13,r:7,'class':'m-rankbg'}));
+      svg.appendChild(el('text',{x:r.p.x,y:r.p.y-9.5,'text-anchor':'middle','class':'m-rank'},String(i+1)));
+    });
+    var star=[];for(var k=0;k<10;k++){var rad=k%2?4:10,ang=Math.PI/5*k-Math.PI/2;star.push((q.x+rad*Math.cos(ang)).toFixed(1)+','+(q.y+rad*Math.sin(ang)).toFixed(1));}
+    svg.appendChild(el('polygon',{points:star.join(' '),'class':'m-q'}));
+    var qlx=q.x+14, qa='start'; if(q.x>420){qlx=q.x-14;qa='end';}
+    svg.appendChild(el('text',{x:qlx,y:q.y+22,'text-anchor':qa,'class':'m-qlabel'},'your question'));
+    var missed=pts.filter(function(p){return !p.on;}).map(function(p){return {p:p,d:Math.hypot(p.x-q.x,p.y-q.y)};}).sort(function(a,b){return a.d-b.d;})[0];
+    var h='<h3>Search returns</h3><ol>';
+    ranked.forEach(function(r){h+='<li><span class="path">'+r.p.n+'</span></li>';});
+    h+='</ol><p class="small" style="margin-top:12px"><span class="pill sig">missed</span> <span class="path">'+missed.p.n+'</span> sits close by in meaning, but has no usable embedding, so meaning search can\'t return it. It only shows up if its name happens to match the words in the query.</p>';
+    document.getElementById('results').innerHTML=h;
+  }
+  drawMap();
+})();
+</script>

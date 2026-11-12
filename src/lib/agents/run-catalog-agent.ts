@@ -2,10 +2,11 @@ import 'server-only';
 
 import type { ContentBlock, Message, Tool } from '@aws-sdk/client-bedrock-runtime';
 import { prisma } from '@/lib/db';
-import { runAgentLoop, type AgentLoopParams, type AgentLoopResult, type LoopMetrics, type ToolCallEvent } from '@/lib/inspector/agent-loop';
+import { type AgentLoopParams, type AgentLoopResult, type LoopMetrics, type ToolCallEvent } from '@/lib/inspector/agent-loop';
 import { dispatchAgentLoop } from '@/lib/inspector/providers/factory';
 import { INSPECTOR_TOOLS } from '@/lib/inspector/prompts';
 import { executeInspectorTool, resolveToolCatalogEntry } from '@/lib/inspector/tools';
+import { principalForUser } from '@/lib/access/principal';
 import type { QueryResult } from '@/hooks/useInspectorChat';
 import { withAgentOpsToolLog } from '@/lib/agent-ops/log-tool-invocation';
 import { TurnMetricsRecorder } from '@/lib/agent-ops/record-turn-metrics';
@@ -188,7 +189,8 @@ export async function runCatalogAgent(input: RunCatalogAgentInput): Promise<RunC
   }
   const resolved = resolveWorkbenchModel(input.model, input.role, 'commissioned_agents');
   if (!resolved) throw new AgentRunError(400, 'Model not available');
-  const { option, boostModel, effectiveModelId } = resolved;
+  const { option, boostModel } = resolved;
+  let effectiveModelId = resolved.effectiveModelId;
 
   const agent = await prisma.agent_catalog.findFirst({ where: { slug: input.slug } });
   if (!agent) throw new AgentRunError(404, 'Agent not found');
@@ -214,6 +216,9 @@ export async function runCatalogAgent(input: RunCatalogAgentInput): Promise<RunC
   }
 
   const orgId = getDefaultOrg().id;
+  const dataPrincipal = input.person?.userId
+    ? await principalForUser(input.person.userId, orgId)
+    : null;
   try {
     await assertInteractiveBudget({
       orgId,
@@ -297,7 +302,7 @@ export async function runCatalogAgent(input: RunCatalogAgentInput): Promise<RunC
             if (event.type === 'query_result') queryResults.push(event as unknown as QueryResult);
             input.onToolEvent?.(event);
           },
-          { queryResults, model: effectiveModelId, lastUserMessage: input.message, sessionId: runSessionId, connectionId },
+          { queryResults, model: effectiveModelId, lastUserMessage: input.message, sessionId: runSessionId, connectionId, dataPrincipal },
         ),
       );
     },
@@ -319,11 +324,12 @@ export async function runCatalogAgent(input: RunCatalogAgentInput): Promise<RunC
       input.onToolCallEvent?.(event);
     },
     onLoopMetrics: (m: LoopMetrics) => metrics.addLoop(m),
+    onModelSwitch: (modelId) => { effectiveModelId = modelId; },
   };
 
   let result: AgentLoopResult;
   try {
-    result = boostModel ? await dispatchAgentLoop(boostModel, loop) : await runAgentLoop(loop);
+    result = await dispatchAgentLoop(boostModel, loop);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Agent run failed';
     void metrics.flush({ model: effectiveModelId, outcome: 'errored', toolCalls, toolErrors, error: message });

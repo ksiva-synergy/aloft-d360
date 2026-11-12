@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { flattenPermissions, userAuthInclude, resolveRoleLabel, PERMISSIONS } from '@/lib/rbac';
 import { getDashboardSummary } from '@/lib/dashboard/summary';
+import { denyUnlessSection } from '@/lib/sections/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +14,10 @@ export const dynamic = 'force-dynamic';
  * Everything `(agent)/dashboard/page.tsx` used to compute on the server, as JSON, so the
  * browser-only (Vite) UI can render the same `DashboardView`. Same permission rules as the page.
  */
-export async function GET() {
+export async function GET(req: Request) {
+  const denied = await denyUnlessSection(req, ['home', 'view']);
+  if (denied) return denied;
+
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });

@@ -55,25 +55,25 @@ export function generateStarterPrompts(
   const topMeasure = measures[0];
 
   if (timeDim && topMeasure) {
-    prompts.push(`Show ${topMeasure.label} over ${timeDim.label}`);
+    prompts.push(`How has ${topMeasure.label} trended over ${timeDim.label}?`);
   }
 
   if (categoricalDim && topMeasure) {
-    prompts.push(`Break down ${topMeasure.label} by ${categoricalDim.label}`);
-    prompts.push(`Top 10 ${categoricalDim.label} by ${topMeasure.label}`);
+    prompts.push(`Where is ${topMeasure.label} coming from — split by ${categoricalDim.label}?`);
+    prompts.push(`Who are the top 10 ${categoricalDim.label}s for ${topMeasure.label}?`);
   }
 
   if (measures.length >= 2) {
-    prompts.push(`Compare ${measures[0].label} vs ${measures[1].label}`);
+    prompts.push(`How does ${measures[0].label} compare to ${measures[1].label}?`);
   }
 
   if (topMeasure && dimensions.length === 0) {
-    prompts.push(`What is the total ${topMeasure.label}?`);
+    prompts.push(`What's the total ${topMeasure.label} right now?`);
   }
 
   // Fallback: a model with dims but no measure still gets one useful prompt.
   if (prompts.length === 0 && dimensions.length > 0) {
-    prompts.push(`Count records by ${dimensions[0].label}`);
+    prompts.push(`How much do we have in each ${dimensions[0].label}?`);
   }
 
   // De-dupe (defensive — templates can overlap on tiny models) and cap.
@@ -85,4 +85,5 @@ export function generateStarterPrompts(
  * Kept separate so callers can pin it first in the chat empty state without it
  * participating in the model-shape templates above.
  */
-export const WHAT_IS_THIS_DATA_PROMPT = 'What is this data?';
+export const WHAT_IS_THIS_DATA_PROMPT =
+  'Give me a plain-English tour of what I can ask about here.';

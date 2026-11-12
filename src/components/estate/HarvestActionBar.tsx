@@ -19,6 +19,7 @@ import Link from '@/lib/navigation/link';
 import { useRouter } from '@/lib/navigation';
 import { toast } from 'sonner';
 import { inkOf } from '@/lib/typography/tokens';
+import { useCanRunEstatePipeline } from '@/lib/estate/useEstatePipelineAccess';
 
 interface TierRow {
   tier: string;
@@ -65,6 +66,7 @@ export default function HarvestActionBar({
   last_t4_at,
   onActionComplete,
 }: HarvestActionBarProps) {
+  const canAct = useCanRunEstatePipeline();
   const router = useRouter();
   const [loadingTier, setLoadingTier] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -253,6 +255,9 @@ export default function HarvestActionBar({
   };
 
   const busy = reharvestingAll || !!loadingTier;
+
+  // Harvest actions are platform-admin only (section access: estate.catalog).
+  if (!canAct) return null;
 
   return (
     <div className="flex flex-wrap items-center gap-2" style={{ position: 'relative' }}>

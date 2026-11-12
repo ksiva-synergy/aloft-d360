@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getOrgId } from '@/lib/databricks/connections';
 import { listJobKindSummaries, getCoverageSummary } from '@/lib/context/reads';
+import { denyUnlessSection } from '@/lib/sections/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,6 +17,8 @@ function includeCoverage(req: NextRequest): boolean {
 }
 
 export async function GET(req: NextRequest) {
+  const deniedSection = await denyUnlessSection(req, ['estate.jobs', 'view']);
+  if (deniedSection) return deniedSection;
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });

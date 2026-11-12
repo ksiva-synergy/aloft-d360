@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Braces, Check, FlaskConical, Loader2, Plug, Plus, Save, Search, Sparkles, Upload, Workflow, X } from 'lucide-react';
+import { ArrowLeft, Braces, Check, FlaskConical, History, Loader2, Plug, Plus, Save, Search, Sparkles, Upload, Workflow, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { addStep, type Def } from '@/lib/flows/edit';
 import type { FlowTemplate } from '@/lib/flows/templates';
@@ -9,6 +9,7 @@ import type { TemplateMatch } from '@/lib/flows/recommend';
 import FlowCanvas, { type StepFindings } from './FlowCanvas';
 import { StepEditor, WorkflowSettings } from './FlowForm';
 import CopilotPanel, { type CopilotProposal } from './CopilotPanel';
+import RunsPanel from './RunsPanel';
 import TestRunPanel, { verdict, type Drill, type Publishing, type TestResult } from './TestRunPanel';
 import { Chip, Segmented, StepIcon, btn, fieldInput, fieldShell, pretty } from './ui';
 
@@ -231,6 +232,7 @@ export default function FlowsPage() {
   const [requestError, setRequestError] = useState<string | null>(null);
 
   const [busy, setBusy] = useState<null | 'save' | 'publish'>(null);
+  const [showRuns, setShowRuns] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
 
   const loadMyFlows = useCallback(async () => {
@@ -271,6 +273,7 @@ export default function FlowsPage() {
   const selectedStep = def?.steps?.find((s) => s.id === selectedId) ?? null;
 
   const openWorkspace = (opts: { text: string; saved: Saved | null; template: FlowTemplate | null; inputs: Record<string, unknown>; fixtures: Record<string, unknown>; panel?: 'edit' | 'copilot'; seed?: string }) => {
+    setShowRuns(false);
     setDefinitionText(opts.text);
     setSavedText(opts.saved ? opts.text : null);
     setSaved(opts.saved);
@@ -475,7 +478,7 @@ export default function FlowsPage() {
   const removedNames = proposal ? proposal.diff.removed.map((id) => def?.steps?.find((s) => s.id === id)?.name ?? id) : [];
 
   return (
-    <div className="flex h-full min-h-[560px] flex-col bg-[var(--main-bg)]">
+    <div className="relative flex h-full min-h-[560px] flex-col bg-[var(--main-bg)]">
       <header className="flex h-14 shrink-0 items-center gap-3 border-b border-[var(--line-1)] bg-[var(--surface-1)] px-3">
         <button type="button" onClick={backToHome} className={btn.ghost} aria-label="Back to all automations">
           <ArrowLeft className="h-4 w-4" /> Automations
@@ -517,6 +520,11 @@ export default function FlowsPage() {
         <button type="button" onClick={() => void saveWorkflow()} disabled={busy !== null || (!!saved && !dirty)} className={btn.secondary} title="Ctrl+S">
           {busy === 'save' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {saved ? 'Save new version' : 'Save automation'}
         </button>
+        {saved && (
+          <button type="button" onClick={() => setShowRuns(true)} className={btn.secondary} title="Run it for real and see past runs">
+            <History className="h-4 w-4" /> Runs
+          </button>
+        )}
         {saved && saved.status !== 'active' && (
           <button type="button" onClick={() => void publishWorkflow()} disabled={busy !== null || dirty} title={dirty ? 'Save your changes first' : 'Checks and a simulated run must pass'} className={btn.primary}>
             {busy === 'publish' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />} Publish v{saved.version}
@@ -537,6 +545,8 @@ export default function FlowsPage() {
           </button>
         </div>
       )}
+
+      {showRuns && saved && <RunsPanel flowId={saved.id} def={def} status={saved.status} dirty={dirty} onClose={() => setShowRuns(false)} />}
 
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">

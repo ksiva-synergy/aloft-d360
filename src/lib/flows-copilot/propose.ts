@@ -1,5 +1,5 @@
 import type { ContentBlock, Message, Tool, ToolConfiguration } from '@aws-sdk/client-bedrock-runtime';
-import { runAgentLoop, type AgentLoopParams } from '@/lib/inspector/agent-loop';
+import { type AgentLoopParams } from '@/lib/inspector/agent-loop';
 import { dispatchAgentLoop } from '@/lib/inspector/providers/factory';
 import { resolveWorkbenchModel } from '@/lib/construction/workbench-model';
 import { DEFAULT_LLM_LITE_GATEWAY_MODEL_ID } from '@/lib/llmlite/default-model';
@@ -235,7 +235,7 @@ export async function proposeFlowEdit(params: {
       cacheSystemPrompt: true,
       abortSignal,
     };
-    return boost ? dispatchAgentLoop(boost, loop) : runAgentLoop(loop);
+    return dispatchAgentLoop(boost, loop);
   };
 
   const { modelId, boost } = copilotModel(params.role);

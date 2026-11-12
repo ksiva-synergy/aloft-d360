@@ -13,16 +13,16 @@
  *     a "warming up" state instead — an unranked provisional roster plus a short
  *     "here's how cred is earned" explainer.
  *   - RANKED: once XP exists, a compact board with provisional styling,
- *     promotion/demotion zones, movement arrows, and the caller's row highlighted.
+ *     labeled seasonal XP and trust, a personal summary, and the caller's row highlighted.
  *
- * "League" framing is suppressed while the board is small (< 12) — it reads as
+ * League labels and promotion/demotion zones are suppressed while the board is small (< 12) — it reads as
  * pretentious for a handful of contributors.
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { ArrowRight } from 'lucide-react';
 import { type, inkOf } from '@/lib/typography/tokens';
+import styles from './MemoryCredCard.module.css';
 
 // ── Types (mirror the API's wire shape — note: no userId) ──────────────────────
 
@@ -136,95 +136,39 @@ function YouTag() {
 
 // ── Rendered states ────────────────────────────────────────────────────────
 
-function BoardRow({ e }: { e: Entry }) {
-  const zoneAccent = e.zone === 'promotion' ? TEAL : e.zone === 'demotion' ? RUST : 'transparent';
-  return (
-    <div
-      style={{
-        display: 'grid', gridTemplateColumns: '22px 1fr auto', alignItems: 'center', gap: 10,
-        padding: '8px 10px', borderRadius: 8, position: 'relative',
-        boxShadow: `inset 3px 0 0 ${zoneAccent}`,
-        background: e.isYou ? `color-mix(in srgb, ${TEAL} 8%, transparent)` : 'transparent',
-      }}
-    >
-      <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, textAlign: 'right' }}>
-        {e.seasonXp > 0 ? e.rank : '–'}
-      </span>
-      <span style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
-        <Avatar name={e.displayName} color={credColor(e.cred, e.provisional)} />
-        <span style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
-          <span style={{ fontFamily: SANS, fontSize: 'var(--type-ui-regular-size)', color: 'var(--ink-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {e.displayName}
-          </span>
-          {e.isYou && <YouTag />}
-        </span>
-      </span>
-      <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <Meter cred={e.cred} provisional={e.provisional} width={84} />
-        <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', minWidth: 62, color: e.provisional ? MUTED : credColor(e.cred, false) }}>
-          {e.provisional ? 'provisional' : e.cred}
-        </span>
-        <span className="mcred-hide-sm" style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--ink-1)', width: 44, textAlign: 'right' }}>
-          {e.seasonXp}<span style={{ color: MUTED, fontSize: 'var(--type-ui-regular-size)' }}>xp</span>
-        </span>
-        <span className="mcred-hide-sm" style={{ width: 34, textAlign: 'right' }}><Movement m={e.movement} /></span>
-      </span>
-    </div>
-  );
+function BoardRow({ e, showLeague }: { e: Entry; showLeague: boolean }) {
+  return <tr className={e.isYou ? styles.yourRow : undefined}>
+    <td className={styles.rank}>{e.rank}</td>
+    <td><div className={styles.person}><Avatar name={e.displayName} color={MUTED} size={30} /><div>
+      <span className={styles.name}>{e.displayName}{e.isYou && <YouTag />}</span>
+      {showLeague && e.zone !== 'hold' && <span className={styles.zone}>{e.zone === 'promotion' ? 'Promotion zone' : 'Demotion zone'}</span>}
+    </div></div></td>
+    <td className={styles.xp}>{e.seasonXp.toLocaleString()}</td>
+    <td><div className={styles.trust}>{e.provisional ? <span className={styles.provisional}>Provisional</span> : <><Meter cred={e.cred} provisional={false} width="100%" /><strong>{e.cred}</strong></>}</div></td>
+  </tr>;
 }
 
 function RankedState({ view }: { view: View }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {view.you && (
-        <div
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
-            padding: '10px 12px', borderRadius: 9,
-            background: 'var(--surface-2)',
-            border: '1px solid var(--line-1)',
-          }}
-        >
-          <span style={{ fontFamily: SANS, fontSize: 'var(--type-ui-regular-size)', color: 'var(--ink-2)' }}>
-            Your standing
-          </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontFamily: MONO, fontSize: 'var(--type-body-size)', fontWeight: 600, color: 'var(--ink-1)' }}>
-              #{view.you.rank} <span style={{ color: MUTED, fontWeight: 400, fontSize: 'var(--type-ui-regular-size)' }}>of {view.leagueSize}</span>
-            </span>
-            <Movement m={view.you.movement} />
-            <span style={{ fontFamily: MONO, fontSize: 'var(--type-body-size)', color: credColor(view.you.cred, view.you.provisional) }}>
-              {view.you.provisional ? '—' : view.you.cred}
-            </span>
-          </span>
-        </div>
-      )}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {view.top.slice(0, TOP_N).map((e) => (
-          <BoardRow key={`${e.rank}-${e.displayName}`} e={e} />
-        ))}
-      </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 16px', paddingTop: 4 }}>
-        <Legend color={TEAL} label="promotion" />
-        <Legend color={RUST} label="demotion" />
-        <Legend color={MUTED} label="provisional" dashed />
-      </div>
+  const showLeague = view.leagueSize >= LEAGUE_MIN;
+  return <div className={styles.ranked}>
+    {view.you && <aside className={styles.personal} aria-label="Your contribution">
+      <span className={styles.eyebrow}>YOUR CONTRIBUTION</span>
+      <div className={styles.standing}><strong>#{view.you.rank}</strong><span>of {view.leagueSize} contributors</span></div>
+      <dl><div><dt>Season XP</dt><dd>{view.you.seasonXp.toLocaleString()}</dd></div>
+        <div><dt>Trust score</dt><dd>{view.you.provisional ? 'Provisional' : <>{view.you.cred}<small> / 100</small></>}</dd></div>
+      </dl>
+      <p className={styles.personalNote}>{view.you.provisional ? 'Your trust score is forming as more contributions are evaluated.' : 'Trust reflects how your memory contributions perform when agents use them.'}</p>
+      {view.you.movement !== null && <div className={styles.movement}>Rank change <Movement m={view.you.movement} /></div>}
+    </aside>}
+    <div className={styles.board}>
+      <table className={styles.table}>
+        <caption>Top {Math.min(TOP_N, view.top.length)} contributors <span>Ordered by seasonal XP</span></caption>
+        <thead><tr><th scope="col">Rank</th><th scope="col">Contributor</th><th scope="col">Season XP</th><th scope="col">Trust / 100</th></tr></thead>
+        <tbody>{view.top.slice(0, TOP_N).map(e => <BoardRow key={`${e.rank}-${e.displayName}`} e={e} showLeague={showLeague} />)}</tbody>
+      </table>
+      <details className={styles.explainer}><summary>What do these scores mean?</summary><p><strong>Season XP</strong> determines rank for the current season. <strong>Trust</strong> is a longer-term reliability score, so a lower-ranked contributor can have a higher trust score. <strong>Provisional</strong> means there isn’t enough evidence to show a settled score.</p></details>
     </div>
-  );
-}
-
-function Legend({ color, label, dashed }: { color: string; label: string; dashed?: boolean }) {
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>
-      <span
-        style={{
-          width: 9, height: 9, borderRadius: 2,
-          background: dashed ? `repeating-linear-gradient(90deg, ${color} 0 2px, transparent 2px 4px)` : color,
-        }}
-      />
-      {label}
-    </span>
-  );
+  </div>;
 }
 
 function NascentState({ view }: { view: View }) {
@@ -301,38 +245,17 @@ export function MemoryCredCard({ index = 4 }: { index?: number }) {
     return (await res.json()) as LeaderboardResponse;
   }, []);
 
-  // Initial load — server picks the busiest domain as default.
+  // Abort the previous class request so its results cannot replace the selected class.
   useEffect(() => {
     const ac = new AbortController();
     setStatus('loading');
-    load(null, ac.signal)
-      .then((r) => {
-        setData(r);
-        setDomain(r.view?.domain ?? null);
-        setStatus('ready');
-      })
-      .catch((e) => {
-        if (e?.name !== 'AbortError') setStatus('error');
-      });
+    load(domain, ac.signal).then(r => {
+      if (!ac.signal.aborted) { setData(r); setStatus('ready'); }
+    }).catch(e => {
+      if (e?.name !== 'AbortError' && !ac.signal.aborted) setStatus('error');
+    });
     return () => ac.abort();
-  }, [load]);
-
-  const selectDomain = useCallback(
-    (d: string) => {
-      if (d === domain) return;
-      setDomain(d);
-      const ac = new AbortController();
-      load(d, ac.signal)
-        .then((r) => {
-          setData(r);
-          setStatus('ready');
-        })
-        .catch((e) => {
-          if (e?.name !== 'AbortError') setStatus('error');
-        });
-    },
-    [domain, load],
-  );
+  }, [load, domain]);
 
   const view = data?.view ?? null;
   const domains = data?.domains ?? [];
@@ -347,17 +270,17 @@ export function MemoryCredCard({ index = 4 }: { index?: number }) {
       initial={reduce ? false : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: reduce ? 0 : 0.05 * index, ease: 'easeOut' }}
-      className="mcred flex flex-col rounded-card border border-[var(--line-1)] bg-[var(--surface-1)]"
+      className={`mcred ${styles.card}`}
       aria-label="Memory cred leaderboard"
     >
       <style>{SCOPED_CSS}</style>
 
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line-1)] px-5 py-3">
-        <div className="flex min-w-0 items-baseline gap-2">
-          <h2 className="shrink-0 text-title-card font-semibold text-[var(--ink-1)]">Memory cred</h2>
-          <span className="truncate text-caption text-[var(--ink-3)]">
-            Trust earned per agent class
+      <div className={styles.header}>
+        <div className={styles.heading}>
+          <h2 className="shrink-0 text-title-card font-semibold text-[var(--ink-1)]">Memory contributions</h2>
+          <span className={styles.subtitle}>
+            People helping agents remember better
             {view ? ` · ${view.leagueSize} contributor${view.leagueSize === 1 ? '' : 's'}` : ''}
             {showLeague ? ` · league ${view!.league + 1}` : ''}
           </span>
@@ -365,16 +288,16 @@ export function MemoryCredCard({ index = 4 }: { index?: number }) {
 
         {/* Domain tabs */}
         {domains.length > 0 && (
-          <div role="tablist" aria-label="Agent class" className="inline-flex flex-wrap gap-0.5 rounded-ctl bg-[var(--surface-2)] p-0.5">
+          <div role="group" aria-label="Agent class" className="inline-flex flex-wrap gap-0.5 rounded-ctl bg-[var(--surface-2)] p-0.5">
             {domains.map((d) => {
-              const on = d === domain;
+              const on = d === (domain ?? view?.domain);
               return (
                 <button
                   key={d}
-                  role="tab"
-                  aria-selected={on}
+                  type="button"
+                  aria-pressed={on}
                   className="mcred-tab"
-                  onClick={() => selectDomain(d)}
+                  onClick={() => setDomain(d)}
                   style={{
                     fontSize: 'var(--type-ui-regular-size)', cursor: 'pointer', borderRadius: 6, padding: '3px 10px', border: 0,
                     background: on ? 'var(--surface-1)' : 'transparent',
@@ -391,7 +314,7 @@ export function MemoryCredCard({ index = 4 }: { index?: number }) {
       </div>
 
       {/* Body */}
-      <div className="px-5 py-4">
+      <div className={styles.body} aria-busy={status === 'loading'}>
       {status === 'loading' && <Note text="Loading leaderboard…" />}
       {status === 'error' && <Note text="Couldn’t load the leaderboard right now." dashed />}
       {status === 'ready' && !view && (
@@ -408,7 +331,7 @@ function Note({ text, dashed }: { text: string; dashed?: boolean }) {
     <div
       style={{
         border: `1px ${dashed ? 'dashed' : 'solid'} var(--line-1)`, borderRadius: 8, padding: '20px 16px',
-        textAlign: 'center', fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--estate-text-muted)',
+        textAlign: 'center', fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--ink-3)',
       }}
     >
       {text}

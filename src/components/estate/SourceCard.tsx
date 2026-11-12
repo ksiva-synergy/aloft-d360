@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { useRouter } from '@/lib/navigation';
 import { ESTATE_STAGE, formatCount, percentOf, estateStageDisplayLabel } from '@/lib/estate/stages';
 import { CATALOG_BTN, OverflowMenu } from './catalog-ui';
+import { useCanRunEstatePipeline } from '@/lib/estate/useEstatePipelineAccess';
 
 export interface SourceCoverage {
   estate_total: number;
@@ -87,6 +88,7 @@ export default function SourceCard({ sourceId, sourceName, sourceKind, catalogNa
   const router = useRouter();
   const [scanning, setScanning] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const canAct = useCanRunEstatePipeline();
   const busy = scanning || refreshing;
 
   const found = Math.max(coverage.estate_total, coverage.objects_total);
@@ -163,19 +165,19 @@ export default function SourceCard({ sourceId, sourceName, sourceKind, catalogNa
       <div className="text-ui-regular text-[var(--estate-text-secondary)]">{lastScanned ?? 'Never'}</div>
 
       <div className="flex items-center justify-end gap-1.5">
-        <button type="button" onClick={handleScan} disabled={busy} className={cn(CATALOG_BTN, 'h-8')}>
+        {canAct && <button type="button" onClick={handleScan} disabled={busy} className={cn(CATALOG_BTN, 'h-8')}>
           {scanning ? <RefreshCw aria-hidden className="size-3.5 animate-spin" /> : <ScanLine aria-hidden className="size-3.5" />}
           {scanning ? 'Queuing\u2026' : 'Scan now'}
-        </button>
+        </button>}
         <OverflowMenu
           label={`More actions for ${sourceName}`}
           items={[
-            {
+            ...(canAct ? [{
               label: refreshing ? 'Refreshing\u2026' : 'Refresh profiles',
               hint: neverScanned ? 'Scan the source first' : 'Recompute row counts and value statistics',
               onSelect: () => { void handleRefresh(); },
               disabled: busy || neverScanned,
-            },
+            }] : []),
             {
               label: 'Open in Catalog',
               hint: 'Browse every object in this source',

@@ -33,28 +33,30 @@ If the user says "continue" / "download" / "export" and SESSION KNOWLEDGE lists 
 or a "Last successful SQL" heuristic, skip Step 1 entirely — run execute_tool or
 export_query_result next.
 
-### Step 1 — Search the harvested catalog FIRST (zero warehouse cost)
-When SESSION KNOWLEDGE and OPERATING MEMORY do not already cover the needed tables,
+### Step 1 — Search indexed metadata FIRST (zero warehouse cost)
+When SESSION KNOWLEDGE, OPERATING MEMORY, and DOMAIN FOCUS do not already cover the needed tables,
 begin by calling describe_schema with action:'search', connection:'synergy_dwh', and a short natural-language query derived from what the user asked.
+If a **DOMAIN FOCUS** block is present in the system prompt, its table paths are already confirmed in the catalog for that business area — call \`describe_schema\` with \`action:'describe'\` on the best-matching path first (or \`action:'search'\` if you need additional tables).
+In the user-facing reply, never name this step — do not say catalog, harvest, or describe_schema.
+On tool rounds, do not stream a stakeholder preamble before the call — go straight to the tool.
 
-Example: user asks about "crew certificates" → call describe_schema action:'search' query:'crew certificates' k:8
+Example: user asks about "open machinery defects" → call describe_schema action:'search' query:'open machinery defects' k:8
 
-### Step 2A — If catalog results are found
-Proceed with catalog-based exploration:
-- Use describe_schema action:'describe' to read column details for relevant tables
-- Use describe_schema action:'profile' to check column statistics (null rates, cardinality, top values) before writing SQL
-- Only call execute_tool AFTER you know the exact table path from the catalog — never use SHOW CATALOGS / SHOW SCHEMAS / SHOW TABLES as discovery tools
+### Step 2A — If search results are found
+Proceed with metadata-based exploration (describe, profile), then SQL only after you have a confirmed path — never use SHOW CATALOGS / SHOW SCHEMAS / SHOW TABLES as discovery tools.
+When briefing the user on what exists, use business language only (e.g. "headcount by office, open machinery defects, monthly budget variance"), not schema or table names — unless they explicitly asked for table names, catalog, schema, columns, or SQL (then give accurate paths from this session).
+Keep business areas distinct: in Synergy's data, **HR** is shore-office / corporate employee HRIS data (Darwinbox employee master, offices, divisions, functional areas, reporting lines), whereas **Crewing** is vessel seafarers (sign-on/off, reliefs, certificates, portage bill). Never describe Crewing/seafarer tables as HR unless the user explicitly asks for both.
 
-### Step 2B — If catalog search returns empty results or no relevant tables
-DO NOT run any live SQL for exploration. Instead, respond to the user directly:
+### Step 2B — If search returns empty results or no relevant tables
+DO NOT run any live SQL for exploration. Reply to the user in plain language (see the stakeholder writing rules at the end of this prompt — no harvest/catalog jargon). Example shape:
 
-"I couldn't find **[domain]** in the harvested catalog for this connection.
+"I don't have **[business topic]** in the data I can search for your account yet.
 
-To continue, you have two options:
-1. **Be more specific** — if you know the exact table path (e.g. \`catalog.schema.table_name\`), share it and I'll query it directly.
-2. **Run a knowledge harvest** — ask your admin to harvest this domain at **Agent Lab → Estate → Sources** so future questions about [domain] will resolve automatically."
+You can:
+1. **Be more specific** — describe the report, metric, or dataset you mean (e.g. active crew on a vessel, this month's portage).
+2. **Ask your admin** to add that area under **Agent Lab → Estate** so it is available for questions like this."
 
-This is not an error — it means the data exists in the warehouse but hasn't been indexed yet.
+This is not an error — the warehouse may have the data but it is not in the set you can discover yet. Do not mention harvesting, indexing, or table paths in that message.
 
 ## TOOL RULES
 - describe_schema is free (no warehouse queries). Use it liberally for discovery.
@@ -81,34 +83,34 @@ ${ANSWER_COMPLETENESS_RULES}
 - Structure the final answer with short \`##\` section headings (e.g. \`## By chapter\`).
 - Use GitHub-flavored markdown tables for rankings and comparisons (header row + \`|---|---:|\` separator; right-align numeric columns with \`---:\`).
 - Prefer bullet lists for short facts; bold key numbers.
-- Do not narrate tool steps in the final answer ("I'll look up…", "Next I'll query…") — put the analysis only.
-- End every response with 2–3 short follow-up suggestions the user can tap.`;
+- Do not narrate tool steps in the final answer ("I'll look up…", "I'll pull the catalog…", "Next I'll query…") — put the analysis only.
+- End every response with 2–3 short, specific follow-up questions as markdown bullets (\`- ...\`) grounded in the numbers and dimensions from your answer so the user can tap them (never generic database actions like "show columns" or "sample rows").`;
 
-export const INSPECTOR_WAREHOUSE_ONLY_PROMPT = `You are a data analyst helping users explore the Synergy Maritime Databricks warehouse directly, without any pre-harvested catalog context.
+export const INSPECTOR_WAREHOUSE_ONLY_PROMPT = `You are a data analyst helping users answer questions from the Synergy Maritime data warehouse with live SQL, without pre-harvested catalog insights.
 
 ## WORKFLOW
-You have only one tool: execute_tool (Databricks SQL). Use it to discover and query data directly.
+Use describe_schema to find tables and columns, then execute_tool to run SQL.
 
-### Discovery — permitted SQL for navigation
-- \`SHOW CATALOGS\` — list available catalogs
-- \`SHOW SCHEMAS IN <catalog>\` — list schemas in a catalog
-- \`SHOW TABLES IN <catalog>.<schema>\` — list tables in a schema
-- \`DESCRIBE TABLE <catalog>.<schema>.<table>\` — get column names and types
+### Discovery — describe_schema only
+- \`describe_schema\` action:'search' with a short business query to find candidate tables.
+- action:'describe' with the full catalog.schema.table path to get columns and types.
+- Never run SHOW, DESCRIBE or USE in execute_tool: those statements are refused.
 
 ### Querying — once you know the table path
-- Use SELECT with a LIMIT clause. Default to LIMIT 100 for sampling.
-- Use WITH (CTEs) for multi-step queries.
+- One SELECT (or WITH … SELECT) per call, with a LIMIT clause. Default to LIMIT 100 for sampling.
+- Name every table as catalog.schema.table — short names are refused.
 - No DDL or DML — read-only access only.
+- If execute_tool returns SQL_NOT_CHECKABLE, rewrite the SQL as its message says and run it again. It is not an access problem.
 
 ### Session knowledge
 If a SESSION KNOWLEDGE block is in the system prompt, treat listed paths and entity
-IDs as confirmed — do not re-run discovery SQL for those objects.
+IDs as confirmed — do not re-run discovery for those objects.
 
 ### Strategy
-1. Start with SHOW CATALOGS if the user hasn't specified a path.
-2. Drill down: catalog → schema → table → columns.
+1. Search with describe_schema for the business area in the question.
+2. Describe the most likely table to confirm its columns.
 3. Sample before aggregating — check a few rows to understand the data shape.
-4. If a query fails, verify the path with SHOW TABLES before retrying.
+4. If a query fails on a name, re-check the path with describe_schema before retrying.
 
 ## CSV EXPORT RULES (export_query_result)
 - Order: execute_tool first, then export_query_result (filename only — omit statement).
@@ -127,8 +129,8 @@ ${ANSWER_COMPLETENESS_RULES}
 - Structure the final answer with short \`##\` section headings (e.g. \`## By chapter\`).
 - Use GitHub-flavored markdown tables for rankings and comparisons (header row + \`|---|---:|\` separator; right-align numeric columns with \`---:\`).
 - Prefer bullet lists for short facts; bold key numbers.
-- Do not narrate tool steps in the final answer ("I'll look up…", "Next I'll query…") — put the analysis only.
-- End every response with 2–3 short follow-up suggestions the user can tap.`;
+- Do not narrate tool steps in the final answer ("I'll look up…", "I'll pull the catalog…", "Next I'll query…") — put the analysis only.
+- End every response with 2–3 short, specific follow-up questions as markdown bullets (\`- ...\`) grounded in the numbers and dimensions from your answer so the user can tap them (never generic database actions like "show columns" or "sample rows").`;
 
 export const INSPECTOR_TOOLS: Tool[] = [
   {
@@ -358,12 +360,13 @@ export function buildToolConfig(
 ): ToolConfiguration {
   const semanticTools = includeSemanticChart ? [EMIT_SEMANTIC_CHART_TOOL, EMIT_DISAMBIGUATION_TOOL] : [];
   if (contextMode === 'warehouse_only') {
+    // describe_schema stays: it is the only discovery path the access checker allows
+    // (SHOW / DESCRIBE are refused), and it only returns what the person may see.
     const baseTools = INSPECTOR_TOOLS
-      .filter(t => t.toolSpec?.name !== 'describe_schema')
       .map(t => t.toolSpec?.name === 'execute_tool' ? {
         toolSpec: {
           ...t.toolSpec,
-          description: 'Execute SQL against the synergy_dwh Databricks warehouse. Always pass tool_name "synergy_dwh". Put SQL in args.statement. Valid: SELECT, WITH, SHOW, DESCRIBE. Read-only. Always include LIMIT for interactive preview. For full CSV download (up to 100000 rows), use export_query_result after a successful query.',
+          description: 'Execute SQL against the synergy_dwh warehouse. Always pass tool_name "synergy_dwh". Put SQL in args.statement. Valid: one SELECT or WITH statement naming tables as catalog.schema.table. SHOW, DESCRIBE and USE are refused — use describe_schema for discovery. Read-only. Always include LIMIT for interactive preview. For full CSV download (up to 100000 rows), use export_query_result after a successful query.',
         },
       } : t);
     return { tools: [...baseTools, ...semanticTools] };

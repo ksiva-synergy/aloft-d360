@@ -4,6 +4,7 @@ import { handle, ok, created, parse, clientMeta, ApiError } from '@/lib/http';
 import { resolveAuth, requirePermission } from '@/middleware/auth';
 import { PERMISSIONS, canManageRole } from '@/lib/rbac';
 import { writeAudit } from '@/lib/audit';
+import { requireSection } from '@/lib/sections/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,6 +32,7 @@ function assertCanManage(actorRole: string, roleName: string) {
 export const POST = handle(async (req) => {
   const auth = await resolveAuth(req);
   requirePermission(auth, PERMISSIONS.ROLE_ASSIGN);
+  requireSection(auth, ['govern.users', 'manage']);
   const body = parse(AssignBody, await req.json());
   assertCanManage(auth.role, body.roleName);
   const { user, role } = await resolve(body.userId, body.roleName);
@@ -56,6 +58,7 @@ export const POST = handle(async (req) => {
 export const DELETE = handle(async (req) => {
   const auth = await resolveAuth(req);
   requirePermission(auth, PERMISSIONS.ROLE_ASSIGN);
+  requireSection(auth, ['govern.users', 'manage']);
   const body = parse(AssignBody, await req.json());
   assertCanManage(auth.role, body.roleName);
   const { user, role } = await resolve(body.userId, body.roleName);

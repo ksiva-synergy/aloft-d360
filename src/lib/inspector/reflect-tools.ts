@@ -502,6 +502,7 @@ export interface ReflectToolContext {
   orgId: string;
   userId: string | null;
   connectionId: string | null;
+  dataPrincipal?: import('@/lib/access/types').AccessPrincipal | null;
   agentClass?: string;
   /** The Teach session that captured these learnings (workbench_sessions.id).
    *  Persisted on the candidate row so the feed can scope by author + session;
@@ -539,7 +540,7 @@ export interface ReflectToolDeps {
   capture: (
     args: ReturnType<typeof mapCaptureToTeachArgs>,
   ) => Promise<{ id: string; ruleText: string; ruleType: string }>;
-  verify: (query: SemanticQuery, connectionId: string) => Promise<{ rowCount: number; sql: string }>;
+  verify: (query: SemanticQuery, connectionId: string, dataPrincipal?: import('@/lib/access/types').AccessPrincipal | null) => Promise<{ rowCount: number; sql: string }>;
   /**
    * Phase 2, Step 2 — conflict detector. Diffs a new statement against recalled
    * memory and returns the contradicting hit (or null). Injectable so the default
@@ -598,10 +599,9 @@ const DEFAULT_DEPS: ReflectToolDeps = {
     const { teachRule } = await import('@/lib/memory/teach');
     return teachRule(args);
   },
-  verify: async (query, connectionId) => {
-    // Default (no opts) path = governed-only gate + executeDatabricksSQL chokepoint.
+  verify: async (query, connectionId, dataPrincipal) => {
     const { executeSemanticQuery } = await import('@/lib/semantic/execute');
-    const res = await executeSemanticQuery(query, connectionId);
+    const res = await executeSemanticQuery(query, connectionId, { dataPrincipal });
     return { rowCount: res.rowCount, sql: res.sql };
   },
   detectConflict: async (newStatement, hits) => defaultDetectConflict(newStatement, hits),
@@ -777,7 +777,7 @@ export async function executeReflectTool(
       return JSON.stringify({ ok: false, result, learningState });
     }
     try {
-      const res = await d.verify(query, ctx.connectionId);
+      const res = await d.verify(query, ctx.connectionId, ctx.dataPrincipal);
       const result: VerificationResult = {
         ok: true,
         state: res.rowCount > 0 ? 'confirmed' : 'unconfirmed',

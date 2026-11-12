@@ -1,0 +1,11 @@
+.answer { color: var(--ink-1); overflow-wrap: anywhere; }
+.answer > div:first-child > p:first-child { font-size: 1.05em; line-height: 1.65; }
+.answer strong { font-weight: 650; color: var(--ink-1); }
+.details { min-width: 0; font-size: 12px; color: var(--ink-3); }
+.summary { width: fit-content; cursor: pointer; padding: 4px 0; border-radius: 4px; }
+.summary:hover { color: var(--ink-1); }
+.summary:focus-visible { outline: 2px solid var(--brand-a); outline-offset: 4px; }
+.hiddenSummary { display: none; }
+.metadata { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 8px 0 2px; }
+
+.report { padding: clamp(12px, 2vw, 22px); background: var(--surface-1) !important; border: 1px solid var(--line-1) !important; border-radius: 16px !important; }

@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server';
 import { clientStreamError } from '@/lib/inspector/client-stream-error';
+import { openTurn, parseTurnId } from '@/lib/chat/turn-control';
+import { createDraftWriter } from '@/lib/chat/turn-draft';
 import { type Message, type ContentBlock } from '@aws-sdk/client-bedrock-runtime';
 import { logAgentCost } from '@/lib/lifecycle/log-agent-cost';
 import { assertInteractiveBudget, BudgetExceededError } from '@/lib/spend/budgets';
@@ -19,7 +21,8 @@ import {
   buildSessionKnowledgeContext,
   persistSessionKnowledgeAfterTurn,
 } from '@/lib/inspector/session-knowledge';
-import { runAgentLoop } from '@/lib/inspector/agent-loop';
+import { buildDomainFocusContext } from '@/lib/inspector/domain-context';
+import { splitFollowUps } from '@/lib/inspector/extract-suggestions';
 import { dispatchAgentLoop } from '@/lib/inspector/providers/factory';
 import { BOOST_MODELS } from '@/lib/boost/models';
 import { openSession } from '@/lib/memory/trace';
@@ -35,7 +38,9 @@ import { recordInjection, attributeRunOutcome, type InjectedBullet } from '@/lib
 import { getCurrentTopicMap } from '@/lib/foer/topics';
 import { buildSemanticContext, type SemanticContext } from '@/lib/semantic/context-builder';
 import { guardInspectorChat, resolveInspectorPrincipal } from '@/lib/inspector/session-auth';
+import { principalForUser } from '@/lib/access/principal';
 import { chatModelKeyForRole, isPlatformAdminRole } from '@/lib/inspector/model-access';
+import { effectiveContextMode } from '@/lib/inspector/context-mode';
 import { getSessionUserRole } from '@/lib/inspector/session-role';
 import { DEFAULT_INSPECTOR_MODEL_KEY } from '@/lib/inspector/default-model';
 import { fromLlmLiteModelKey, toLlmLiteModelKey } from '@/lib/llmlite/keys';
@@ -109,30 +114,6 @@ function isBedrockConfigured(): boolean {
   return hasStaticAwsCredentials() || process.env.INSPECTOR_USE_INSTANCE_PROFILE === 'true' || process.env.AWS_EXECUTION_ENV === 'AWS_ElasticBeanstalk';
 }
 
-function extractSuggestionsFromText(text: string): string[] {
-  const lines = text.split('\n');
-  const results: string[] = [];
-  let inBlock = false;
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    const lc = line.toLowerCase();
-    if (lc.includes('you might') || lc.includes('next step') || lc.includes('follow-up') || lc.includes('you could') || lc.includes('try:') || lc.includes('options:')) {
-      inBlock = true;
-      continue;
-    }
-    if (inBlock || i >= lines.length - 8) {
-      const m = line.match(/^[-*•]\s+(.+)/) || line.match(/^\d+\.\s+(.+)/);
-      if (m) {
-        const txt = m[1].trim().replace(/[.:]$/, '');
-        if (txt.length >= 5 && txt.length <= 80) results.push(txt);
-      } else if (inBlock && line.length > 0 && !line.match(/^[-*•\d]/)) {
-        if (results.length > 0) inBlock = false;
-      }
-    }
-  }
-  return results.slice(0, 3);
-}
-
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
 export async function POST(request: NextRequest) {
@@ -141,6 +122,10 @@ export async function POST(request: NextRequest) {
     messages?: { role: string; content: string }[];
     model?: string;
     contextMode?: 'harvested' | 'warehouse_only';
+    /** Optional starting business area key selected on the welcome screen (e.g. 'hr', 'crewing'). */
+    domainKey?: string;
+    /** Client id for this turn, so Stop targets only this reply. */
+    turnId?: string;
   };
 
   // ── D1: session-ownership guard (behind INSPECTOR_AUTH_ENFORCE) ─────────────
@@ -155,6 +140,8 @@ export async function POST(request: NextRequest) {
     getSessionUserRole(),
     loadModelSettings(),
   ]);
+  const dataPrincipal =
+    principal?.kind === 'user' ? await principalForUser(principal.userId) : null;
   const configuredInspectorKey = toLlmLiteModelKey(
     modelSettings.featureModels.inspector_chat || modelSettings.defaultGatewayModelId,
   );
@@ -196,7 +183,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const contextMode: 'harvested' | 'warehouse_only' = body.contextMode === 'warehouse_only' ? 'warehouse_only' : 'harvested';
+  // Members and read-only users always get Catalog + SQL; only admins can switch to SQL only.
+  const contextMode = effectiveContextMode(body.contextMode, role, principal?.kind === 'service');
 
   const modelConfig = resolveModel(effectiveModelKey);
   const isFoundryModel = !!modelConfig.foundryDeployment;
@@ -242,10 +230,19 @@ export async function POST(request: NextRequest) {
 
   const toolConfig = buildToolConfig(contextMode, !!(semanticCtx && semanticCtx.entities.length > 0));
   const basePrompt = buildSystemPrompt(contextMode, semanticCtx);
-  const insightsContext = contextMode === 'harvested' ? await buildInsightsContext(body.sessionId) : '';
-  const sessionKnowledgeContext =
-    body.sessionId && isUUID(body.sessionId) ? await buildSessionKnowledgeContext(body.sessionId) : '';
-  const systemPrompt = [basePrompt, insightsContext, sessionKnowledgeContext].filter(Boolean).join('\n\n');
+  const [insightsContext, sessionKnowledgeContext, domainFocusContext] = await Promise.all([
+    contextMode === 'harvested' ? buildInsightsContext(body.sessionId) : Promise.resolve(''),
+    body.sessionId && isUUID(body.sessionId) ? buildSessionKnowledgeContext(body.sessionId) : Promise.resolve(''),
+    // Kept in SQL only too: it is the area the person picked (HR vs Crewing) and it is
+    // filtered to the data they may see.
+    buildDomainFocusContext({
+      orgId: spendOrgId,
+      dataPrincipal,
+      domainKey: body.domainKey,
+      messages: body.messages,
+    }),
+  ]);
+  const systemPrompt = [basePrompt, insightsContext, sessionKnowledgeContext, domainFocusContext].filter(Boolean).join('\n\n');
 
   const firstUserMessageText = ((body.messages ?? []).find((m) => m.role === 'user' && m.content?.trim())?.content ?? '')
     .trim()
@@ -326,12 +323,17 @@ export async function POST(request: NextRequest) {
 
   const stream = new ReadableStream({
     async start(controller) {
+      // `closed` means the browser went away (other tab, navigation, sleep). Keep generating.
+      // `userStop` is only the Stop button (POST /api/inspector/chat/cancel).
       const closed = { value: false };
+      const turn = openTurn('inspector', body.sessionId, parseTurnId(body.turnId));
+      const userStop = { get value() { return turn.isStopped(); } };
+      // A newer turn on this session (Send now) owns the draft from then on.
+      const draft = createDraftWriter(body.sessionId, 'inspectorDraft', turn.isCurrent);
       const encoder = new TextEncoder();
 
       request.signal.addEventListener('abort', () => {
         closed.value = true;
-        try { controller.close(); } catch {}
       });
 
       const emit = (event: Record<string, unknown>) => {
@@ -452,18 +454,23 @@ export async function POST(request: NextRequest) {
                 lastUserMessage: lastUserMessageText,
                 sessionId: body.sessionId ?? '',
                 connectionId: resolvedConnectionId,
+                dataPrincipal,
+                resultsPanel: true,
               }),
             ),
           maxLoops: maxInspectorLoops,
           supportsTools: modelConfig.supportsTools,
           supportsThinking: modelConfig.supportsThinking,
-          abortSignal: closed,
+          // Bedrock Claude only: cache system+tools and the growing conversation across loops.
+          cacheConversation: true,
+          abortSignal: userStop,
           onLoopStart: (loop: number, maxLoops: number) => {
             currentAgentLoop = loop;
             emit({ type: 'loop_start', loop, maxLoops });
           },
           onTextChunk: (delta: string) => {
             turnMetrics.markFirstToken();
+            draft.append(delta);
             emit({ type: 'text', delta });
           },
           onThinkingChunk: (delta: string) => {
@@ -516,6 +523,14 @@ export async function POST(request: NextRequest) {
                   }
                 }
               }
+            } else if (event.type === 'access_denied') {
+              emit({
+                type: 'access_denied',
+                message: event.message,
+                request: event.request,
+                label: event.label,
+                path: event.path,
+              });
             } else if (event.type === 'tool_call_error') {
               emit({ type: 'tool_call_error', callId: event.callId, error: event.error, retryable: event.retryable });
               // AM0.3 — DEAD_END node (fire-and-forget)
@@ -540,21 +555,30 @@ export async function POST(request: NextRequest) {
                 }
               }
             } else if (event.type === 'query_result') {
-              emit({ type: 'query_result', columns: event.columns, rows: event.rows, sql: event.sql, rowCount: event.rowCount, truncated: event.truncated });
+              emit({
+                type: 'query_result',
+                columns: event.columns,
+                rows: event.rows,
+                sql: event.sql,
+                rowCount: event.rowCount,
+                truncated: event.truncated,
+                ...(event.accessNote ? { accessNote: event.accessNote } : {}),
+              });
             }
           },
           onLoopUsage: (loop: number, inputTokens: number, outputTokens: number, totalInputTokens: number, totalOutputTokens: number) => {
             emit({ type: 'loop_usage', loop, inputTokens, outputTokens, totalInputTokens, totalOutputTokens });
           },
           onLoopMetrics: (m: import('@/lib/inspector/agent-loop').LoopMetrics) => turnMetrics.addLoop(m),
+          onModelSwitch: (modelId: string) => { effectiveModelId = modelId; },
           onTextReplace: (text: string) => {
+            draft.replace(text);
             emit({ type: 'text_replace', text });
           },
         };
 
-        let result = isFoundryModel && boostModel
-          ? await dispatchAgentLoop(boostModel, loopParams)
-          : await runAgentLoop(loopParams);
+        let result = await dispatchAgentLoop(isFoundryModel ? (boostModel ?? null) : null, loopParams);
+        if (result.servedModelId) effectiveModelId = result.servedModelId;
 
         // Cost-log tokens: prefer recorder totals (include prompt-cache split), else provider usage.
         const costTokens = () =>
@@ -613,8 +637,17 @@ export async function POST(request: NextRequest) {
         }
 
         if (result.outcome === 'completed') {
-          const extracted = extractSuggestionsFromText(result.finalText ?? '');
-          emit({ type: 'suggestions', items: extracted.length >= 2 ? extracted : ['Show table columns', 'Sample a few rows', 'Check row counts by date'] });
+          // Follow-ups show as pills only: drop the closing bullets / "I can ..." offer from the
+          // reply (screen and saved draft) when they became pills.
+          const finalText = result.finalText ?? '';
+          const followUps = splitFollowUps(finalText);
+          if (followUps.items.length > 0) {
+            if (followUps.body !== finalText && !userStop.value) {
+              draft.replace(followUps.body);
+              emit({ type: 'text_replace', text: followUps.body });
+            }
+            emit({ type: 'suggestions', items: followUps.items });
+          }
 
           const { qualityScore, success } = scoreRun({
             completed: true,
@@ -670,7 +703,7 @@ export async function POST(request: NextRequest) {
             attributeRunOutcome(body.sessionId, { success }).catch(() => {});
           }
         } else if (result.outcome === 'truncated') {
-          if (!closed.value) {
+          if (!closed.value && !userStop.value) {
             emit({
               type: 'text',
               delta: `\n\n---\n**Tool-call limit reached.** I used all ${maxInspectorLoops} available query slots for this turn. You can continue the conversation to explore further — previous results remain visible in the dashboard and I can reference them in follow-up turns.`,
@@ -735,9 +768,12 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        const draftStatus = userStop.value ? 'stopped' : result.outcome === 'errored' ? 'error' : 'done';
+        await draft.finish(draftStatus);
+
         void turnMetrics.flush({
           model: effectiveModelId,
-          outcome: closed.value && result.outcome !== 'completed' ? 'aborted' : result.outcome,
+          outcome: userStop.value && result.outcome !== 'completed' ? 'aborted' : result.outcome,
           toolCalls: result.toolCalls.length,
           toolErrors: toolCallErrorCount,
           error: result.errorDetail ?? null,
@@ -784,9 +820,12 @@ export async function POST(request: NextRequest) {
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Chat stream failed';
         void turnMetrics.flush({ model: effectiveModelId, outcome: 'errored', toolCalls: 0, toolErrors: 0, error: msg });
+        await draft.finish(userStop.value ? 'stopped' : 'error');
         emit({ type: 'error', message: clientStreamError(err, 'inspector/chat'), recoverable: true });
         emit({ type: 'done', usage: { inputTokens: 0, outputTokens: 0 }, model: effectiveModelId, loops: 0, qualityScore: 0, contextMode, outcome: 'errored' as const, toolTrajectory: [] });
         if (!closed.value) { closed.value = true; try { controller.close(); } catch {} }
+      } finally {
+        turn.end();
       }
     },
   });

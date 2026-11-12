@@ -41,7 +41,7 @@ import {
   loadDashboardForExecution,
   DashboardConnectionUnboundError,
 } from '@/lib/dashboards/connection';
-import { executeSemanticQuery, type AuthoringOpts } from '@/lib/semantic/execute';
+import { executeSemanticQuery, type SemanticExecuteOpts } from '@/lib/semantic/execute';
 // Error classes come from the canonical, node-safe errors module (not the
 // server-only execute re-export) so instanceof works in unit tests too.
 import {
@@ -49,6 +49,7 @@ import {
   SemanticDraftAccessError,
 } from '@/lib/semantic/errors';
 import { executeRawSql } from '@/lib/dashboards/execute-raw-sql';
+import { principalForUser } from '@/lib/access/principal';
 import { isRawSqlWidget } from '@/lib/dashboards/types';
 import type { WidgetSpec, WidgetDataResult } from '@/lib/dashboards/types';
 import type { SemanticQuery } from '@/lib/semantic/types';
@@ -111,7 +112,9 @@ export async function buildWidgetPreview(
     // would wrongly hit the governance path. enforceReadOnly runs inside
     // executeRawSql (defense in depth).
     if (isRawSqlWidget(widget)) {
-      const { rows } = await executeRawSql(widget.rawSql, widget.connectionId);
+      // Run as the viewer, like the full dashboard refresh (review H7).
+      const dataPrincipal = await principalForUser(actor.id);
+      const { rows } = await executeRawSql(widget.rawSql, widget.connectionId, dataPrincipal);
       return {
         status: 200,
         body: {
@@ -147,9 +150,11 @@ export async function buildWidgetPreview(
     // Only an authoring user (owner/editor) gets the bypass; the identity is
     // the session user (SEC-2), never the request body. A pure viewer gets
     // `undefined` → the default governed-only path.
-    const opts: AuthoringOpts | undefined = canEditDashboard(role)
-      ? { authoringMode: true, authoringUserId: actor.id }
-      : undefined;
+    // Always run as the viewer (review H7): with access on, no principal means the query is refused.
+    const dataPrincipal = await principalForUser(actor.id);
+    const opts: SemanticExecuteOpts = canEditDashboard(role)
+      ? { authoringMode: true, authoringUserId: actor.id, dataPrincipal }
+      : { dataPrincipal };
 
     const result = await executeSemanticQuery(query, ctx.connectionId, opts);
 
@@ -282,7 +287,7 @@ export async function buildEphemeralWidgetPreview(
 
     // Owner-scoped authoring bypass — always on here (canEditDashboard is proven
     // above), identity from the session actor (SEC-2), never the body.
-    const opts: AuthoringOpts = { authoringMode: true, authoringUserId: actor.id };
+    const opts: SemanticExecuteOpts = { authoringMode: true, authoringUserId: actor.id, dataPrincipal: await principalForUser(actor.id) };
 
     const result = await executeSemanticQuery(query, ctx.connectionId, opts);
 

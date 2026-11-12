@@ -262,7 +262,7 @@ export function DataStudio({ open, results, onClose, sessionId }: DataStudioProp
       className="fixed inset-0 z-[200] flex flex-col"
       aria-modal="true"
       role="dialog"
-      aria-label="Inspector Data Studio"
+      aria-label="Data Studio"
     >
       {/* Scrim */}
       <div

@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 import type { FkCandidate, ObjectLinkItem, EntityGroupObject } from './RelationshipGraph';
 import { Card, Tag, EmptyNote, BTN_SECONDARY, TONE_COLOR } from './object-ui';
 import { type } from '@/lib/typography/tokens';
+import { useCanRunEstatePipeline } from '@/lib/estate/useEstatePipelineAccess';
 
 interface LinkedObject { id: string; full_path: string; object_name: string | null }
 
@@ -83,8 +84,10 @@ function Confidence({ value }: { value: number }) {
 
 function ReviewActions({ endpoint, status, onDone }: { endpoint: string; status: string; onDone: (s: string) => void }) {
   const [loading, setLoading] = useState<'confirmed' | 'rejected' | null>(null);
+  const canAct = useCanRunEstatePipeline();
 
-  if (status !== 'proposed') {
+  if (status !== 'proposed' || !canAct) {
+    if (status === 'proposed') return <Tag tone="neutral" dot>Proposed</Tag>;
     return status === 'confirmed'
       ? <Tag tone="green" dot>Confirmed</Tag>
       : <Tag tone="red" dot>Rejected</Tag>;

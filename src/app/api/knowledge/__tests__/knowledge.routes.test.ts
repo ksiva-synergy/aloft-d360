@@ -112,7 +112,7 @@ import { POST as addQa } from '../[id]/qa/route';
 import { POST as search } from '../search/route';
 import { documentKey, safeFileName } from '@/lib/knowledge/store';
 
-const user = (userId: string, role: string) => ({ userId, role, permissions: new Set(['inspector:use']) });
+const user = (userId: string, role: string) => ({ userId, role, permissions: new Set(['inspector:use', 'section:memory.knowledge:manage']) });
 const ana = user('u-ana', 'member');
 const ben = user('u-ben', 'member');
 const admin = user('u-admin', 'admin');
@@ -321,5 +321,28 @@ describe('deleting a knowledge base', () => {
     h.delKbFolder.mockRejectedValue(new Error('AccessDenied'));
     expect((await deleteKb(json('DELETE', `/${kb.id}`), p(kb.id))).status).toBe(500);
     expect(h.sources.has(kb.id)).toBe(true);
+  });
+});
+
+describe("Automate's knowledge step", () => {
+  it('lists and searches knowledge bases for someone with Automate but no Knowledge section, and nothing more', async () => {
+    as(admin);
+    const org = await newKb({ name: 'SMS', scope: 'org' });
+    const automator = { userId: 'u-auto', role: 'member', permissions: new Set(['inspector:use', 'section:build.automate:manage']) };
+    as(automator);
+    const listed = await listKbs(json('GET', ''), undefined);
+    expect(listed.status).toBe(200);
+    expect((await listed.json()).knowledgeBases.map((k: { id: string }) => k.id)).toEqual([org.id]);
+    expect((await search(json('POST', '/search', { question: 'fire pump test' }), undefined)).status).toBe(200);
+    // The Knowledge screens and changes still need the Knowledge section.
+    expect((await createKb(json('POST', '', { name: 'Mine' }), undefined)).status).toBe(403);
+    expect((await listDocs(json('GET', `/${org.id}/documents`), p(org.id))).status).toBe(403);
+
+    // Search needs Automate Manage (it runs while building a flow); without Automate nothing works.
+    as({ ...automator, permissions: new Set(['inspector:use', 'section:build.automate:view']) });
+    expect((await listKbs(json('GET', ''), undefined)).status).toBe(200);
+    expect((await search(json('POST', '/search', { question: 'x' }), undefined)).status).toBe(403);
+    as({ ...automator, permissions: new Set(['inspector:use']) });
+    expect((await listKbs(json('GET', ''), undefined)).status).toBe(403);
   });
 });

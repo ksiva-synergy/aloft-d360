@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { APPEARANCE_BOOT_SCRIPT } from '../src/lib/theme/appearance-boot-script';
-import { THEME_COOKIE_NAME } from '../src/lib/theme/cookie';
+import { THEME_BOOT_SCRIPT } from '../src/lib/theme/theme-boot-script';
 
 /**
  * Vite + React Router v7 UI for Aloft. Run every script from the REPO ROOT (`npm run web:dev`),
@@ -17,13 +17,12 @@ const repoRoot = path.resolve(webDir, '..');
 
 /** Same two blocking scripts `app/layout.tsx` renders in <head>: no theme/accent flash before first paint. */
 function bootScripts(): Plugin[] {
-  const theme = `(function(){try{var d=document.documentElement,t=localStorage.getItem('theme'),isDark=t==='dark'||false;d.classList.add(isDark?'dark':'light');d.style.colorScheme=isDark?'dark':'light';document.cookie='${THEME_COOKIE_NAME}='+(isDark?'dark':'light')+';path=/;max-age=31536000;SameSite=Lax'}catch(e){}})();`;
   return [
     {
       name: 'aloft-boot-scripts',
       transformIndexHtml: {
         order: 'pre',
-        handler: (html) => html.replace('<!--BOOT_SCRIPTS-->', `<script>${theme}</script>
+        handler: (html) => html.replace('<!--BOOT_SCRIPTS-->', `<script>${THEME_BOOT_SCRIPT}</script>
     <script>${APPEARANCE_BOOT_SCRIPT}</script>`),
       },
     },

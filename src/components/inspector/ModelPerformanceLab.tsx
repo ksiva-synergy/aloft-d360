@@ -823,7 +823,7 @@ export default function ModelPerformanceLab({ open, onClose, runMetrics, histori
             onMouseLeave={e => { e.currentTarget.style.borderColor = BORDER; e.currentTarget.style.color = TXT2; }}
           >
             <ArrowLeft size={14} />
-            Back to Inspector
+            Back to Ask Data
           </button>
           <div style={{ width: 1, height: 24, background: BORDER, marginLeft: 4 }} />
           <FlaskConical size={16} style={{ color: GOLD }} />

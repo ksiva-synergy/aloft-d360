@@ -20,6 +20,7 @@ import HarvestActionBar from './HarvestActionBar';
 import type { FreshnessBlock } from './FreshnessCard';
 import { type UsageSnapshot, usageWindowLabel } from './UsagePanel';
 import { type, inkOf } from '@/lib/typography/tokens';
+import { useCanRunEstatePipeline } from '@/lib/estate/useEstatePipelineAccess';
 
 // ── Shared shapes ────────────────────────────────────────────────────────────
 
@@ -129,6 +130,7 @@ function rowCount(rowCountEst: any, stats: HeroProfileStats | null): { value: st
 /** "Count exact rows" — one Delta COUNT(*) via POST …/objects/[id]/row-count. */
 function CountRowsButton({ objectId, onCounted }: { objectId: string; onCounted: (rows: number) => void }) {
   const [busy, setBusy] = React.useState(false);
+  const canAct = useCanRunEstatePipeline();
   const run = async () => {
     if (busy) return;
     setBusy(true);
@@ -147,6 +149,7 @@ function CountRowsButton({ objectId, onCounted }: { objectId: string; onCounted:
       setBusy(false);
     }
   };
+  if (!canAct) return null;
   return (
     <button
       type="button"

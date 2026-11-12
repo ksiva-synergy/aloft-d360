@@ -43,4 +43,31 @@ module.exports = [
       'no-constant-condition':                    'off',
     },
   },
+
+  // ── Data access chokepoint ─────────────────────────────────────────────────
+  // Warehouse reads for people must go through runWarehouseQuery / runWarehouseExport
+  // (src/lib/access/warehouse.ts), which applies table and column access. Calling the raw
+  // executor elsewhere would skip those checks. See docs/access/pii-protection-backlog.md §7.
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        paths: [{
+          name: '@/lib/databricks/execute',
+          importNames: ['executeDatabricksSQL', 'beginDatabricksSQLExport'],
+          message: 'Use runWarehouseQuery / runWarehouseExport from @/lib/access/warehouse so data access is checked.',
+        }],
+      }],
+    },
+  },
+  {
+    files: [
+      'src/lib/access/warehouse.ts',                                   // the chokepoint itself
+      'src/lib/context/databricks-adapter.ts',                         // harvest: system service principal, no person
+      'src/app/api/agent-lab/context/estate/preview-columns/route.ts', // estate metadata (information_schema), D17
+      'src/**/__tests__/**',
+      'src/**/*.test.{ts,tsx}',
+    ],
+    rules: { 'no-restricted-imports': 'off' },
+  },
 ];

@@ -1,5 +1,6 @@
 'use client';
 
+import { AccessNoticeBanner } from '@/components/access/AccessNoticeBanner';
 import { Select } from '@/components/form/Select';
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Maximize2, BookmarkPlus, Pin, Sparkles, Check, X, Download } from 'lucide-react';
@@ -128,7 +129,7 @@ function DataTable({ columns, rows, rowCount, truncated }: DataTableProps) {
       }}>
         <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TXT2 }}>
           {rows.length} row{rows.length !== 1 ? 's' : ''} shown
-          {truncated && <span style={{ color: inkOf(GOLD), marginLeft: 6 }}>· truncated at 1000</span>}
+          {truncated && <span style={{ color: inkOf(GOLD), marginLeft: 6 }}>· row limit reached, use Download for the full set</span>}
         </span>
         <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2 }}>{rowCount} total</span>
       </div>
@@ -156,6 +157,34 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
 }
 
 // ── Chart builder ─────────────────────────────────────────────────────────────
+/**
+ * The results pane stays mounted while collapsed (display:none), where a chart measures 0×0 and
+ * recharts warns on every render. Draw the chart only once its box has a real size.
+ */
+function SizedChart({ children }: { children: React.ReactElement }) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [hasSize, setHasSize] = useState(false);
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const check = () => setHasSize(el.clientWidth > 0 && el.clientHeight > 0);
+    check();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return (
+    <div ref={boxRef} style={{ height: 180, marginTop: 4 }}>
+      {hasSize && (
+        <ResponsiveContainer width="100%" height="100%">
+          {children}
+        </ResponsiveContainer>
+      )}
+    </div>
+  );
+}
+
 interface ChartBuilderProps {
   columns: { name: string; type_name: string }[];
   rows: Record<string, unknown>[];
@@ -392,13 +421,7 @@ function ChartBuilder({ columns, rows, sql, latestQuestion, graduateModelId }: C
       )}
 
       {/* Chart render area */}
-      {chart && (
-        <div style={{ height: 180, marginTop: 4 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            {chart as React.ReactElement}
-          </ResponsiveContainer>
-        </div>
-      )}
+      {chart && <SizedChart>{chart as React.ReactElement}</SizedChart>}
 
       {chartType !== 'table' && !yCol && (
         <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TXT2, textAlign: 'center', padding: '12px 0',  }}>
@@ -752,6 +775,12 @@ export function DashboardPane({
 
           {/* SQL preview */}
           <SqlBadge sql={active.sql} />
+
+          {active.accessNote ? (
+            <div className="mx-3 mb-2">
+              <AccessNoticeBanner message={active.accessNote.message} request={active.accessNote.request} />
+            </div>
+          ) : null}
 
           {/* Data table — top half */}
           <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>

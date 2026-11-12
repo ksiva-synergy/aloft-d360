@@ -5,6 +5,7 @@ import { RootLayout, type RouteHandle } from './RootLayout';
 import { FullPageMessage, RequireAuth } from './RequireAuth';
 import { AgentLayout } from './AgentLayout';
 import { RouteErrorBoundary } from './routes/RouteErrorBoundary';
+import { LandingRedirect } from './routes/LandingRedirect';
 import {
   DashboardBuilderRoute,
   DashboardRoute,
@@ -52,7 +53,7 @@ export const routes: RouteObject[] = [
     HydrateFallback: () => <FullPageMessage text="Loading…" />,
     errorElement: <RouteErrorBoundary />,
     children: [
-      { index: true, element: <RedirectTo to="/dashboard" /> },
+      { index: true, element: <LandingRedirect /> },
       { path: 'login', lazy: page(() => import('@/views/login')) },
       {
         element: <RequireAuth />,
@@ -132,7 +133,17 @@ export const routes: RouteObject[] = [
               { path: 'agent-staging/policies', lazy: page(() => import('@/views/agent-staging/policies')) },
               { path: 'agent-staging/try', lazy: page(() => import('@/views/agent-staging/try')) },
               { path: 'agent-staging/users', lazy: page(() => import('@/views/agent-staging/users')) },
+              {
+                path: 'agent-staging/access-requests',
+                lazy: page(() => import('@/views/agent-staging/access-requests')),
+                handle: title('Access requests · ALOFT'),
+              },
+              { path: 'agent-staging/data-access', lazy: page(() => import('@/views/agent-staging/data-access')), handle: title('Data access · ALOFT') },
               { path: 'agent-staging/cost', lazy: page(() => import('@/views/agent-staging/cost-monitor')), handle: title('Cost monitor · ALOFT') },
+
+              // ── My data access (every signed-in person) ─────────────────────────────
+              { path: 'my-access', lazy: page(() => import('@/views/my-access')), handle: title('My data access · ALOFT') },
+              { path: 'my-access/tickets', lazy: page(() => import('@/views/my-access-tickets')), handle: title('My access tickets · ALOFT') },
 
               // ── Docs ───────────────────────────────────────────────────────────────
               { path: 'docs', lazy: page(() => import('@/views/docs/index')) },

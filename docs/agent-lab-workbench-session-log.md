@@ -5,6 +5,12 @@ Chronological record of work from the workbench rebuild / commissioning / catalo
 
 ---
 
+## 2026-11-09 — Restore shared chat UI on the original branch
+
+User clarified that the chat presentation belongs on both branches. Restored the compact activity loader, friendly processing messages, softer conversation styling, collapsed response metadata and compact composer to `feature/automate-runs`. The same UI remains on `feature/inspector-visual-analysis`. Preserved existing access notices. Chart generation and domain context were not brought back. A local pre-edit backup was saved under `/private/tmp/aloft-chat-ui-restore-*`.
+
+Validation: all 3 chat-presentation tests passed. Frontend typecheck still reports the existing `DepartmentMapView.tsx:490` `.then`-on-void error; no chat UI type errors were reported.
+
 ## 1. Product context (what we clarified)
 
 | Topic | Finding |

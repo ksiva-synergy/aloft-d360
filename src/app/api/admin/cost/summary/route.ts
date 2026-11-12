@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { denyUnlessSessionRole } from '@/middleware/auth';
+import { denyUnlessSection } from '@/lib/sections/server';
 import { getOrgId } from '@/lib/databricks/connections';
 import { fetchCostSummary } from '@/lib/spend/cost-queries';
 import { getBudgetStatuses } from '@/lib/spend/budgets';
@@ -7,7 +7,7 @@ import { getBudgetStatuses } from '@/lib/spend/budgets';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
-  const denied = await denyUnlessSessionRole('admin');
+  const denied = await denyUnlessSection(null, ['govern.cost', 'view']);
   if (denied) return denied;
 
   try {

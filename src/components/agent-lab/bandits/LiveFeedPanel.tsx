@@ -60,7 +60,7 @@ function sourceConfig(src: string): { bg: string; color: string; label: string }
   if (src === 'boost' || src?.startsWith('boost'))
     return { bg: 'rgba(107,197,176,0.08)', color: '#6BC5B0', label: 'Boost' };
   if (src === 'inspector')
-    return { bg: 'rgba(108,155,210,0.08)', color: '#6C9BD2', label: 'Inspector' };
+    return { bg: 'rgba(108,155,210,0.08)', color: '#6C9BD2', label: 'Ask Data' };
   if (src === 'workbench')
     return { bg: 'rgba(167,127,196,0.08)', color: '#A77FC4', label: 'Workbench' };
   if (src === 'pipeline' || src === 'compiled_pipeline')

@@ -283,7 +283,7 @@ export async function executeDatabricksSQL(
     );
   }
 
-  return parseStatementResponse(rawText);
+  return parseStatementResponse(rawText, { host, token, rowLimit: input.rowLimit ?? MAX_ROWS });
 }
 
 // ── Shared response parser ────────────────────────────────────────────────────
@@ -316,7 +316,78 @@ type RawStatementResponse = {
   };
 };
 
-function parseStatementResponse(rawText: string): DatabricksExecuteResult {
+type ChunkFetchContext = { host: string; token: string; rowLimit: number };
+
+const INLINE_CHUNK_FETCH_TIMEOUT_MS = 30_000;
+
+/**
+ * INLINE results can arrive split into several chunks. The first statement
+ * response carries only chunk 0 plus `next_chunk_index`; the rest must be
+ * fetched from /result/chunks/{n}. How Databricks splits a result varies from
+ * run to run (cache hit vs. a fresh multi-partition run), so skipping this made
+ * the same query return all rows one time and only the first chunk the next.
+ */
+async function collectRemainingInlineChunks(
+  raw: RawStatementResponse,
+  ctx: ChunkFetchContext,
+  firstChunkRows: number,
+  firstChunkBytes: number,
+): Promise<unknown[][]> {
+  const extra: unknown[][] = [];
+  const totalChunks = raw.manifest?.total_chunk_count;
+  let chunkIndex = raw.result?.chunk_index ?? 0;
+  let next: number | undefined =
+    typeof raw.result?.next_chunk_index === 'number'
+      ? raw.result.next_chunk_index
+      : typeof totalChunks === 'number' && chunkIndex + 1 < totalChunks
+        ? chunkIndex + 1
+        : undefined;
+  let rowsSoFar = firstChunkRows;
+  let bytesSoFar = firstChunkBytes;
+
+  while (typeof next === 'number' && rowsSoFar < ctx.rowLimit) {
+    chunkIndex = next;
+    const url = `https://${ctx.host}/api/2.0/sql/statements/${raw.statement_id}/result/chunks/${chunkIndex}`;
+    const resp = await fetchWithTimeout(
+      url,
+      { headers: { Authorization: `Bearer ${ctx.token}` } },
+      INLINE_CHUNK_FETCH_TIMEOUT_MS,
+      `Result chunk ${chunkIndex}`,
+    );
+    if (!resp.ok) {
+      const errText = await resp.text().catch(() => '(no body)');
+      throw new Error(`Result chunk ${chunkIndex} returned ${resp.status}: ${errText}`);
+    }
+    const text = await resp.text();
+    bytesSoFar += text.length;
+    // Safety layer 2d applies to the whole result, not just the first chunk.
+    if (bytesSoFar > MAX_INLINE_BYTES) {
+      throw new Error(
+        `Response body (${bytesSoFar} bytes across chunks) exceeds the ${MAX_INLINE_BYTES}-byte inline cap. ` +
+        'Narrow your query or add a LIMIT clause.',
+      );
+    }
+    const chunk = JSON.parse(text) as NonNullable<RawStatementResponse['result']>;
+    if (chunk.external_links && chunk.external_links.length > 0) {
+      throw new ExternalLinksError();
+    }
+    const data = chunk.data_array ?? [];
+    for (const row of data) {
+      if (rowsSoFar >= ctx.rowLimit) break;
+      extra.push(row);
+      rowsSoFar++;
+    }
+    next =
+      typeof chunk.next_chunk_index === 'number'
+        ? chunk.next_chunk_index
+        : typeof totalChunks === 'number' && chunkIndex + 1 < totalChunks
+          ? chunkIndex + 1
+          : undefined;
+  }
+  return extra;
+}
+
+async function parseStatementResponse(rawText: string, ctx: ChunkFetchContext): Promise<DatabricksExecuteResult> {
   const raw = JSON.parse(rawText) as RawStatementResponse;
 
   const state = raw.status?.state;
@@ -335,12 +406,18 @@ function parseStatementResponse(rawText: string): DatabricksExecuteResult {
   const columns: { name: string; type_name: string }[] =
     raw.manifest?.schema?.columns?.map(c => ({ name: c.name, type_name: c.type_name })) ?? [];
 
-  const dataArray = raw.result?.data_array ?? [];
+  const firstChunk = raw.result?.data_array ?? [];
+  const rest = await collectRemainingInlineChunks(raw, ctx, firstChunk.length, rawText.length);
+  const dataArray = rest.length > 0 ? [...firstChunk, ...rest] : firstChunk;
   const rows: Record<string, unknown>[] = dataArray.map(row =>
     Object.fromEntries(columns.map((col, i) => [col.name, (row as unknown[])[i]])),
   );
 
-  const truncated = raw.manifest?.truncated ?? false;
+  const totalRows = raw.manifest?.total_row_count;
+  // manifest.truncated = hit row_limit. Also flag when we stopped short of the
+  // manifest total, so callers never treat a partial result as complete.
+  const truncated =
+    (raw.manifest?.truncated ?? false) || (typeof totalRows === 'number' && rows.length < totalRows);
 
   return {
     rows,
@@ -348,7 +425,7 @@ function parseStatementResponse(rawText: string): DatabricksExecuteResult {
     columns,
     statement_id: raw.statement_id,
     truncated,
-    ...(truncated ? { truncated_at: MAX_ROWS } : {}),
+    ...(truncated ? { truncated_at: rows.length } : {}),
   };
 }
 
@@ -395,7 +472,7 @@ async function executeDatabricksSQLAsync(
 
   // Fast path: already done within the 50s wait
   if (submitRaw.status?.state === 'SUCCEEDED') {
-    return parseStatementResponse(submitText);
+    return parseStatementResponse(submitText, { host, token, rowLimit: input.rowLimit ?? MAX_ROWS });
   }
   if (submitRaw.status?.state === 'FAILED' || submitRaw.status?.state === 'CANCELED') {
     throw new Error(`Async query ${submitRaw.status.state}: ${submitRaw.status?.error?.message ?? submitRaw.status.state}`);
@@ -437,7 +514,7 @@ async function executeDatabricksSQLAsync(
           'Narrow your query or add a LIMIT clause.',
         );
       }
-      return parseStatementResponse(pollText);
+      return parseStatementResponse(pollText, { host, token, rowLimit: input.rowLimit ?? MAX_ROWS });
     }
 
     if (pollState === 'FAILED' || pollState === 'CANCELED') {

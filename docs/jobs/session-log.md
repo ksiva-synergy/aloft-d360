@@ -5,6 +5,81 @@
 
 ---
 
+### 2026-11-08: Remove redundant dashboard attention strip (Codex)
+
+- **Files:** DashboardView TSX/CSS, dashboard test, changelog, this log, current-status.
+- **Before → after:** Top duplicate alert strip removed; right-hand action list and per-stage job links remain. User-requested presentation change only.
+- **Verified:** Four dashboard tests; no live jobs executed.
+
+### 2026-11-08: Dashboard header and mobile readability cleanup (Codex)
+
+- **Files:** `DashboardView.tsx`, `DashboardView.module.css`, changelog, current-status, this log.
+- **Before → after:** Large decorative title becomes a compact Overview header; narrow-screen pipeline becomes readable rows; zero activity is no longer drawn as a nonzero bar. Counts and job links retained.
+- **Verified:** Four focused tests and fixture browser checks on desktop/mobile/light/dark; no browser errors/overflow. No backend or job execution changes.
+- **Not done:** Live authenticated dashboard QA. No PR/commit created.
+
+### 2026-11-08: Compact dashboard readiness presentation (Codex)
+
+- **Files:** `src/components/dashboard/DashboardView.tsx`, `DashboardView.module.css`, changelog, current-status, this log.
+- **Before → after:** Oversized solid dark readiness panel becomes a shorter, lightly tinted panel with a compact proportional chart and collapsible explanation. Pipeline counts, links and execution unchanged.
+- **Verified:** Four dashboard tests; desktop, dark and 390px browser fixtures; no page errors/overflow.
+- **Not done:** Live authenticated QA; no jobs executed. No issue-register fix or PR claimed.
+
+### 2026-11-08: Dashboard data-readiness journey and action rail (Codex)
+
+- **Issues:** User-requested dashboard visual and comprehension redesign; no harvest execution issue claimed fixed.
+- **Files:** `src/components/dashboard/DashboardView.tsx`, `DashboardView.module.css`, `web/src/dashboard.test.tsx`, `docs/CHANGELOG.md`, this log and `current-status.md`.
+- **Before → after:** Dense T0/T1/T2 counters and a generic briefing become a proportional cumulative-coverage journey with plain-language stages, an expandable explanation, largest absolute coverage-gap navigation, and failure/review/follow-up filters. Jobs without completion evidence do not get a healthy label.
+- **Verified:** Four focused tests; browser review of representative fixtures at desktop/mobile and in light/dark themes, filter interaction, zero browser errors/overflow. Full typecheck blocked by unrelated access/Inspector errors.
+- **Not done:** Live authenticated data QA, deployment, or job execution. Existing permissions and backend behavior retained. No PR/commit created.
+- **Notes:** Read current-status; code and documentation complete; changelog, session log, and current-status updated.
+
+### 2026-11-06: Merge `origin/dev` into local `main` (Composer)
+
+- **What:** Fetched `origin/dev`, merged into `main`, and resolved stash-pop conflicts in `docs/CHANGELOG.md`, `docs/jobs/current-status.md`, and `docs/jobs/session-log.md` so both the `dev` history and the local Searchable / jobs doc updates stay consistent.
+- **Verified:** Merge completed; conflict markers removed from the three files.
+- **Not done:** Full vitest/tsc not re-run for the merge-only step; `stash@{0}` from before the merge is still available until dropped.
+
+### 2026-11-06: Push consolidated work to `dev` including docs and graphify (Composer)
+
+- **What:** All local changes were committed and merged into `dev`, then pushed to `synergy-marine` so the branch carries documentation updates (`docs/CHANGELOG.md`, `docs/jobs/session-log.md`, `docs/jobs/current-status.md`, and other `docs/**` additions), research notes, and `graphify-out/` (graph report and artifacts).
+- **Verified:** `git push synergy-marine dev`.
+- **Not done:** Next.js dev logs under `.next/` are not in git (ignored).
+
+### 2026-11-06: Estate routes `enrich` and `logs` put under section access (Claude)
+
+- **What:**
+  - A new route coverage test (`src/lib/sections/__tests__/route-coverage.test.ts`) found two estate routes still on the old admin check.
+  - `objects/[id]/enrich` starts a harvest. It now needs Manage on Catalog, so platform admins only (admins could call it before; the button was already hidden).
+  - `jobs/[id]/logs` (live job log stream) now needs View on Jobs. Admins and platform admins have it, as before.
+- **Files:** `src/app/api/agent-lab/context/objects/[id]/enrich/route.ts`, `src/app/api/agent-lab/context/jobs/[id]/logs/route.ts`, `src/lib/sections/__tests__/route-coverage.test.ts`.
+- **Verified:** vitest `src/lib/sections` and `src/app/api/agent-lab` (56 tests); `tsc --noEmit` clean. Not run against live jobs.
+- **Not done:** Not checked in a browser.
+
+### 2026-11-06: Data Estate section access, admins view only (Claude)
+
+- **Files:**
+  - New: `src/lib/sections/*`, `src/app/api/me/sections/route.ts`.
+  - Estate pages and components: `EstateLayout`, `EstateNav`, `index`, `mapper`, `silo`, `SourceCard`, `ChildJobsPanel`, `EntityModelCard`, `HarvestActionBar`, `HeroSection`, `RelationshipList`, `TrustActionBar`, `SemanticCard`.
+  - 29 `src/app/api/agent-lab/context/**/route.ts` files. Full list in `docs/CHANGELOG.md`.
+- **Before → after:**
+  - **Before:** any signed-in user could open the Data Estate and read every estate API. Run, harvest, and schedule controls were already platform-admin only, but confirm-semantic, resolve-pii, mapping status, and silo link status could be changed by anyone. Overview and object-page actions showed for everyone.
+  - **After:**
+    - Admins see everything view-only, with a banner, and all actions are hidden or disabled.
+    - Members and read-only users have no Data Estate (hidden from the sidebar; the APIs return 403).
+    - Platform admins are unchanged.
+  - The orchestrator and job launch paths are unchanged.
+- **Not done:**
+  - Not browser-checked.
+  - Section access for other areas.
+  - Bundle editor.
+ `metadata` / `profile` service principal roles (Cursor)
+
+- **Files:** `src/lib/context/databricks-adapter.ts` (`exec` → `metadata` role; new `profileExec` → `profile` role for `harvestProfile`, `fetchSampleRows`, `countExactRows`), `src/lib/databricks/{sp-roles,token-client,secrets,test-connection}.ts`, `scripts/context/diagnose-query-history.ts`. Full list in `docs/CHANGELOG.md`.
+- **Before → after:** Every harvest query used the connection's single SP. Now each query names a role. With no role credentials configured (today), both roles resolve to the same default SP, so harvest behaviour is unchanged. Once an admin sets a role SP, T0/T3 and T1 run under different identities. `DATABRICKS_SP_REQUIRED_ROLES` stops the fallback.
+- **Also:** `src/lib/databricks/secrets.ts` now uses the AWS default credential chain when `AWS_ACCESS_KEY_ID` is unset, so the Fargate harvester can read role secrets through its task role.
+- **Not done:** No live harvest run. The `platform_databricks_credentials` migration has not been applied. No role SPs exist yet. Whether `DESCRIBE DETAIL` works with `BROWSE` alone was not checked, so it runs as `profile`.
+
 ### 2026-11-04: T3 usage keeps executor names; key_columns only referenced columns (Claude)
 
 - **Files:** `src/lib/context/usage.ts` (`access_stats.top_executors` = top 10 `executed_as` with query counts; `extractKeyColumns` drops columns with no references), `src/components/estate/UsagePanel.tsx`, `HeroSection.tsx`, `ObjectKnowledgePage.tsx`.
@@ -44,6 +119,13 @@
 - **Why:** Cost monitor harvest tab needs per-job USD and who launched on-demand jobs.
 - **Verified:** Unit tests in `src/lib/spend/__tests__/record-spend-event.test.ts`.
 - **Not done:** Backfill ledger from past jobs; scheduled jobs without a user id.
+
+### 2026-11-05: Searchable color and "need searchable" use the same count
+
+- **Issue:** The Searchable color counted any embedding. "N need searchable" also included embeddings older than the latest description, so the color and the 79 did not add up, and the 79 could not be opened as a list.
+- **Files:** `src/lib/context/embedding-presence.ts`, `src/lib/context/reads.ts`, `src/lib/estate/cockpit.ts`, `src/lib/estate/pipeline-intent.ts`, `src/app/api/agent-lab/context/objects/scanned/route.ts`, `src/components/estate/ScannedObjectsTab.tsx`, `src/components/estate/ScannedPipelineScopeBar.tsx`, `src/components/estate/ScannedFacetTree.tsx`, `src/components/estate/JobsCockpitPanel.tsx`, `src/views/agent-lab/estate/jobs.tsx`.
+- **Before → after:** Searchable color = current embeddings. "N need searchable" = missing or stale, and it filters Scanned to those tables. The two numbers add up to the scanned set.
+- **Not done:** Signed-in check of the live 79 against the database.
 
 ### 2026-11-02: DB verify pipeline 8942f51f… (Navitas 7 schemas)
 

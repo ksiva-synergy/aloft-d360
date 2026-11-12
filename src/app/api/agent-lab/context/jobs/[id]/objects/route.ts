@@ -5,6 +5,7 @@ import { getDefaultOrg } from '@/lib/platform/agents';
 import prisma from '@/lib/db';
 import { Prisma } from '@prisma/client';
 import { resolveEffectiveScope, pathMatchesIncludePatterns } from '@/lib/context/job-scope';
+import { denyUnlessSection } from '@/lib/sections/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,6 +23,8 @@ export interface TouchedObject {
 type RouteParams = { params: Promise<{ id: string }> };
 
 export async function GET(_req: NextRequest, { params }: RouteParams) {
+  const deniedSection = await denyUnlessSection(_req, ['estate.jobs', 'view']);
+  if (deniedSection) return deniedSection;
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });

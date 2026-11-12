@@ -5,6 +5,7 @@ import { AlertTriangle, CheckCircle2, Loader2, Play, Square } from 'lucide-react
 import type { ConstructionState } from '@/lib/construction/constructionState';
 import { AssistantContent } from '@/components/chat/AssistantContent';
 import { cn } from '@/lib/utils';
+import { useDeveloperMode } from '@/hooks/useDeveloperMode';
 
 type TestRun = NonNullable<ConstructionState['validation']['lastTestRun']>;
 
@@ -66,6 +67,7 @@ export function TestRunSection({
 
   const lastRun = state.validation.lastTestRun;
   const tooShort = state.prompt.instructions.trim().length < 20;
+  const { developerMode } = useDeveloperMode();
 
   const run = async () => {
     const q = question.trim() || lastRun?.question || '';
@@ -214,8 +216,14 @@ export function TestRunSection({
                 <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--bad)]" />
               )}
               <div className="min-w-0 flex-1">
-                <span className="font-semibold text-[var(--ink-2)]">{s.toolName === 'execute_tool' ? 'SQL' : 'Catalog'}</span>{' '}
-                <span className="break-all font-mono text-[length:var(--type-caption-size)] text-[var(--ink-3)]">{s.detail}</span>
+                <span className="font-semibold text-[var(--ink-2)]">
+                  {developerMode
+                    ? (s.toolName === 'execute_tool' ? 'SQL' : s.toolName === 'describe_schema' ? 'Catalog' : s.toolName)
+                    : (s.toolName === 'execute_tool' ? 'Querying data' : 'Reviewing catalog')}
+                </span>{' '}
+                {developerMode && (
+                  <span className="break-all font-mono text-[length:var(--type-caption-size)] text-[var(--ink-3)]">{s.detail}</span>
+                )}
                 {s.error && <p className="text-[length:var(--type-caption-size)] text-[var(--bad)]">{s.error}</p>}
               </div>
             </li>

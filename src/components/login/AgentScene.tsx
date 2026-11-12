@@ -68,7 +68,16 @@ const SCROLL = 17; // LED columns per second
 const EYE_POS = [45, 75];
 
 // ── short reactions layered over the current mode (clicks, waking, hover, idle fidgets) ──
-type ReactKind = 'wink' | 'spin' | 'dizzy' | 'startle' | 'glance' | 'hop' | 'tilt';
+type ReactKind = 'wink' | 'spin' | 'dizzy' | 'startle' | 'glance' | 'hop' | 'tilt' | 'lookL' | 'lookR' | 'lookUp';
+/** A few awake moves while nobody is using the form, then Captain dozes off. */
+const IDLE_ACTS: { kind: ReactKind; dur: number }[] = [
+  { kind: 'lookL', dur: 1.25 },
+  { kind: 'lookR', dur: 1.25 },
+  { kind: 'lookUp', dur: 1.15 },
+];
+const isIdleLook = (kind: ReactKind) => kind === 'lookL' || kind === 'lookR' || kind === 'lookUp';
+/** How long the page must sit still before the look-around starts. */
+const IDLE_ALONE = 1.35;
 type Reaction = { kind: ReactKind; start: number; until: number };
 
 /** Dot-display pattern for the dizzy spiral; every other reaction uses the solid eyes. */
@@ -170,11 +179,11 @@ type Props = {
 /**
  * Captain, the login companion: a flat white helmet with LED dot-matrix eyes, given depth by a gentle
  * tilt, eye parallax and a particle aura that orbits behind and in front of it.
- * idle → follows the cursor, blinks, dozes off after 15s alone · happy → ^ ^
+ * idle → follows the cursor, looks left, right, then up, then sleeps · happy → ^ ^
  * watching → reads along as you type · privacy → eyes shut · peek → one eye opens
  * loading → spinner eyes, motes swirl in faster · error → > < and a head shake · success → nod and burst
  * Reactions: repeat clicks escalate (^ ^ → wink → spin → dizzy) · hover perks it up (a small lift)
- * · waking from sleep startles it (eyes lift, "!") · idle fidgets (glance, hop, head tilt) · Caps Lock in a password shows ↑
+ * · waking from sleep startles it (eyes lift, "!") · Caps Lock in a password shows ↑
  */
 export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, ambient = true, particles = true, theme = 'dark' }: Props) {
   const companionPreferences = useCompanionPreferences();
@@ -248,11 +257,12 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
       if (m === 'happy') sqV += 2;
       if (m === 'success') { sqV += 3; burst += 2.4; emitSparkles(); }
       if (m === 'error') { sqV -= 1.5; emit('drop', CX + 60, CY - 34, 1.3, 0.25); }
+      if (m !== 'idle' && react && isIdleLook(react.kind)) react = null;
       const line = lineFor(m, prev, props.current.name);
       say(line.sr, line.led);
     };
     api.current = {
-      setMode: m => { sleeping = false; lastActivity = now(); setMode(m); },
+      setMode: m => { sleeping = false; lastActivity = now(); resetIdle(); setMode(m); },
       sparks: n => { sparks += n; sqV += n * 0.15; },
       // the name arrives while typing the username: greet once it's known
       greet: n => { if (n && cur === 'watching') say(`Hi ${n}!`, null); },
@@ -262,24 +272,19 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
     let react: Reaction | null = null, hovering = false;
     const startReact = (kind: ReactKind, dur: number) => { const t = now(); react = { kind, start: t, until: t + dur }; };
 
-    // ── dozing off when left alone ──
-    let sleeping = false, lastActivity = now(), nextFidget = now() + 8;
+    // ── awake for a few looks, then doze off when left alone ──
+    let sleeping = false, lastActivity = now();
+    let idleIdx = 0, idlePoseUntil = 0, sleepAt = 0, idleArmedAt = now() + IDLE_ALONE;
+    const resetIdle = () => {
+      idleIdx = 0; idlePoseUntil = 0; sleepAt = 0; idleArmedAt = now() + IDLE_ALONE;
+      if (react && isIdleLook(react.kind)) react = null;
+    };
     const activity = () => {
       lastActivity = now();
+      resetIdle();
       // woken up: a startled hop with O O eyes, then back to whatever the page is doing
       if (sleeping) { sleeping = false; sqV += 1.5; startReact('startle', 1.2); emit('bang', CX + 46, CY - 56, 0.9); setMode(props.current.mode); }
     };
-    const sleepCheck = setInterval(() => {
-      const t = now();
-      if (!sleeping && cur === 'idle' && t - lastActivity > 15) { sleeping = true; react = null; setMode('sleep'); return; }
-      // idle fidgets: every 8–12s while nobody's moving the mouse, a small random action
-      if (cur === 'idle' && !sleeping && !hovering && !react && t - lastMove > 3 && t > nextFidget) {
-        const pick = (['glance', 'hop', 'tilt'] as const)[Math.floor(Math.random() * 3)];
-        startReact(pick, pick === 'glance' ? 1.6 : pick === 'hop' ? 0.6 : 1.4);
-        if (pick === 'hop') sqV += 1;
-        nextFidget = t + 12 + Math.random() * 6;
-      }
-    }, 1000);
 
     // ── cursor ──
     const look = { x: 0, y: 0 }, mouse = { x: -1e4, y: -1e4 };
@@ -423,6 +428,10 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
           case 'startle': return { ...open(-3, 18), w: 13 };
           case 'tilt': return open(-2);
           case 'glance': { const g = since < 0.9 ? -1 : since < 1.9 ? 1 : 0; return { ...open(), x: cx + g * 6 }; }
+          case 'lookL': return { ...open(0, 17), x: cx - 6.5, w: 13 };
+          case 'lookR': return { ...open(0, 17), x: cx + 6.5, w: 13 };
+          case 'lookUp': return { ...open(-2, 18), x: cx, y: 48, w: 13 };
+          default: return open();
         }
       }
       switch (cur) {
@@ -644,6 +653,9 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
             o.yaw = g * 14; o.gx = g; break;
           }
           case 'tilt': o.roll += 13 * env; o.pitch += 4 * env; break;
+          case 'lookL': o.yaw = -18 * env; o.roll = -5 * env; o.gx = -0.95 * env; o.pitch = 3 * env; break;
+          case 'lookR': o.yaw = 18 * env; o.roll = 5 * env; o.gx = 0.95 * env; o.pitch = 2 * env; break;
+          case 'lookUp': o.pitch = -8 * env; o.gy = -0.8 * env; o.yaw *= 1 - env; break;
         }
       }
       return o;
@@ -652,10 +664,17 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
     const reactMotion = (t: number) => {
       if (!react || t >= react.until || reduced) return { spin: 0, lift: 0 };
       const rs = t - react.start;
-      if (react.kind === 'spin') { const p = Math.min(1, rs / 0.8); return { spin: 360 * (1 - Math.pow(1 - p, 3)), lift: Math.sin(Math.PI * p) * 8 }; }
-      if (react.kind === 'hop') return { spin: 0, lift: Math.sin(Math.PI * Math.min(1, rs / 0.7)) * 7 };
-      if (react.kind === 'startle') return { spin: 0, lift: Math.sin(Math.PI * Math.min(1, rs / 0.6)) * 5 };
+      if (react.kind === 'spin') { const p = Math.min(1, rs / 0.8); return { spin: 360 * (1 - Math.pow(1 - p, 3)), lift: Math.sin(Math.PI * p) * 4 }; }
+      if (react.kind === 'hop') return { spin: 0, lift: Math.sin(Math.PI * Math.min(1, rs / 0.9)) * 2.5 };
+      if (react.kind === 'startle') return { spin: 0, lift: Math.sin(Math.PI * Math.min(1, rs / 0.6)) * 2.5 };
       return { spin: 0, lift: 0 };
+    };
+    /** Side step during the idle look-around, so the bot reads as moving, not only turning its head. */
+    const idleShift = (t: number) => {
+      if (!react || t >= react.until || reduced || !isIdleLook(react.kind) || react.kind === 'lookUp') return 0;
+      const rs = t - react.start;
+      const env = Math.sin(Math.PI * Math.min(1, rs / (react.until - react.start)));
+      return (react.kind === 'lookL' ? -12 : 12) * env;
     };
     let hov = 0;
 
@@ -673,9 +692,24 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
       // pop-in on a clock (ease-out-back), so it lands on time even when frames are sparse
       const pop = reduced ? 1 : Math.min(1, Math.max(0, (t - startAt - 0.5) / 0.55)) - 1;
       const b = reduced ? 1 : 1 + 2.70158 * pop * pop * pop + 1.70158 * pop * pop;
-      const float = reduced ? 0 : asleep ? Math.sin(t * 0.9) * 2 + 5 : Math.sin(t * 1.4) * 4;
+      // Gentle drift, not a bounce: small travel and a slow cycle while awake; sleep barely rocks.
+      const float = reduced ? 0 : asleep ? Math.sin(t * 0.55) * 1 + 3 : Math.sin(t * 0.75) * 1.4;
       const rm = reactMotion(t);
       if (react && t >= react.until) react = null;
+      // Left alone on the login screen: look left, right, and up, then sleep. Any input starts this over.
+      const leftAlone = cur === 'idle' && !sleeping && !hovering && t - lastMove > IDLE_ALONE && t - lastActivity > IDLE_ALONE;
+      if (leftAlone && reduced && t - lastActivity > 6) {
+        sleeping = true; setMode('sleep');
+      } else if (leftAlone && !reduced && t >= idleArmedAt) {
+        if (!react && idleIdx < IDLE_ACTS.length && t >= idlePoseUntil) {
+          const act = IDLE_ACTS[idleIdx++];
+          startReact(act.kind, act.dur);
+          idlePoseUntil = t + act.dur + 0.28;
+          if (idleIdx >= IDLE_ACTS.length) sleepAt = t + act.dur + 0.5;
+        } else if (sleepAt && !react && t >= sleepAt) {
+          sleeping = true; sleepAt = 0; setMode('sleep');
+        }
+      }
       // hover: a small lift and swell
       hov += ((hovering && cur === 'idle' && !reduced ? 1 : 0) - hov) * ease(10);
       // follow: the whole body drifts toward the cursor. The eyes lead, the head turns, then the body catches up on a soft spring.
@@ -683,7 +717,7 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
       // while asleep, and whenever the form needs it (password, signing in, results). Mouse-only: touch has no cursor to follow.
       const follows = canFollow && (cur === 'idle' || cur === 'happy' || cur === 'watching') && t - lastMove < 8;
       const reach = Math.max(0, Math.min(22, (window.innerWidth - LOGIN_COLUMN_MAX_PX - LOGIN_SECTION_PAD_X_PX) / 2));
-      const bx = follows ? look.x * reach : 0, by = follows ? look.y * 6 : 0;
+      const bx = (follows ? look.x * reach : 0) + idleShift(t), by = follows ? look.y * 6 : 0;
       // critically damped-ish springs: glides over and settles without bouncing
       const [k, c] = follows ? [12, 7] : [6, 5];
       body.vx += ((bx - body.x) * k - body.vx * c) * dt; body.vy += ((by - body.y) * k - body.vy * c) * dt;
@@ -877,7 +911,6 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
     return () => {
       cancelAnimationFrame(raf);
       clearTimeout(greet);
-      clearInterval(sleepCheck);
       window.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseout', onOut);
       window.removeEventListener('keydown', onKey);

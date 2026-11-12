@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { type } from '@/lib/typography/tokens';
+import { labelForAgentClass } from '@/lib/construction/agent-class-display';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const GOLD       = 'var(--brand-a)';
@@ -13,22 +14,6 @@ const TXT3       = 'var(--ink-3)';
 
 const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
 const body: React.CSSProperties = { fontFamily: 'var(--font-sans)' };
-
-// ─── Class display names ──────────────────────────────────────────────────────
-
-const CLASS_NAMES: Record<string, string> = {
-  feynman: 'Feynman',
-  fermi: 'Fermi',
-  grossmann: 'Grossmann',
-  rama: 'Rama',
-  // Seneca = agent class (communication, Coming Soon) — not builder persona
-  seneca: 'Seneca',
-  marcus: 'Captain Track Sparrow',
-};
-
-function classDisplayName(classId: string): string {
-  return CLASS_NAMES[classId] ?? (classId.charAt(0).toUpperCase() + classId.slice(1));
-}
 
 // ─── ClassSuggestionChip ──────────────────────────────────────────────────────
 
@@ -89,7 +74,7 @@ export function ClassSuggestionChip({
   };
 
   const confidencePct = Math.round(confidence * 100);
-  const className = classDisplayName(classId);
+  const typeLabel = labelForAgentClass(classId) ?? 'this mission';
 
   return (
     <div style={{
@@ -108,11 +93,10 @@ export function ClassSuggestionChip({
           background: GOLD,
           borderRadius: 6,
           padding: '2px 8px',
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase' as const,
+          letterSpacing: '0.04em',
           flexShrink: 0,
         }}>
-          {classId.toUpperCase()}
+          Suggested type
         </span>
         <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2 }}>
           {confidencePct}% match
@@ -121,7 +105,7 @@ export function ClassSuggestionChip({
 
       {/* Question */}
       <p style={{ ...body, fontSize: 'var(--type-body-size)', color: TXT, margin: 0, lineHeight: 1.5, fontWeight: 500 }}>
-        This reads like <strong style={{ color: GOLD }}>{className}</strong>-class territory. Apply it?
+        This reads like <strong style={{ color: GOLD }}>{typeLabel}</strong> work. Apply it?
       </p>
 
       {/* Rationale */}

@@ -37,11 +37,23 @@ KNOWLEDGE: ${kbs.map((k) => k.name).join(', ')}` : ''),
   runSearchKnowledgeTool: h.runSearch,
 }));
 vi.mock('@/lib/inspector/agent-loop', () => ({ runAgentLoop: h.runAgentLoop }));
-vi.mock('@/lib/inspector/providers/factory', () => ({ dispatchAgentLoop: vi.fn() }));
+vi.mock('@/lib/inspector/providers/factory', () => ({
+  dispatchAgentLoop: (_model: unknown, params: unknown) => h.runAgentLoop(params),
+}));
 vi.mock('@/lib/inspector/prompts', () => ({
   INSPECTOR_TOOLS: [{ toolSpec: { name: 'describe_schema' } }, { toolSpec: { name: 'execute_tool' } }, { toolSpec: { name: 'save_memory' } }],
 }));
 vi.mock('@/lib/inspector/tools', () => ({ executeInspectorTool: h.executeInspectorTool, resolveToolCatalogEntry: async () => null }));
+vi.mock('@/lib/access/principal', () => ({
+  principalForUser: vi.fn(async (userId: string) => ({
+    kind: 'user',
+    orgId: 'org-1',
+    userId,
+    departmentIds: [],
+    clearance: 'internal',
+  })),
+  systemPrincipal: vi.fn(() => ({ kind: 'system', orgId: 'org-1', systemKind: 'health' })),
+}));
 vi.mock('@/lib/agent-ops/log-tool-invocation', () => ({ withAgentOpsToolLog: (_m: unknown, _i: unknown, fn: () => Promise<string>) => fn() }));
 vi.mock('@/lib/agent-ops/record-turn-metrics', () => ({
   TurnMetricsRecorder: class {

@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { writeAudit } from '@/lib/audit';
 import { clientMeta } from '@/lib/http';
-import { resolveAuth, requireRole } from '@/middleware/auth';
+import { resolveAuth } from '@/middleware/auth';
+import { denyUnlessSection, requireSection } from '@/lib/sections/server';
 import { inspectLlmLiteGatewayCatalog } from '@/lib/llmlite/fetch-models';
 import { MODEL_FEATURES, type PlatformModelSettings } from '@/lib/llmlite/model-registry';
 import { loadModelSettings, saveModelSettings } from '@/lib/llmlite/model-settings-store';
@@ -267,11 +268,8 @@ async function get30DayModelUsage(): Promise<
 }
 
 export async function GET(req: NextRequest) {
-  try {
-    await resolveAuth(req);
-  } catch {
-    return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 });
-  }
+  const deniedSection = await denyUnlessSection(req, ['govern.models', 'view']);
+  if (deniedSection) return deniedSection;
 
   try {
     const [settings, gateway, usage30d] = await Promise.all([
@@ -305,7 +303,7 @@ export async function GET(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const auth = await resolveAuth(req);
-    requireRole(auth, 'admin');
+    requireSection(auth, ['govern.models', 'manage']);
 
     const body = (await req.json()) as Partial<PlatformModelSettings>;
     const before = await loadModelSettings(true);

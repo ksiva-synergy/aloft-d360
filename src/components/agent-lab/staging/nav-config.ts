@@ -1,13 +1,15 @@
 import {
   HouseIcon, HammerIcon, BrainIcon, StackIcon, ShieldCheckIcon, RobotIcon,
-  MagnifyingGlassIcon, SquaresFourIcon, RulerIcon, MagicWandIcon, FlaskIcon,
+  ChatCircleTextIcon, SquaresFourIcon, RulerIcon, MagicWandIcon, FlaskIcon,
   DiceFiveIcon, ClockCounterClockwiseIcon, LightbulbIcon, PulseIcon, UsersThreeIcon,
   UsersIcon,   ScrollIcon, BookOpenIcon, BooksIcon, CubeIcon, TreeStructureIcon,
+  KeyIcon,
   LightningIcon, PathIcon, HardDrivesIcon, PlugsConnectedIcon, BookBookmarkIcon, CpuIcon,
   CurrencyCircleDollarIcon,
   type Icon as PhosphorIcon,
 } from '@phosphor-icons/react';
 import { ESTATE_NAV_ITEMS } from '@/lib/estate/nav-items';
+import { hiddenInNav, type SectionLevels } from '@/lib/sections/registry';
 
 export interface NavItem {
   label: string;
@@ -48,7 +50,7 @@ export const NAV_GROUPS: NavGroup[] = [
     id: 'build',
     icon: HammerIcon,
     items: [
-      { label: 'Inspector',       href: '/inspector',            icon: MagnifyingGlassIcon },
+      { label: 'Ask Data',       href: '/inspector',            icon: ChatCircleTextIcon },
       { label: 'Agents',          href: '/agent-lab/agents',       icon: RobotIcon },
       { label: 'Dashboards',      href: '/inspector/dashboards', icon: SquaresFourIcon },
       { label: 'Metrics',         href: '/agent-lab/metrics',    icon: RulerIcon },
@@ -96,6 +98,8 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Models',      href: '/agent-staging/models',      icon: CpuIcon },
       { label: 'Users',       href: '/agent-staging/users',       icon: UsersIcon },
+      { label: 'Access requests', href: '/agent-staging/access-requests', icon: ShieldCheckIcon },
+      { label: 'Data access', href: '/agent-staging/data-access', icon: KeyIcon },
       { label: 'Cost monitor', href: '/agent-staging/cost',       icon: CurrencyCircleDollarIcon },
       { label: 'Policies',    href: '/agent-staging/policies',    icon: ShieldCheckIcon },
       { label: 'Connections', href: '/agent-staging/connections', icon: PlugsConnectedIcon },
@@ -113,4 +117,27 @@ export function isActive(item: NavItem, pathname: string): boolean {
 
 export function groupForPath(pathname: string): string {
   return NAV_GROUPS.find((g) => g.items.some((i) => isActive(i, pathname)))?.id ?? NAV_GROUPS[0].id;
+}
+
+/** Nav groups with the sections this person cannot open removed (empty groups dropped). */
+export function filterNavGroups(groups: NavGroup[], levels: SectionLevels | null): NavGroup[] {
+  if (!levels) return groups;
+  return groups
+    .map((g) => ({ ...g, items: g.items.filter((i) => !hiddenInNav(levels, i.href)) }))
+    .filter((g) => g.items.length > 0);
+}
+
+export function showHomeInNav(levels: SectionLevels | null): boolean {
+  return !hiddenInNav(levels, HOME_ITEM.href);
+}
+
+/** First page this person can open — used for logo / post-login landing. */
+export function primaryNavHref(levels: SectionLevels | null): string {
+  if (showHomeInNav(levels)) return HOME_ITEM.href;
+  for (const g of NAV_GROUPS) {
+    for (const i of g.items) {
+      if (!hiddenInNav(levels, i.href)) return i.href;
+    }
+  }
+  return '/inspector';
 }

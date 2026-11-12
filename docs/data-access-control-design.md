@@ -1,6 +1,7 @@
 # Data access control, safety and policy — what the application needs
 
 Status: **proposal** (2026-10-26). Nothing in this document is implemented.
+For the first release, the target model (§5–§6) and build plan (§12) are replaced by [access/data-access-architecture.md](access/data-access-architecture.md) (2026-11-05): departments and clearance instead of data roles, labels that need clearance, tier service principals chosen per query.
 Method: static reading of this repository on 2026-10-26, building on the 24 October audit ([business-ai-studio-current-state.md](audits/business-ai-studio-current-state.md), "the audit"). No tests were run, and no database, AWS account or Databricks workspace was queried. Statements marked **verified** were read in source today; **inference** follows from source but was not observed running; **unverified** cannot be known from the repository.
 
 Related: [flows-architecture.md](flows-architecture.md) §12 (Flows depends on this), [flows-design.md](flows-design.md).

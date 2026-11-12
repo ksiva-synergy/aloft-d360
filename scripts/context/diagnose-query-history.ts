@@ -39,7 +39,7 @@ async function main() {
     `AND statement_type = 'SELECT'`;
   const norm = "replace(lower(statement_text), '`', '')";
 
-  const token = await getAccessToken(conn.id, conn.workspace_host);
+  const token = await getAccessToken(conn.id, conn.workspace_host, 'metadata');
 
   async function count(extra: string): Promise<number> {
     const sql = `SELECT COUNT(*) AS n FROM system.query.history ${base}${extra}`;

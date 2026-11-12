@@ -1,6 +1,6 @@
 'use client';
 
-import { signIn } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
 import { useState, useEffect, useCallback, type CSSProperties, type FormEvent } from 'react';
 import { useRouter } from '@/lib/navigation';
 import { Eye, EyeOff, Loader2, Moon, Sun } from 'lucide-react';
@@ -47,6 +47,9 @@ const credentialsUiEnabled = process.env.NEXT_PUBLIC_ENABLE_CREDENTIALS_LOGIN !=
 
 export default function LoginPage() {
   const router = useRouter();
+  const { status: sessionStatus, data: sessionData } = useSession();
+  const alreadySignedIn =
+    sessionStatus === 'authenticated' && !!sessionData?.user?.id && sessionData.error !== 'SessionRevoked';
   const theme = useIsDark() ? 'dark' : 'light';
   const { setTheme } = useTheme();
   const headerBtn =
@@ -87,9 +90,21 @@ export default function LoginPage() {
   }, [handleKonami]);
 
   useEffect(() => {
+    if (!alreadySignedIn) return;
+    const next = new URLSearchParams(window.location.search).get('callbackUrl');
+    const dest =
+      next && next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/\\') ? next : '/dashboard';
+    router.replace(dest);
+  }, [alreadySignedIn, router]);
+
+  useEffect(() => {
     const err = new URLSearchParams(window.location.search).get('error');
     if (err === 'account_link_required') {
       setError('An account with this email already exists and must be linked by an administrator.');
+    } else if (err === 'ACCESS_PENDING') {
+      setError(
+        'Your sign-in was recorded. A platform administrator must approve your access and assign a role before you can use the app.',
+      );
     } else if (err === 'ACCOUNT_SUSPENDED') {
       setError('Your account has been suspended. Please contact your administrator.');
     } else if (err === 'session_expired') {
@@ -135,6 +150,18 @@ export default function LoginPage() {
       setError('Unable to connect to Azure AD. Please try again.');
       setSsoLoading(false);
     }
+  }
+
+  if (alreadySignedIn) {
+    return (
+      <div
+        role="status"
+        className="flex min-h-screen items-center justify-center text-size-body text-[var(--ink-3)]"
+        style={{ fontFamily: 'var(--font-mono)' }}
+      >
+        Loading…
+      </div>
+    );
   }
 
   return (

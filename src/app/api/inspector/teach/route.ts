@@ -29,6 +29,7 @@ import { isLlmLiteConfigured } from '@/lib/llmlite/config';
 import { toLlmLiteModelKey } from '@/lib/llmlite/keys';
 import { getFeatureGatewayModelId } from '@/lib/llmlite/model-settings-store';
 import { getInspectorMaxLoops } from '@/lib/inspector/max-loops';
+import { principalForUser } from '@/lib/access/principal';
 import { MARCUS_REFLECT_SYSTEM_PROMPT } from '@/lib/inspector/reflect-prompt';
 import {
   buildReflectToolConfig,
@@ -119,6 +120,7 @@ export async function POST(request: NextRequest) {
     userId: callerUserId,
     connectionId,
     sessionId: body.sessionId ?? null,
+    dataPrincipal: callerUserId ? await principalForUser(callerUserId, org.id) : null,
   };
 
   const turnId = randomUUID();

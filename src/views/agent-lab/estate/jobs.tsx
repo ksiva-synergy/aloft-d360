@@ -2234,6 +2234,7 @@ function HealthView({
   onCockpitLaunched,
   onOpenWizard,
   onStageClick,
+  onNeedsEmbedClick,
 }: {
   summaries: KindSummary[];
   loading: boolean;
@@ -2247,6 +2248,7 @@ function HealthView({
   onCockpitLaunched?: () => void;
   onOpenWizard?: () => void;
   onStageClick?: (tier: ScannedTier) => void;
+  onNeedsEmbedClick?: () => void;
 }) {
   const hourly = statsWindow === '1';
   const runDays = statsWindow === 'all' ? 30 : Number(statsWindow);
@@ -2556,6 +2558,7 @@ function HealthView({
             onLaunched={onCockpitLaunched}
             onOpenWizard={canRunPipeline ? onOpenWizard : undefined}
             onStageClick={onStageClick}
+            onNeedsEmbedClick={onNeedsEmbedClick}
             defaultExpanded
           />
         </div>
@@ -3887,6 +3890,7 @@ function EstateJobsPageContent() {
   const urlTier = searchParams.get('tier');
   const scannedInitialTier: ScannedTier | null =
     urlTier === 't0' || urlTier === 't1' || urlTier === 't2' || urlTier === 'embed' ? urlTier : null;
+  const scannedNeedsEmbed = searchParams.get('needs') === 'embed';
   const statsWindow = parseStatsWindow(searchParams.get('range'));
 
   const level: ViewLevel = urlKind ? 'kind' : 'l1';
@@ -4062,10 +4066,11 @@ function EstateJobsPageContent() {
       {/* Content */}
       {level === 'l1' && activeTab === 'scanned' ? (
         <ScannedObjectsTab
-          key={scannedInitialTier ?? 'all'}
+          key={`${scannedInitialTier ?? 'all'}-${scannedNeedsEmbed ? 'need' : 'any'}`}
           refreshKey={refreshKey}
           canRunPipeline={canRunPipeline}
           initialTier={scannedInitialTier}
+          initialNeedsEmbed={scannedNeedsEmbed}
         />
       ) : level === 'l1' && activeTab === 'active' ? (
         <ActiveRunsPanel
@@ -4085,7 +4090,8 @@ function EstateJobsPageContent() {
           onSelectKind={selectKind}
           onSelectJob={setSelectedJob}
           onOpenActiveRuns={() => pushParams({ tab: 'active' })}
-          onStageClick={tier => pushParams({ tab: 'scanned', tier })}
+          onStageClick={tier => pushParams({ tab: 'scanned', tier, needs: null })}
+          onNeedsEmbedClick={() => pushParams({ tab: 'scanned', tier: null, needs: 'embed' })}
           onCockpitLaunched={() => { fetchSummaries(); fetchQueued(); }}
           onOpenWizard={() => setWizardOpen(true)}
         />

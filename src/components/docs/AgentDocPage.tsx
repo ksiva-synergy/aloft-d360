@@ -218,7 +218,7 @@ export function AgentDocPage({ agent, relatedAgents = [] }: AgentDocPageProps) {
             className="inline-flex items-center gap-2 text-size-body font-medium text-[color:var(--brand-a-ink)] hover:underline"
           >
             <ExternalLink className="h-4 w-4" />
-            Try in Inspector (staging)
+            Try in Ask Data (staging)
           </Link>
         )}
         {editUrl && (

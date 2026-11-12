@@ -24,12 +24,14 @@ function formatElapsed(seconds: number) {
   return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, '0')}s`;
 }
 
-export function CaptainStatus({ active = true, startedAt, className, ...input }: ActivityInput & {
+export function CaptainStatus({ active = true, startedAt, className, variant, ...input }: ActivityInput & {
   active?: boolean;
   /** Epoch ms the turn started; shows a live elapsed counter on long runs. */
   startedAt?: number | null;
   className?: string;
+  variant?: 'default' | 'compact';
 }) {
+  const compact = variant === 'compact' || (variant == null && !input.content?.trim());
   const activity = companionActivity(input);
   const elapsed = useElapsedSeconds(startedAt, active && input.isStreaming);
   const wasStreaming = useRef(input.isStreaming);
@@ -45,12 +47,15 @@ export function CaptainStatus({ active = true, startedAt, className, ...input }:
     setCelebrate(false);
   }, [input.isStreaming, activity.state, active]);
   const face = activity.state === 'success' && !celebrate ? 'idle' : activity.state;
-  return <div className={className ? `${styles.status} ${className}` : styles.status} data-companion-status={activity.state}>
-    <Companion state={face} active={active} />
+  return <div className={[styles.status, compact ? styles.compact : '', className].filter(Boolean).join(' ')} data-companion-status={activity.state}>
+    <Companion state={face} active={active} size={compact ? 56 : 44} />
     <span className={styles.label} role={active ? 'status' : undefined} aria-live={active ? 'polite' : 'off'}>
       <span key={activity.label} className={styles.labelText}>{activity.label}</span>
       {elapsed != null && <span className={styles.elapsed} aria-hidden="true"> · {formatElapsed(elapsed)}</span>}
     </span>
+    {compact && input.isStreaming && <span className={styles.activityDots} data-active={active} aria-hidden="true">
+      <i /><i /><i />
+    </span>}
     {active && <Link href="/settings/profile#companion" className={styles.settings} aria-label="Customize companion" title="Customize companion">
       <SlidersHorizontal size={14} />
     </Link>}

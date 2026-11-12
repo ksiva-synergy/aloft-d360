@@ -30,7 +30,7 @@ import { GET as open, DELETE as remove } from '../[id]/route';
 import { POST as saveVersion } from '../[id]/versions/route';
 import { POST as publish, DELETE as unpublish } from '../[id]/publish/route';
 
-const member = { userId: 'u-1', role: 'member', permissions: new Set(['inspector:use']) };
+const member = { userId: 'u-1', role: 'member', permissions: new Set(['inspector:use', 'section:build.automate:manage']) };
 const admin = { userId: 'u-9', role: 'platform_admin', permissions: new Set(['inspector:use']) };
 const readonly = { userId: 'u-2', role: 'readonly', permissions: new Set(['session:read']) };
 const ctx = { params: Promise.resolve({ id: 'f-1' }) };
@@ -88,7 +88,7 @@ describe('flow CRUD routes', () => {
     expect([...adminPolicy.permissions].sort()).toEqual(['connector:external', 'connector:write', 'flow:sql', 'inspector:use']);
 
     await publish(post({ version: 2 }), ctx);
-    expect([...svc.publishFlow.mock.calls[1]![1].permissions]).toEqual(['inspector:use']);
+    expect([...svc.publishFlow.mock.calls[1]![1].permissions]).toEqual([...member.permissions]);
     expect(svc.publishFlow.mock.calls[1]![3]).toMatchObject({ version: 2, estimateAgentCostUsd: expect.any(Function) });
 
     expect((await publish(post({ version: 0 }), ctx)).status).toBe(400);

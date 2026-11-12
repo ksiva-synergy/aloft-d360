@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronDown,
@@ -11,12 +11,16 @@ import {
   Zap,
   AlertTriangle,
   ArrowRight,
+  Search,
 } from 'lucide-react';
 import type { ToolCall } from '@/components/agent-lab/workbench/types';
 import { CaptainStatus } from '@/components/companion/CaptainStatus';
+import { ResponseLoading } from './ResponseLoading';
+import chatStyles from './ChatPresentation.module.css';
 import type { TurnOpsSnapshot } from '@/components/agent-lab/workbench/types';
 
 import { type } from '@/lib/typography/tokens';
+import { StreamingAssistantBody } from '@/components/chat/StreamingAssistantBody';
 import {
   detailTone,
   labelForKey,
@@ -30,8 +34,71 @@ import {
   type JsonRecord,
   type JsonTable,
 } from '@/components/workbench/json-table';
+import { renderInline as renderInlineRich } from '@/components/workbench/render-inline';
 const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
+/** Chat tables: fixed height, scroll body, sticky header (keeps long lists inside the message). */
+const CHAT_TABLE_SCROLL: React.CSSProperties = {
+  maxHeight: 'min(420px, 55vh)',
+  overflow: 'auto',
+  WebkitOverflowScrolling: 'touch',
+};
+const CHAT_TABLE_HEAD_BG_MD = 'color-mix(in srgb, var(--brand-a) 8%, var(--surface-1))';
+const CHAT_TABLE_HEAD_BG_JSON = 'color-mix(in srgb, var(--brand-a) 6%, var(--surface-1))';
+/** Show filter when the table is long enough to need narrowing. */
+const CHAT_TABLE_FILTER_MIN = 8;
 const sans: React.CSSProperties = { fontFamily: 'var(--font-sans)' };
+
+function filterRowIndices(rows: string[][], query: string): number[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return rows.map((_, i) => i);
+  const out: number[] = [];
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i].some((cell) => cell.toLowerCase().includes(q))) out.push(i);
+  }
+  return out;
+}
+
+function ChatTableFilterInput({
+  value,
+  onChange,
+  id,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  id: string;
+}) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '1 1 160px', minWidth: 0, maxWidth: 300 }}>
+      <Search size={14} style={{ color: MUTED, flexShrink: 0 }} aria-hidden />
+      <input
+        id={id}
+        type="search"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Filter rows…"
+        aria-label="Filter table rows"
+        style={{
+          ...type['ui-regular'],
+          width: '100%',
+          minWidth: 0,
+          padding: '6px 10px',
+          borderRadius: 8,
+          border: `1px solid ${BORDER_SUBTLE}`,
+          background: 'var(--surface-1)',
+          color: INK,
+        }}
+      />
+    </div>
+  );
+}
+
+function tableFooterLabel(total: number, visible: number, filterActive: boolean): string {
+  const scrollHint = total > 8 ? ' · scroll the table for more' : '';
+  if (filterActive && visible !== total) {
+    return `${visible} of ${total} row${total === 1 ? '' : 's'}${scrollHint}`;
+  }
+  return `${total} row${total === 1 ? '' : 's'}${scrollHint}`;
+}
 
 const GOLD = 'var(--brand-a-ink)';
 const MUTED = 'var(--wb-muted)';
@@ -329,24 +396,8 @@ function ToolCallsSection({ toolCalls, isStreaming }: { toolCalls: ToolCall[]; i
 }
 
 // ── Markdown renderer ──────────────────────────────────────────────────────────
-function renderInline(text: string): React.ReactNode[] {
-  const tokenRegex = /(\*\*(.+?)\*\*|\*(.+?)\*|`([^`]+?)`)/g;
-  const parts: React.ReactNode[] = [];
-  let last = 0;
-  let m: RegExpExecArray | null;
-  while ((m = tokenRegex.exec(text)) !== null) {
-    if (m.index > last) parts.push(<span key={last}>{text.slice(last, m.index)}</span>);
-    if (m[2] != null) parts.push(<strong key={m.index} style={{ fontWeight: 600, color: INK }}>{m[2]}</strong>);
-    else if (m[3] != null) parts.push(<em key={m.index}>{m[3]}</em>);
-    else if (m[4] != null) parts.push(
-      <code key={m.index} style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', color: 'var(--brand-a)', padding: '1px 5px', borderRadius: 6 }}>
-        {m[4]}
-      </code>,
-    );
-    last = m.index + m[0].length;
-  }
-  if (last < text.length) parts.push(<span key={last}>{text.slice(last)}</span>);
-  return parts;
+function renderInline(text: string, compactLinks?: boolean): React.ReactNode[] {
+  return renderInlineRich(text, compactLinks ? { compactLinks: true } : undefined);
 }
 
 type ColAlign = 'left' | 'center' | 'right';
@@ -397,6 +448,11 @@ function MarkdownTable({
   footerNote?: string;
   testId?: string;
 }) {
+  const [filter, setFilter] = useState('');
+  const visibleIndices = useMemo(() => filterRowIndices(rows, filter), [rows, filter]);
+  const showFilter = rows.length >= CHAT_TABLE_FILTER_MIN;
+  const filterActive = filter.trim().length > 0;
+
   const cellPad: React.CSSProperties = {
     padding: '10px 14px',
     borderBottom: `1px solid ${BORDER_SUBTLE}`,
@@ -424,12 +480,25 @@ function MarkdownTable({
       }}
       data-testid={testId}
     >
-      {toolbar ? (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 12px', borderBottom: `1px solid ${BORDER_SUBTLE}` }}>
+      {(toolbar || showFilter) && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 10,
+            padding: '8px 12px',
+            borderBottom: `1px solid ${BORDER_SUBTLE}`,
+          }}
+        >
+          {showFilter && (
+            <ChatTableFilterInput id={`${testId ?? 'md-table'}-filter`} value={filter} onChange={setFilter} />
+          )}
           {toolbar}
         </div>
-      ) : null}
-      <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+      )}
+      <div style={CHAT_TABLE_SCROLL}>
         <table
           style={{
             width: '100%',
@@ -440,7 +509,7 @@ function MarkdownTable({
           }}
         >
           <thead>
-            <tr style={{ background: 'color-mix(in srgb, var(--brand-a) 8%, transparent)' }}>
+            <tr>
               {headers.map((h, i) => (
                 <th
                   key={i}
@@ -450,6 +519,11 @@ function MarkdownTable({
                     color: MUTED,
                     textAlign: aligns[i] ?? 'left',
                     borderBottom: `1px solid ${BORDER_GOLD}`,
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 1,
+                    background: CHAT_TABLE_HEAD_BG_MD,
+                    boxShadow: `0 1px 0 ${BORDER_SUBTLE}`,
                   }}
                 >
                   {renderInline(h)}
@@ -458,11 +532,20 @@ function MarkdownTable({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, ri) => (
+            {visibleIndices.length === 0 ? (
+              <tr>
+                <td colSpan={headers.length} style={{ ...bodyCell, color: MUTED, textAlign: 'center' }}>
+                  No rows match your filter.
+                </td>
+              </tr>
+            ) : (
+              visibleIndices.map((ri, displayRi) => {
+                const row = rows[ri];
+                return (
               <tr
                 key={ri}
                 style={{
-                  background: ri % 2 === 0 ? 'transparent' : 'color-mix(in srgb, var(--ink-1) 2%, transparent)',
+                  background: displayRi % 2 === 0 ? 'transparent' : 'color-mix(in srgb, var(--ink-1) 2%, transparent)',
                 }}
               >
                 {headers.map((_, ci) => {
@@ -482,12 +565,14 @@ function MarkdownTable({
                         fontWeight: ci === 0 ? 500 : 400,
                       }}
                     >
-                      {renderInline(raw)}
+                      {renderInline(raw, true)}
                     </td>
                   );
                 })}
               </tr>
-            ))}
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>
@@ -502,7 +587,7 @@ function MarkdownTable({
             borderTop: `1px solid ${BORDER_SUBTLE}`,
           }}
         >
-          {footerNote ?? `${rows.length} row${rows.length === 1 ? '' : 's'}`}
+          {footerNote ?? tableFooterLabel(rows.length, visibleIndices.length, filterActive)}
         </div>
       )}
     </div>
@@ -838,7 +923,7 @@ function NestedTable({ labels, rows, total }: { labels: string[]; rows: string[]
                     whiteSpace: v.length <= 24 ? 'nowrap' : 'normal',
                   }}
                 >
-                  {renderInline(v)}
+                  {renderInline(v, true)}
                 </td>
               ))}
             </tr>
@@ -1015,6 +1100,10 @@ function DetailList({
 
 function DataTable({ code, table, onShowJson }: { code: string; table: JsonTable; onShowJson: () => void }) {
   const [open, setOpen] = useState<Set<number>>(() => new Set());
+  const [filter, setFilter] = useState('');
+  const visibleIndices = useMemo(() => filterRowIndices(table.rows, filter), [table.rows, filter]);
+  const showFilter = table.rows.length >= CHAT_TABLE_FILTER_MIN;
+  const filterActive = filter.trim().length > 0;
   const hasDetails = table.details.labels.length > 0;
   const expandable = table.rows.map((_, ri) => hasDetails && rowHasDetails(table, ri));
   const anyExpandable = expandable.some(Boolean);
@@ -1039,9 +1128,11 @@ function DataTable({ code, table, onShowJson }: { code: string; table: JsonTable
     textAlign: 'left',
   };
   const colSpan = table.labels.length + (anyExpandable ? 1 : 0);
-  const countLabel = table.truncated
-    ? `Showing ${table.rows.length} of ${table.total} rows`
-    : `${table.total} row${table.total === 1 ? '' : 's'}`;
+  const countLabel = filterActive
+    ? `${visibleIndices.length} of ${table.total} rows`
+    : table.truncated
+      ? `Showing ${table.rows.length} of ${table.total} rows`
+      : `${table.total} row${table.total === 1 ? '' : 's'}`;
 
   return (
     <div
@@ -1053,13 +1144,17 @@ function DataTable({ code, table, onShowJson }: { code: string; table: JsonTable
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: 12,
+          flexWrap: 'wrap',
+          gap: 10,
           padding: '8px 14px',
           borderBottom: `1px solid ${BORDER_SUBTLE}`,
         }}
       >
-        <span style={{ ...type.label, color: MUTED }}>{countLabel}</span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+        <span style={{ ...type.label, color: MUTED, flexShrink: 0 }}>{countLabel}</span>
+        {showFilter && (
+          <ChatTableFilterInput id="assistant-data-table-filter" value={filter} onChange={setFilter} />
+        )}
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
           {anyExpandable && <QuietButton label={allOpen ? 'Collapse all' : 'Expand all'} onClick={toggleAll} />}
           <QuietButton label="JSON" onClick={onShowJson} />
           <CopyButton text={code} />
@@ -1087,11 +1182,24 @@ function DataTable({ code, table, onShowJson }: { code: string; table: JsonTable
         </div>
       )}
 
-      <div style={{ overflowX: 'auto' }}>
+      <div style={CHAT_TABLE_SCROLL}>
         <table style={{ width: '100%', borderCollapse: 'collapse', ...sans, fontSize: 'var(--type-ui-regular-size)', lineHeight: 1.45 }}>
           <thead>
-            <tr style={{ background: 'color-mix(in srgb, var(--brand-a) 6%, transparent)' }}>
-              {anyExpandable && <th style={{ ...cell, width: 36, borderBottom: `1px solid ${BORDER_GOLD}` }} aria-label="Details" />}
+            <tr>
+              {anyExpandable && (
+                <th
+                  style={{
+                    ...cell,
+                    width: 36,
+                    borderBottom: `1px solid ${BORDER_GOLD}`,
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 1,
+                    background: CHAT_TABLE_HEAD_BG_JSON,
+                  }}
+                  aria-label="Details"
+                />
+              )}
               {table.labels.map((h, i) => (
                 <th
                   key={h}
@@ -1102,6 +1210,11 @@ function DataTable({ code, table, onShowJson }: { code: string; table: JsonTable
                     whiteSpace: 'nowrap',
                     textAlign: table.aligns[i] ?? 'left',
                     borderBottom: `1px solid ${BORDER_GOLD}`,
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 1,
+                    background: CHAT_TABLE_HEAD_BG_JSON,
+                    boxShadow: `0 1px 0 ${BORDER_SUBTLE}`,
                   }}
                 >
                   {h}
@@ -1110,7 +1223,15 @@ function DataTable({ code, table, onShowJson }: { code: string; table: JsonTable
             </tr>
           </thead>
           <tbody>
-            {table.rows.map((row, ri) => {
+            {visibleIndices.length === 0 ? (
+              <tr>
+                <td colSpan={colSpan} style={{ ...cell, color: MUTED, textAlign: 'center' }}>
+                  No rows match your filter.
+                </td>
+              </tr>
+            ) : (
+              visibleIndices.map((ri) => {
+              const row = table.rows[ri];
               const isOpen = open.has(ri);
               const canOpen = expandable[ri];
               return (
@@ -1152,7 +1273,7 @@ function DataTable({ code, table, onShowJson }: { code: string; table: JsonTable
                             ...(numeric ? { ...mono, fontVariantNumeric: 'tabular-nums' } : {}),
                           }}
                         >
-                          {renderInline(value)}
+                          {renderInline(value, true)}
                         </td>
                       );
                     })}
@@ -1169,7 +1290,8 @@ function DataTable({ code, table, onShowJson }: { code: string; table: JsonTable
                   )}
                 </React.Fragment>
               );
-            })}
+            })
+            )}
           </tbody>
         </table>
       </div>
@@ -1283,6 +1405,8 @@ export function AssistantContent({ content }: { content: string }) {
 
 // ── Main StreamingMessage component ───────────────────────────────────────────
 export interface StreamingMessageProps {
+  cleanPresentation?: boolean;
+  responseVisuals?: React.ReactNode;
   activity?: 'thinking' | 'writing';
   /** Only the most recent response animates or announces activity. */
   companionActive?: boolean;
@@ -1304,9 +1428,13 @@ export interface StreamingMessageProps {
   modelName?: string;
   /** When false, the raw tool-step list stays hidden. The companion still shows progress. */
   showToolCalls?: boolean;
+  /** Pass false for members and admins with developer mode off. */
+  showTechnicalToolNames?: boolean;
 }
 
 export function StreamingMessage({
+  cleanPresentation = false,
+  responseVisuals,
   activity,
   companionActive = true,
   error,
@@ -1322,8 +1450,10 @@ export function StreamingMessage({
   tokenCount,
   modelName,
   showToolCalls = true,
+  showTechnicalToolNames = false,
 }: StreamingMessageProps) {
   const [copied, setCopied] = useState(false);
+
 
   const handleCopyAll = () => {
     navigator.clipboard.writeText(content).then(() => {
@@ -1339,6 +1469,17 @@ export function StreamingMessage({
   const shortModel = modelName
     ? modelName.replace(/^(anthropic\.|amazon\.|openai\.)/i, '').replace(/-\d{8}$/, '')
     : null;
+
+  // While streaming: loader until text arrives, then formatted prose that fades in block by block
+  // (tables and code show a placeholder card). The full render takes over when the reply ends.
+  const hasContent = content.trim().length > 0;
+  const awaitingFormatted = isStreaming && !hasContent;
+  const showStreamingBody = isStreaming && hasContent;
+  const showRichContent = !isStreaming && hasContent;
+  const showCaptainStatus =
+    !awaitingFormatted
+    && (!cleanPresentation || isStreaming || interrupted || error || outcome === 'errored' || outcome === 'truncated' || readiness === 'interview' || toolCalls?.some((t) => t.status === 'error'))
+    && !(cleanPresentation && isStreaming);
 
   return (
     <>
@@ -1356,46 +1497,79 @@ export function StreamingMessage({
       )}
 
 
+
       {/* Main content card */}
       <motion.div
+        className={cleanPresentation && responseVisuals ? chatStyles.report : undefined}
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, ease: 'easeOut' }}
         style={{
-          background: SURFACE,
+          background: cleanPresentation || (!content.trim() && !error) ? 'transparent' : SURFACE,
           borderRadius: 8,
-          border: `1px solid ${BORDER_SUBTLE}`,
+          border: cleanPresentation || (!content.trim() && !error) ? '1px solid transparent' : `1px solid ${BORDER_SUBTLE}`,
           overflow: 'hidden',
           position: 'relative',
           width: '100%',
           maxWidth: '100%',
         }}
       >
-        <CaptainStatus active={companionActive} isStreaming={isStreaming} content={content} thinking={thinking} activity={activity}
-          toolCalls={toolCalls} interrupted={interrupted} error={error} outcome={outcome}
-          needsClarification={readiness === 'interview'} />
-        {content && (
-          <div style={{ padding: '0 clamp(12px, 2vw, 24px) 16px', maxWidth: '100%' }}>
-            <AssistantContent content={content} />
+        {awaitingFormatted ? (
+          <ResponseLoading
+            active={companionActive}
+            isStreaming={isStreaming}
+            content={content}
+            thinking={thinking}
+            activity={activity}
+            toolCalls={toolCalls}
+            showTechnicalToolNames={showTechnicalToolNames}
+          />
+        ) : (
+          showCaptainStatus && (
+            <CaptainStatus
+              variant={!content.trim() ? 'compact' : 'default'}
+              active={companionActive}
+              isStreaming={isStreaming}
+              content={content}
+              thinking={thinking}
+              activity={activity}
+              toolCalls={toolCalls}
+              interrupted={interrupted}
+              error={error}
+              outcome={outcome}
+              showTechnicalToolNames={showTechnicalToolNames}
+              needsClarification={readiness === 'interview'}
+            />
+          )
+        )}
+        {showStreamingBody && (
+          <div
+            className={cleanPresentation ? chatStyles.answer : undefined}
+            style={{ padding: cleanPresentation ? '8px 0 18px' : '0 clamp(12px, 2vw, 24px) 16px', maxWidth: '100%' }}
+          >
+            <StreamingAssistantBody content={content} />
           </div>
         )}
-        {isStreaming && !content && companionActive && (
-          <div aria-hidden style={{ padding: '2px clamp(12px, 2vw, 24px) 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {[92, 80, 56].map((w, i) => (
-              <span key={w} className="ld-skel" style={{ width: `${w}%`, animationDelay: `${i * 120}ms` }} />
-            ))}
+        {showRichContent && (
+          <div
+            className={cleanPresentation ? chatStyles.answer : undefined}
+            style={{ padding: cleanPresentation ? '8px 0 18px' : '0 clamp(12px, 2vw, 24px) 16px', maxWidth: '100%' }}
+          >
+            <AssistantContent content={content} />
           </div>
         )}
         {error && !isStreaming && <p role="alert" className="px-5 pb-3 text-size-body text-[var(--ink-2)]">{error}</p>}
 
+        {responseVisuals}
+
         {/* Footer: readiness badge + timestamp + tokens + duration + model + copy */}
-        {(!isStreaming || readiness || ts) && (content || interrupted) && (
+        {(!isStreaming || (!cleanPresentation && (readiness || ts))) && (content || interrupted) && (
           <div style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '6px 16px 10px',
-            borderTop: `1px solid ${BORDER_SUBTLE}`,
+            padding: cleanPresentation ? '4px 0 10px' : '6px 16px 10px',
+            borderTop: cleanPresentation ? 'none' : `1px solid ${BORDER_SUBTLE}`,
             flexWrap: 'wrap',
             gap: 6,
           }}>
@@ -1408,21 +1582,18 @@ export function StreamingMessage({
                   borderRadius: 6, padding: '2px 7px', letterSpacing: '0.04em',
                 }}>STOPPED</span>
               )}
-              {ts && <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>{ts}</span>}
-              {!isStreaming && durationMs != null && (
-                <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>
-                  {durationMs < 1000 ? `${durationMs}ms` : `${(durationMs / 1000).toFixed(1)}s`}
-                </span>
-              )}
-              {!isStreaming && tokenCount != null && tokenCount > 0 && (
-                <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>
-                  {tokenCount.toLocaleString()} tok
-                </span>
-              )}
-              {!isStreaming && shortModel && (
-                <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: 'rgba(74,96,128,0.8)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {shortModel}
-                </span>
+              {(ts || durationMs != null || (tokenCount != null && tokenCount > 0) || shortModel) && (
+                <details className={chatStyles.details} open={cleanPresentation ? undefined : true}>
+                  <summary className={cleanPresentation ? chatStyles.summary : chatStyles.hiddenSummary}>Details</summary>
+                  <div className={chatStyles.metadata}>
+                    {ts && <span>Sent at {ts}</span>}
+                    {!isStreaming && durationMs != null && (
+                      <span>{durationMs < 1000 ? `${durationMs}ms` : `${(durationMs / 1000).toFixed(1)}s`} duration</span>
+                    )}
+                    {!isStreaming && tokenCount != null && tokenCount > 0 && <span>{tokenCount.toLocaleString()} tokens</span>}
+                    {!isStreaming && shortModel && <span>{shortModel}</span>}
+                  </div>
+                </details>
               )}
             </div>
             {!isStreaming && content && (

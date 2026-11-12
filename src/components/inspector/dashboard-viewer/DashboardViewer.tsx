@@ -369,7 +369,7 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
                         availableSourceCharts.has(widget.source_chart_id) ? (
                           <button
                             onClick={() => router.push(`/inspector?sourceChart=${encodeURIComponent(widget.source_chart_id!)}`)}
-                            title="Open source chart in Inspector"
+                            title="Open source chart in Ask Data"
                             style={{ background: 'transparent', border: 'none', color: 'var(--brand-a)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', flexShrink: 0 }}
                           >
                             <ExternalLink size={11} />

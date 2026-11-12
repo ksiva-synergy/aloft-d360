@@ -27,7 +27,7 @@ function schemaHint(s: FacetSchema): string | undefined {
   const parts = [
     s.needs_profile ? `${s.needs_profile} need profiling` : null,
     s.needs_enrich ? `${s.needs_enrich} need a description` : null,
-    s.needs_embed ? `${s.needs_embed} not yet searchable` : null,
+    s.needs_embed ? `${s.needs_embed} need${s.needs_embed === 1 ? 's' : ''} searchable` : null,
   ].filter(Boolean);
   return parts.length ? `${s.catalog}.${s.name} \u2014 ${parts.join(', ')}` : undefined;
 }

@@ -22,8 +22,9 @@ vi.mock('@/lib/agents/catalog', () => ({ agentStatusMap: async () => new Map(), 
 import { GET as catalogGET } from '../catalog/route';
 import { POST as simulatePOST } from '../simulate/route';
 
-const member = { userId: 'u-1', role: 'member', permissions: new Set(['inspector:use', 'session:read']) };
-const readonly = { userId: 'u-2', role: 'readonly', permissions: new Set(['session:read']) };
+const member = { userId: 'u-1', role: 'member', permissions: new Set(['inspector:use', 'session:read', 'section:build.automate:manage']) };
+// Has the Automate section, so the inspector:use check itself is what refuses this caller.
+const readonly = { userId: 'u-2', role: 'readonly', permissions: new Set(['session:read', 'section:build.automate:manage']) };
 
 const getCatalog = (query = '') => catalogGET(new Request(`http://test/api/agent-lab/flows/catalog${query}`), undefined);
 const simulate = (body: unknown) =>
@@ -48,7 +49,8 @@ describe('flows preview API', () => {
   it('requires a signed-in user with inspector:use', async () => {
     resolveAuth.mockRejectedValueOnce(new ApiError(401, 'Unauthenticated'));
     expect((await getCatalog()).status).toBe(401);
-    resolveAuth.mockResolvedValueOnce(readonly);
+    // Not Once: handle()'s section guard and the route each resolve the caller.
+    resolveAuth.mockResolvedValue(readonly);
     const res = await simulate({ definition: {} });
     expect(res.status).toBe(403);
     expect((await res.json()).details).toEqual({ required: 'inspector:use' });

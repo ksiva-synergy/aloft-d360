@@ -19,7 +19,7 @@ const body = z.object({
  * an audit entry without the values. The page images are sent to xAI.
  */
 export const POST = handle<{ params: Promise<{ id: string }> }>(async (req, ctx) => {
-  const actor = await connectionActor(req);
+  const actor = await connectionActor(req, 'view');
   const { path, schema, fields } = parse(body, await req.json().catch(() => ({})));
   return ok(await extractFromConnection(actor, { connectionId: (await ctx.params).id, path, schema, fields }));
 });

@@ -5,10 +5,13 @@ import { authOptions } from '@/lib/auth';
 import { getOrgId } from '@/lib/databricks/connections';
 import prisma from '@/lib/db';
 import { denyUnlessEstatePipelineOperator } from '@/lib/estate/require-estate-pipeline-operator';
+import { denyUnlessSection } from '@/lib/sections/server';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
+  const deniedSection = await denyUnlessSection(null, ['estate.overview', 'view'], ['estate.catalog', 'view'], ['estate.mapper', 'view']);
+  if (deniedSection) return deniedSection;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
 

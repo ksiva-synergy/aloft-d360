@@ -3,14 +3,18 @@ import { prisma } from '@/lib/db';
 import { getAgentOpsAuth, assertSessionReadable } from '@/lib/agent-ops/access';
 import { buildSessionCockpit } from '@/lib/agent-ops/session-cockpit';
 import type { WorkbenchMessage } from '@/components/agent-lab/workbench/types';
+import { denyUnlessSectionForApi } from '@/lib/sections/api-guard';
 import { sessionOpenHref } from '@/lib/sessions/surfaces';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> },
 ) {
+  const denied = await denyUnlessSectionForApi(request);
+  if (denied) return denied;
+
   const auth = await getAgentOpsAuth();
   if (!auth.ok) return NextResponse.json({ error: 'Unauthorized' }, { status: auth.status });
 

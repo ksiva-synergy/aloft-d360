@@ -112,15 +112,18 @@ function ConnectionPicker({
   const [failed, setFailed] = useState(false);
   const [reloadAt, setReloadAt] = useState(0);
   const [showCreate, setShowCreate] = useState(false);
+  // Adding a connection needs Connections (Manage); Automate alone only lets people pick one.
+  const [canCreate, setCanCreate] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const res = await fetch('/api/connections');
-      const data = (await res.json().catch(() => ({}))) as { connections?: ConnectionOption[] };
+      const data = (await res.json().catch(() => ({}))) as { connections?: ConnectionOption[]; canCreate?: boolean };
       if (cancelled) return;
       setFailed(!res.ok);
       setList(res.ok ? (data.connections ?? []) : []);
+      setCanCreate(data.canCreate !== false);
     })().catch(() => {
       if (!cancelled) {
         setFailed(true);
@@ -154,17 +157,27 @@ function ConnectionPicker({
         )}
       </Select>
       <p className="mt-1 flex flex-wrap items-center gap-x-2 text-size-caption text-[var(--ink-3)]">
-        {failed ? 'Could not load your connections.' : list && list.length === 0 ? 'You have no connections yet.' : 'Pick an existing connection or add one below.'}
-        {!showCreate && (
+        {failed
+          ? 'Could not load your connections.'
+          : !canCreate
+            ? list && list.length === 0
+              ? 'No connections are shared with you yet. Adding one needs Connections access; ask an admin.'
+              : 'Pick a connection shared with you. Adding one needs Connections access; ask an admin.'
+            : list && list.length === 0
+              ? 'You have no connections yet.'
+              : 'Pick an existing connection or add one below.'}
+        {canCreate && !showCreate && (
           <button type="button" className="inline-flex items-center gap-1 font-medium text-[var(--brand-a)] hover:underline" onClick={() => setShowCreate(true)}>
             <Plus className="h-3 w-3" aria-hidden /> Enter bucket and credentials
           </button>
         )}
-        <a href="/agent-staging/connections" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-[var(--brand-a)] hover:underline">
-          Manage connections <ExternalLink className="h-3 w-3" aria-hidden />
-        </a>
+        {canCreate && (
+          <a href="/agent-staging/connections" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-[var(--brand-a)] hover:underline">
+            Manage connections <ExternalLink className="h-3 w-3" aria-hidden />
+          </a>
+        )}
       </p>
-      {showCreate && (
+      {canCreate && showCreate && (
         <InlineConnectionCreate
           preferredKind={preferredKind}
           onCancel={() => setShowCreate(false)}

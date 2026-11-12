@@ -6,7 +6,9 @@
  * Never logs the token or any credential value.
  */
 
-import { getAccessToken } from './token-client';
+import { getCredentialToken } from './token-client';
+import { listRoleBindings } from './sp-roles';
+import type { DatabricksSpRole } from './sp-roles';
 import prisma from '@/lib/db';
 
 export interface TestConnectionResult {
@@ -38,7 +40,7 @@ export async function testConnection(connectionId: string): Promise<TestConnecti
   let errorMessage: string | undefined;
 
   try {
-    const token = await getAccessToken(connectionId, connection.workspace_host);
+    const token = await getCredentialToken(connectionId, connection.workspace_host, null);
     await runSelectOne(connection.workspace_host, connection.default_warehouse_id, token);
     success = true;
   } catch (err: unknown) {
@@ -54,6 +56,55 @@ export async function testConnection(connectionId: string): Promise<TestConnecti
       last_tested_at: testedAt,
     },
   });
+
+  return { success, status: newStatus, testedAt, errorMessage };
+}
+
+/**
+ * Test one service principal role's own credential (never the default
+ * fallback) with `SELECT 1`, and record the result on its credential row.
+ */
+export async function testRoleCredential(
+  connectionId: string,
+  role: DatabricksSpRole,
+): Promise<TestConnectionResult> {
+  const connection = await prisma.platformDatabricksConnection.findUnique({
+    where: { id: connectionId },
+    select: { id: true, workspace_host: true, default_warehouse_id: true },
+  });
+  if (!connection) {
+    throw new Error(`Connection ${connectionId} not found`);
+  }
+
+  const binding = (await listRoleBindings(connectionId)).get(role);
+  if (!binding) {
+    throw new Error(`Role '${role}' has no credential on connection ${connectionId}`);
+  }
+
+  const testedAt = new Date();
+  let success = false;
+  let errorMessage: string | undefined;
+
+  try {
+    const token = await getCredentialToken(connectionId, connection.workspace_host, role);
+    await runSelectOne(connection.workspace_host, binding.warehouseId || connection.default_warehouse_id, token);
+    success = true;
+  } catch (err: unknown) {
+    errorMessage = err instanceof Error ? err.message : String(err);
+  }
+
+  const newStatus = success ? 'active' : 'error';
+
+  if (binding.source === 'db') {
+    await prisma.platformDatabricksCredential.update({
+      where: { connection_id_role: { connection_id: connectionId, role } },
+      data: {
+        status: newStatus,
+        last_tested_at: testedAt,
+        last_error: errorMessage ? errorMessage.slice(0, 500) : null,
+      },
+    });
+  }
 
   return { success, status: newStatus, testedAt, errorMessage };
 }

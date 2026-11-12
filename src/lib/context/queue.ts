@@ -315,6 +315,13 @@ export async function failStale(maxAgeMinutes = 30): Promise<number> {
 }
 
 /** Write final status, stats JSONB, and optional error to a job row. */
+const WELCOME_CACHE_INVALIDATING_KINDS = new Set([
+  't0_structural',
+  't1_profile',
+  't2_semantic',
+  't3_usage',
+]);
+
 export async function finalize(
   jobId: string,
   status: 'succeeded' | 'failed' | 'partial',
@@ -333,6 +340,16 @@ export async function finalize(
   void recordHarvestJobSpend(jobId).catch((err) => {
     console.error('[context/queue] recordHarvestJobSpend failed', jobId, err);
   });
+  if (status === 'succeeded' || status === 'partial') {
+    const job = await prisma.platformContextJob.findUnique({
+      where: { id: jobId },
+      select: { org_id: true, job_kind: true },
+    });
+    if (job && WELCOME_CACHE_INVALIDATING_KINDS.has(job.job_kind)) {
+      const { evictWelcomeCache } = await import('@/lib/inspector/welcome-cache');
+      evictWelcomeCache(job.org_id);
+    }
+  }
 }
 
 // ── Auto-split: planner ───────────────────────────────────────────────────────

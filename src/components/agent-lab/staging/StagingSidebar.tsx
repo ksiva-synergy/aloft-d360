@@ -11,10 +11,14 @@ import { cn } from '@/lib/utils';
 import { UserMenu } from '@/components/shell/UserMenu';
 import { BrandMark } from '@/components/shell/BrandMark';
 import type { Session } from 'next-auth';
-import { NAV_GROUPS, groupForPath, isActive, type NavItem } from './nav-config';
+import { useSectionLevels } from '@/lib/sections/useSectionLevels';
+import { groupForPath, isActive, primaryNavHref, showHomeInNav, type NavItem } from './nav-config';
+import { useNavGroups } from './useNavGroups';
 import { TOGGLE_EVENT, useNavShell } from './useNavShell';
 import { AuroraGlow, NavStyleToggle, useNavStyle } from './nav-shared';
 import { CommandSidebar } from './CommandSidebar';
+import { PinnedAgentBadge, isPinnedAgentActive } from './PinnedAgentBadge';
+import { usePinReorder } from './usePinReorder';
 
 const RAIL_W = 64;
 const PANEL_W = 240;
@@ -42,9 +46,14 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
   const isHome = pathname === '/dashboard';
   const shell = useNavShell();
   const { expanded, pinned, mobileOpen } = shell;
+  const me = useSectionLevels();
+  const levels = me?.levels ?? null;
+  const logoHref = primaryNavHref(levels);
+  const showHome = showHomeInNav(levels);
 
   const [areaId, setAreaId] = useState(() => groupForPath(pathname));
   const [filter, setFilter] = useState('');
+  const groups = useNavGroups();
 
   // Follow navigation: show the panel for the section you are in.
   useEffect(() => {
@@ -52,7 +61,7 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
     setFilter('');
   }, [pathname]);
 
-  const area = NAV_GROUPS.find((g) => g.id === areaId) ?? NAV_GROUPS[0];
+  const area = groups.find((g) => g.id === areaId) ?? groups[0];
   const q = filter.trim().toLowerCase();
   const items = q ? area.items.filter((i) => i.label.toLowerCase().includes(q)) : area.items;
 
@@ -93,7 +102,7 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
           <AuroraGlow />
           <div className="flex h-[var(--shell-header-h)] w-full shrink-0 items-center justify-center border-b border-[var(--header-border)]">
             <Link
-              href="/dashboard"
+              href={logoHref}
               aria-label="Synergy Group — ALOFT home"
               className="relative rounded-full outline-none focus-visible:ring-2 focus-visible:ring-[var(--rail-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--rail-bg)]"
             >
@@ -103,8 +112,8 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
           <span aria-hidden className="relative my-2 h-px w-6 rounded-full bg-[var(--rail-line)]" />
 
           <div className="relative flex flex-col items-center gap-1">
-            <RailLink href="/dashboard" label="Home" icon={HouseIcon} active={isHome} />
-            {NAV_GROUPS.map((g) => (
+            {showHome ? <RailLink href="/dashboard" label="Home" icon={HouseIcon} active={isHome} /> : null}
+            {groups.map((g) => (
               <RailButton
                 key={g.id}
                 label={g.railLabel}
@@ -119,6 +128,8 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
               />
             ))}
           </div>
+
+          <RailPinnedAgents pathname={pathname} />
 
           <div className="relative mt-auto flex w-full justify-center">
             <UserMenu initialSession={initialSession} />
@@ -265,6 +276,36 @@ function RailButton({
   );
 }
 
+/** Pinned agents as initials badges under the area buttons; hover shows the name. */
+function RailPinnedAgents({ pathname }: { pathname: string }) {
+  const { list, dragId, dragProps, keyProps } = usePinReorder();
+  if (list.length === 0) return null;
+  return (
+    <>
+      <span aria-hidden className="relative my-2 h-px w-6 rounded-full bg-[var(--rail-line)]" />
+      <ul aria-label="Pinned agents" className="relative flex flex-col items-center gap-1">
+        {list.map((agent) => {
+          const active = isPinnedAgentActive(agent.useUrl, pathname);
+          return (
+            <li key={agent.id} {...dragProps(agent.id)} className={cn(dragId === agent.id && 'opacity-50')}>
+              <Link
+                href={agent.useUrl}
+                aria-label={agent.name}
+                aria-current={active ? 'page' : undefined}
+                title={`${agent.name} (drag or Alt+↑/↓ to reorder)`}
+                {...keyProps(agent.id)}
+                className="flex h-9 w-10 items-center justify-center rounded-full outline-none transition-colors hover:bg-[var(--rail-hover)] focus-visible:ring-2 focus-visible:ring-[var(--rail-accent)]"
+              >
+                <PinnedAgentBadge name={agent.name} active={active} />
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </>
+  );
+}
+
 // ── Panel items ───────────────────────────────────────────────────────────────
 
 function PanelLink({ item, active }: { item: NavItem; active: boolean }) {
@@ -294,9 +335,10 @@ function PanelLink({ item, active }: { item: NavItem; active: boolean }) {
 }
 
 function HomePanel({ pathname }: { pathname: string }) {
+  const groups = useNavGroups();
   return (
     <div className="space-y-2.5">
-      {NAV_GROUPS.map((g) => (
+      {groups.map((g) => (
         <section key={g.id}>
           <h3 className="px-3 pb-1 text-[length:var(--type-caption-size)] font-semibold uppercase tracking-wide text-[var(--ink-3)]">{g.label}</h3>
           <ul className="space-y-0.5">

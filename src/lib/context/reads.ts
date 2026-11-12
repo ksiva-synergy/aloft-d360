@@ -7,7 +7,7 @@ import { TEST_SOURCE_DISPLAY_NAME_SQL } from './test-sources';
 import { computeDataScore } from './data-score';
 import type { DataScoreResult } from './data-score';
 import { assembleDimensionInput } from './data-score/assemble';
-import { SQL_OBJECT_HAS_EMBEDDING, SQL_PCO_HAS_EMBEDDING } from './embedding-presence';
+import { SQL_OBJECT_EMBEDDING_CURRENT, SQL_OBJECT_HAS_EMBEDDING, SQL_OBJECT_NEEDS_EMBED, SQL_PCO_HAS_EMBEDDING, sqlObjectEmbeddingCurrent } from './embedding-presence';
 import { runInBatches } from '@/lib/db/run-in-batches';
 
 /** Cap parallel Prisma queries (pool is often connection_limit=10 in dev). */
@@ -717,7 +717,7 @@ export async function getSourceCoverage(
       COUNT(*)::int AS objects_total,
       COUNT(CASE WHEN o.last_t1_at IS NOT NULL THEN 1 END)::int AS profiled,
       COUNT(CASE WHEN o.last_t2_at IS NOT NULL THEN 1 END)::int AS enriched,
-      COUNT(*) FILTER (WHERE ${SQL_OBJECT_HAS_EMBEDDING})::int AS embedded,
+      COUNT(*) FILTER (WHERE ${SQL_OBJECT_EMBEDDING_CURRENT})::int AS embedded,
       MAX(o.last_t0_at) AS last_t0_at,
       MAX(o.last_t1_at) AS last_t1_at,
       (SELECT COUNT(*)::int FROM platform_context_jobs WHERE source_id = ${sourceId}::uuid AND status = 'queued' AND org_id = ${orgId}) AS queued_count
@@ -870,6 +870,8 @@ export interface ListScannedObjectsParams {
   sourceId?: string;
   kind?: string;
   tier?: 't0' | 't1' | 't2' | 'embed' | 't3' | 't4';
+  /** Missing embedding, or one older than the latest description. */
+  needsEmbed?: boolean;
   catalog?: string;
   schema?: string;
   q?: string;
@@ -892,6 +894,8 @@ export interface ScannedObjectRow {
   last_t3_at: Date | null;
   last_t4_at: Date | null;
   has_embedding: boolean;
+  /** False when the vector is missing or older than the latest description. */
+  embedding_current: boolean;
   lifecycle: string;
   source_id: string;
   source_name: string | null;
@@ -920,6 +924,8 @@ export interface ListScannedObjectsResult {
   total: number;
   tierCounts: ScannedTierCounts;
   embeddingTotals: ScannedEmbeddingTotals;
+  /** Scanned objects in this filter whose embedding is missing or out of date. */
+  needsEmbed: number;
   page: number;
   pageSize: number;
 }
@@ -951,28 +957,6 @@ export async function listScannedObjects(
   if (params.kind) {
     conditions.push(Prisma.sql`o.object_kind = ${params.kind}`);
   }
-  if (params.tier) {
-    switch (params.tier) {
-      case 't0':
-        conditions.push(Prisma.sql`o.last_t0_at IS NOT NULL`);
-        break;
-      case 't1':
-        conditions.push(Prisma.sql`o.last_t1_at IS NOT NULL`);
-        break;
-      case 't2':
-        conditions.push(Prisma.sql`o.last_t2_at IS NOT NULL`);
-        break;
-      case 'embed':
-        conditions.push(Prisma.sql`${SQL_OBJECT_HAS_EMBEDDING}`);
-        break;
-      case 't3':
-        conditions.push(Prisma.sql`o.last_t3_at IS NOT NULL`);
-        break;
-      case 't4':
-        conditions.push(Prisma.sql`o.last_t4_at IS NOT NULL`);
-        break;
-    }
-  }
   if (params.catalog) {
     conditions.push(Prisma.sql`o.catalog_name = ${params.catalog}`);
   }
@@ -983,7 +967,37 @@ export async function listScannedObjects(
     conditions.push(Prisma.sql`o.full_path ILIKE ${'%' + params.q + '%'}`);
   }
 
-  const whereClause = Prisma.join(conditions, ' AND ');
+  // Pill counts stay on the catalog/search scope. Tier and "need searchable" only narrow the list,
+  // so the Searchable color and the "need searchable" number still add up while a filter is on.
+  const listConditions = [...conditions];
+  if (params.tier) {
+    switch (params.tier) {
+      case 't0':
+        listConditions.push(Prisma.sql`o.last_t0_at IS NOT NULL`);
+        break;
+      case 't1':
+        listConditions.push(Prisma.sql`o.last_t1_at IS NOT NULL`);
+        break;
+      case 't2':
+        listConditions.push(Prisma.sql`o.last_t2_at IS NOT NULL`);
+        break;
+      case 'embed':
+        listConditions.push(Prisma.sql`${SQL_OBJECT_EMBEDDING_CURRENT}`);
+        break;
+      case 't3':
+        listConditions.push(Prisma.sql`o.last_t3_at IS NOT NULL`);
+        break;
+      case 't4':
+        listConditions.push(Prisma.sql`o.last_t4_at IS NOT NULL`);
+        break;
+    }
+  }
+  if (params.needsEmbed) {
+    listConditions.push(Prisma.sql`${SQL_OBJECT_NEEDS_EMBED}`);
+  }
+
+  const scopeWhere = Prisma.join(conditions, ' AND ');
+  const listWhere = Prisma.join(listConditions, ' AND ');
 
   const sourceScopeForVectors = params.sourceId
     ? Prisma.sql`AND o.source_id = ${params.sourceId}::uuid`
@@ -998,17 +1012,18 @@ export async function listScannedObjects(
   const [countRes, vectorTotalsRes, rows] = await runInBatches(
     [
     () =>
-    prisma.$queryRaw<Array<{ count: number; t0: number; t1: number; t2: number; embed: number; t3: number; t4: number }>>(Prisma.sql`
+    prisma.$queryRaw<Array<{ count: number; t0: number; t1: number; t2: number; embed: number; t3: number; t4: number; needs_embed: number }>>(Prisma.sql`
       SELECT
-        COUNT(*)::int AS count,
+        (SELECT COUNT(*)::int FROM platform_context_objects o WHERE ${listWhere}) AS count,
         COUNT(*) FILTER (WHERE o.last_t0_at IS NOT NULL)::int AS t0,
         COUNT(*) FILTER (WHERE o.last_t1_at IS NOT NULL)::int AS t1,
         COUNT(*) FILTER (WHERE o.last_t2_at IS NOT NULL)::int AS t2,
-        COUNT(*) FILTER (WHERE ${SQL_OBJECT_HAS_EMBEDDING})::int AS embed,
+        COUNT(*) FILTER (WHERE ${SQL_OBJECT_EMBEDDING_CURRENT})::int AS embed,
         COUNT(*) FILTER (WHERE o.last_t3_at IS NOT NULL)::int AS t3,
-        COUNT(*) FILTER (WHERE o.last_t4_at IS NOT NULL)::int AS t4
+        COUNT(*) FILTER (WHERE o.last_t4_at IS NOT NULL)::int AS t4,
+        COUNT(*) FILTER (WHERE ${SQL_OBJECT_NEEDS_EMBED})::int AS needs_embed
       FROM platform_context_objects o
-      WHERE ${whereClause}
+      WHERE ${scopeWhere}
     `),
     () =>
     prisma.$queryRaw<Array<{ object_vector_rows: number; column_vector_rows: number }>>(Prisma.sql`
@@ -1042,6 +1057,7 @@ export async function listScannedObjects(
       last_t3_at: Date | null;
       last_t4_at: Date | null;
       has_embedding: boolean;
+      embedding_current: boolean;
       lifecycle: string;
       source_id: string;
       source_name: string | null;
@@ -1060,12 +1076,13 @@ export async function listScannedObjects(
         o.last_t3_at,
         o.last_t4_at,
         ${SQL_OBJECT_HAS_EMBEDDING} AS has_embedding,
+        ${SQL_OBJECT_EMBEDDING_CURRENT} AS embedding_current,
         o.lifecycle,
         o.source_id,
         s.display_name AS source_name
       FROM platform_context_objects o
       LEFT JOIN platform_context_sources s ON o.source_id = s.id
-      WHERE ${whereClause}
+      WHERE ${listWhere}
       ORDER BY o.full_path ASC
       LIMIT ${pageSize} OFFSET ${skip}
     `),
@@ -1101,12 +1118,13 @@ export async function listScannedObjects(
     last_t3_at: row.last_t3_at,
     last_t4_at: row.last_t4_at,
     has_embedding: Boolean(row.has_embedding),
+    embedding_current: Boolean(row.embedding_current),
     lifecycle: row.lifecycle,
     source_id: row.source_id,
     source_name: row.source_name,
   }));
 
-  return { items, total, tierCounts, embeddingTotals, page, pageSize };
+  return { items, total, tierCounts, embeddingTotals, needsEmbed: countRes[0]?.needs_embed ?? 0, page, pageSize };
 }
 
 // ── 8b. listScannedFacets ────────────────────────────────────────────────────────
@@ -1159,13 +1177,7 @@ export async function listScannedFacets(
             AND (last_t2_at IS NULL OR last_t2_at < last_t1_at)
         )::int AS needs_enrich,
         COUNT(*) FILTER (
-          WHERE last_t0_at IS NOT NULL
-            AND NOT EXISTS (
-              SELECT 1 FROM platform_context_embeddings e
-              WHERE e.subject_kind = 'object'
-                AND e.subject_id = platform_context_objects.id
-                AND e.embedding IS NOT NULL
-            )
+          WHERE NOT (${sqlObjectEmbeddingCurrent('platform_context_objects.id')})
         )::int AS needs_embed
        FROM platform_context_objects
        WHERE org_id = $1 AND lifecycle = 'active' AND last_t0_at IS NOT NULL AND catalog_name IS NOT NULL AND schema_name IS NOT NULL ${testExclusion}

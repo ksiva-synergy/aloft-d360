@@ -1,0 +1,1320 @@
+TableName,Name,Expression,DisplayFolder,Description
+Purchase_History,Total PO,DISTINCTCOUNT(Purchase_History[PONO]),,
+Purchase_History,Preferred amount,"CALCULATE( [Total Amount], FILTER( Purchase_History,Purchase_History[preference] in { ""Preferred/Contracted"", ""Preferred / Contracted""}))",,
+Purchase_History,Total Amount,sum(Purchase_History[FINAL_AMOUNT_USD]),,
+Purchase_History,InHouse amount,"CALCULATE( [Total Amount], Purchase_History[preference] = ""In-House"")",,
+Purchase_History,Not Preferred amount,"CALCULATE( [Total Amount], Purchase_History[preference] in { ""Not Preferred/Not Contracted"", ""Not Preferred / Not Contracted""})",,
+Purchase_History,Constrained amount,"CALCULATE( [Total Amount], Purchase_History[preference] = ""Constrained"")",,
+Purchase_History,Maker amount,"CALCULATE( [Total Amount], Purchase_History[preference] = ""Maker"")",,
+Purchase_History,Owners Preferred amount,"CALCULATE( [Total Amount], Purchase_History[preference] in { ""Owner's Preferred"",""Owners Preferred""})",,
+Purchase_History,Grand Total,([Preferred amount] + [InHouse amount] + [Not Preferred amount] + [Constrained amount] + [Maker amount] + [Owners Preferred amount]),,
+Purchase_History,Compliance percentage,"DIVIDE(([Preferred amount] + [InHouse amount]), [Grand Total])",,
+Purchase_History,Leakage Value,([Not Preferred amount] + [Constrained amount] + [Maker amount] + [Owners Preferred amount]),,
+Purchase_History,Total Vendors,DISTINCTCOUNT(Purchase_History[VENDORCODE]),,
+Purchase_History,Preferred Vendors,"CALCULATE( [Total Vendors], Purchase_History[preference] in { ""Preferred/Contracted"", ""Preferred / Contracted""})",,
+Purchase_History,InHouse Vendors,"CALCULATE( [Total Vendors], Purchase_History[preference] = ""In-House"")",,
+Purchase_History,Not Preferred Vendors,"CALCULATE( [Total Vendors], Purchase_History[preference] in { ""Not Preferred/Not Contracted"", ""Not Preferred / Not Contracted""})",,
+Purchase_History,Constrained Vendors,"CALCULATE( [Total Vendors], Purchase_History[preference] = ""Constrained"")",,
+Purchase_History,Maker Vendors,"CALCULATE( [Total Vendors], Purchase_History[preference] = ""Maker"")",,
+Purchase_History,Owners Preferred Vendors,"CALCULATE( [Total Vendors], Purchase_History[preference] in {""Owner's Preferred"",""Owners Preferred""})",,
+Purchase_History,Total Vessels,DISTINCTCOUNT(Purchase_History[imono]),,
+Purchase_History,Total Vessels YTD,"CALCULATE( [Total Vessels], ALLEXCEPT ( 'CALENDAR', 'CALENDAR'[FINANCIAL_YEAR] ))",,
+Purchase_History,Leakage Percentage,"DIVIDE([Leakage Value] , [Grand Total new],0)",,
+Purchase_History,Total Vendors YTD,"CALCULATE( [Total Vendors], ALLEXCEPT ( 'CALENDAR', 'CALENDAR'[FINANCIAL_YEAR] ))",,
+Purchase_History,Spend YTD,"CALCULATE([Grand Total], ALLEXCEPT ( 'CALENDAR', 'CALENDAR'[FINANCIAL_YEAR] ))",,
+Purchase_History,Compliance percentage YTD,"CALCULATE( [Compliance percentage],ALLEXCEPT ( 'CALENDAR', 'CALENDAR'[FINANCIAL_YEAR] ))",,
+Purchase_History,Leakage Value YTD,"CALCULATE( [Leakage Value], ALLEXCEPT ( 'CALENDAR', 'CALENDAR'[FINANCIAL_YEAR] ))",,
+Purchase_History,Leakage Percentage YTD,"CALCULATE( [Leakage Percentage], ALLEXCEPT ( 'CALENDAR', 'CALENDAR'[FINANCIAL_YEAR] ))",,
+Purchase_History,Total Vessels spend,"
+IF (
+    HASONEVALUE ( 'CALENDAR'[MONTH_YEAR] ) &&
+    HASONEVALUE ( 'CALENDAR'[WEEK_OF_MONTH] ),
+    CALCULATE (
+        [Total Vessels],
+        FILTER (
+            VALUES ( Purchase_History[IMONO] ),
+            CALCULATE ( [Grand Total] ) > 0
+        )
+    ),
+    ""-""
+)",,
+Purchase_History,Compliance percentage Week,"
+var x = DIVIDE( ([Preferred amount] + [InHouse amount]), [Grand Total],0)
+return 
+IF (
+    ISFILTERED ( 'CALENDAR'[WEEK_OF_MONTH] ),
+    round(x * 100,0) & ""%"",
+    ""-""
+)
+",,
+Purchase_History,Total Vendors spend,"
+IF (
+    HASONEVALUE ( 'CALENDAR'[MONTH_YEAR] ) &&
+    HASONEVALUE ( 'CALENDAR'[WEEK_OF_MONTH] ),
+    CALCULATE (
+        [Total Vendors],
+        FILTER (
+            VALUES ( Purchase_History[VENDORCODE] ),
+            CALCULATE ( [Grand Total] ) > 0
+        )
+    ),
+    ""-""
+)",,
+Purchase_History,Total Spend Weekly,"
+IF (
+    ISFILTERED ( 'CALENDAR'[WEEK_OF_MONTH] ),
+    ""$""&round([Grand Total],0),
+    ""-""
+)",,
+Purchase_History,Potential Rebate Loss,"
+SUMX(
+    FILTER(
+        Purchase_History,
+        NOT ISBLANK(Purchase_History[Avg rebate])
+    ),
+    Purchase_History[FINAL_AMOUNT_USD] *
+    Purchase_History[Avg rebate]
+)",,
+Purchase_History,Pot Rebate Loss YTD,"
+CALCULATE([Potential Rebate Loss], ALLEXCEPT ( 'CALENDAR', 'CALENDAR'[FINANCIAL_YEAR] ))",,
+Purchase_History,Test Numerator,"
+calculate( [Preferred amount] , FILTER(Purchase_History, Purchase_History[category_flag] = ""Y""))
+--[InHouse amount])",,
+Purchase_History,Leakage Value Weekly,"
+var x = [Leakage Value]
+return 
+IF (
+    ISFILTERED ( 'CALENDAR'[WEEK_OF_MONTH] ),
+    ""$""&round(x,0) ,
+    ""-""
+)",,
+Purchase_History,Leakage Percentage Weekly,"
+var x = [Leakage Percentage]
+return 
+IF (
+    ISFILTERED ( 'CALENDAR'[WEEK_OF_MONTH] ),
+    round(x * 100,0) & ""%"",
+    ""-""
+)",,
+Purchase_History,Potential Rebate Loss Weekly,"
+var x = [Potential Rebate Loss]
+return 
+IF (
+    ISFILTERED ( 'CALENDAR'[WEEK_OF_MONTH] ),
+    round(x,0) ,
+    ""-""
+)",,
+Purchase_History,SNo DOC,"
+RANKX(
+    ALLSELECTED(Purchase_History[DOC]),
+    [Compliance percentage],
+    ,
+    DESC,
+    DENSE
+)",,
+Purchase_History,SNo Cat,"
+RANKX(
+    ALLSELECTED(Purchase_History[Final_Category]),
+    [Compliance percentage],
+    ,
+    DESC,
+    DENSE
+)",,
+Purchase_History,comp perc,"
+DIVIDE(
+    [Total Amount],
+    CALCULATE(
+        [Total Amount],
+        ALL(Purchase_History[preference]),
+        all(Purchase_History[preference_sort])
+    )
+)",,
+Purchase_History,Compliance perc Selected Week,"
+VAR MaxWeek =
+    MAX('CALENDAR'[WEEK_OF_MONTH])
+RETURN
+CALCULATE(
+    [Compliance percentage],
+    REMOVEFILTERS('CALENDAR'[WEEK_OF_MONTH]),
+    'CALENDAR'[WEEK_OF_MONTH] = MaxWeek
+)",,
+Purchase_History,Compliance perc Previous Week,"
+VAR CurrentMinDate = MIN('CALENDAR'[Date])
+VAR PrevWeekAnchorDate = CurrentMinDate - 7
+VAR PrevMonth =
+    CALCULATE(
+        MAX('CALENDAR'[MONTH_YEAR_INTEGER]),
+        FILTER(ALL('CALENDAR'), 'CALENDAR'[Date] = PrevWeekAnchorDate)
+    )
+VAR PrevWeek =
+    CALCULATE(
+        MAX('CALENDAR'[WEEK_OF_MONTH_NO]),
+        FILTER(ALL('CALENDAR'), 'CALENDAR'[Date] = PrevWeekAnchorDate)
+    )
+RETURN
+CALCULATE(
+    [Compliance percentage],
+    FILTER(
+        ALL('CALENDAR'),
+        'CALENDAR'[MONTH_YEAR_INTEGER] = PrevMonth &&
+        'CALENDAR'[WEEK_OF_MONTH_NO] = PrevWeek
+    )
+)",,
+Purchase_History,Compliance Trend percentage,"
+[Compliance perc Selected Week] - [Compliance perc Previous Week]",,
+Purchase_History,comp trend color bg,"
+SWITCH( TRUE(),
+[Compliance Trend percentage] > 0 , ""Green"",
+[Compliance Trend percentage] = 0 , ""orange"",
+[Compliance Trend percentage] < 0 , ""red""
+)",,
+Purchase_History,Compliance Trend percentage 2,"
+format([Compliance Trend percentage], ""#,##"")",,
+Purchase_History,Total Spend Previous Week,"
+// VAR CurrentWeek =
+//     MAX('CALENDAR'[WEEK_OF_MONTH_NO])
+// VAR CurrentMonth =
+//     MAX('CALENDAR'[MONTH_YEAR_INTEGER])
+// RETURN
+// CALCULATE(
+//     [Total Amount],
+//     FILTER(
+//         ALL('CALENDAR'),
+//         'CALENDAR'[MONTH_YEAR_INTEGER] = CurrentMonth &&
+//         'CALENDAR'[WEEK_OF_MONTH_NO] = CurrentWeek - 1
+//     )
+// )
+
+VAR CurrentMinDate = MIN('CALENDAR'[Date])
+VAR PrevWeekAnchorDate = CurrentMinDate - 7
+VAR PrevMonth =
+    CALCULATE(
+        MAX('CALENDAR'[MONTH_YEAR_INTEGER]),
+        FILTER(ALL('CALENDAR'), 'CALENDAR'[Date] = PrevWeekAnchorDate)
+    )
+VAR PrevWeek =
+    CALCULATE(
+        MAX('CALENDAR'[WEEK_OF_MONTH_NO]),
+        FILTER(ALL('CALENDAR'), 'CALENDAR'[Date] = PrevWeekAnchorDate)
+    )
+RETURN
+CALCULATE(
+    [Total Amount],
+    FILTER(
+        ALL('CALENDAR'),
+        'CALENDAR'[MONTH_YEAR_INTEGER] = PrevMonth &&
+        'CALENDAR'[WEEK_OF_MONTH_NO] = PrevWeek
+    )
+)",,
+Purchase_History,Total Spend Selected Week,"
+// VAR MaxWeek =
+// CALCULATE(
+//     MAX('CALENDAR'[WEEK_OF_MONTH]),
+//     REMOVEFILTERS(Purchase_History[preference]))
+// RETURN
+// CALCULATE(
+//     [Total Amount],
+//     REMOVEFILTERS('CALENDAR'[WEEK_OF_MONTH]),
+//     ALLSELECTED(Purchase_History[preference]),
+//     'CALENDAR'[WEEK_OF_MONTH] = MaxWeek
+// )
+VAR MaxWeek =
+    CALCULATE(
+        MAX('CALENDAR'[WEEK_OF_MONTH]),
+        REMOVEFILTERS(Purchase_History[preference], Purchase_History[preference_sort])
+    )
+RETURN
+CALCULATE(
+    [Total Amount],
+    REMOVEFILTERS('CALENDAR'[WEEK_OF_MONTH]),
+    'CALENDAR'[WEEK_OF_MONTH] = MaxWeek
+)",,
+Purchase_History,Spend Movement,[Spend Perc Selected week]-[Spend Perc prev week],,
+Purchase_History,Spend Perc Selected week,"
+var x = [Total Spend Selected Week]
+var y = CALCULATE( [Total Spend Selected Week], REMOVEFILTERS(Purchase_History[preference], Purchase_History[preference_sort]) )
+return 
+DIVIDE( x,y,0)",,
+Purchase_History,Spend Perc prev week,"
+var x = [Total Spend Previous Week]
+var y = CALCULATE( [Total Spend Previous Week], REMOVEFILTERS(Purchase_History[preference], Purchase_History[preference_sort]) )
+return 
+DIVIDE( x,y,0)",,
+Purchase_History,spend movement color bg,"
+SWITCH( TRUE(),
+[Spend Movement] > 0 , ""Green"",
+[Spend Movement]  = 0 , ""orange"",
+[Spend Movement]  < 0 , ""red""
+)",,
+Purchase_History,Grand Spend Previous Week,"
+// VAR CurrentWeek =
+//     MAX('CALENDAR'[WEEK_OF_MONTH_NO])
+// VAR CurrentMonth =
+//     MAX('CALENDAR'[MONTH_YEAR_INTEGER])
+// RETURN
+// CALCULATE(
+//     [Grand Total],
+//     FILTER(
+//         ALL('CALENDAR'),
+//         'CALENDAR'[MONTH_YEAR_INTEGER] = CurrentMonth &&
+//         'CALENDAR'[WEEK_OF_MONTH_NO] = CurrentWeek - 1
+//     )
+// )
+VAR CurrentMinDate = MIN('CALENDAR'[Date])
+VAR PrevWeekAnchorDate = CurrentMinDate - 7
+VAR PrevMonth =
+    CALCULATE(
+        MAX('CALENDAR'[MONTH_YEAR_INTEGER]),
+        FILTER(ALL('CALENDAR'), 'CALENDAR'[Date] = PrevWeekAnchorDate)
+    )
+VAR PrevWeek =
+    CALCULATE(
+        MAX('CALENDAR'[WEEK_OF_MONTH_NO]),
+        FILTER(ALL('CALENDAR'), 'CALENDAR'[Date] = PrevWeekAnchorDate)
+    )
+RETURN
+CALCULATE(
+    [Total Amount],
+    FILTER(
+        ALL('CALENDAR'),
+        'CALENDAR'[MONTH_YEAR_INTEGER] = PrevMonth &&
+        'CALENDAR'[WEEK_OF_MONTH_NO] = PrevWeek
+    )
+)",,
+Purchase_History,Grand Spend Selected Week,"
+VAR MaxWeek =
+CALCULATE(
+    MAX('CALENDAR'[WEEK_OF_MONTH]),
+    REMOVEFILTERS(Purchase_History[preference]))
+RETURN
+CALCULATE(
+    [Grand Total],
+    REMOVEFILTERS('CALENDAR'[WEEK_OF_MONTH]),
+    ALLSELECTED(Purchase_History[preference]),
+    'CALENDAR'[WEEK_OF_MONTH] = MaxWeek
+)",,
+Purchase_History,Week Label,"
+IF(
+    NOT ISFILTERED('CALENDAR'[WEEK_OF_MONTH]),
+    ""Select a week"",
+    VAR CurrentDate = MIN('CALENDAR'[Date])
+    VAR CurrentWeek = MAX('CALENDAR'[WEEK_OF_MONTH_NO])
+    VAR CurrentMonthText = FORMAT(CurrentDate, ""mmm"") & ""'"" & FORMAT(CurrentDate, ""yy"")
+
+    VAR PrevAnchorDate = CurrentDate - 1
+    VAR PrevWeek =
+        CALCULATE(
+            MAX('CALENDAR'[WEEK_OF_MONTH_NO]),
+            FILTER(ALL('CALENDAR'), 'CALENDAR'[Date] = PrevAnchorDate)
+        )
+    VAR PrevMonthText = 
+        CALCULATE(
+            MAX('CALENDAR'[MON_YEAR]),
+            FILTER(ALL('CALENDAR'), 'CALENDAR'[Date] = PrevAnchorDate)
+        )
+
+    RETURN
+    ""Current Week - "" & CurrentMonthText & "" Week "" & CurrentWeek & 
+    "" , Previous Week - "" & PrevMonthText & "" Week "" & PrevWeek
+)",,
+Purchase_History,Compliance percentage slicer,"
+VAR WeekFiltered = ISFILTERED('CALENDAR'[WEEK_OF_MONTH])
+VAR MonthFiltered = ISFILTERED('CALENDAR'[MONTH_YEAR])
+VAR CurrentWeekVal =
+    CALCULATE(
+        MAX('CALENDAR'[WEEK_OF_MONTH]),
+        FILTER(ALL('CALENDAR'), 'CALENDAR'[Date] = TODAY())
+    )
+VAR CurrentMonthVal =
+    CALCULATE(
+        MAX('CALENDAR'[MONTH_YEAR]),
+        FILTER(ALL('CALENDAR'), 'CALENDAR'[Date] = TODAY())
+    )
+RETURN
+IF(
+    WeekFiltered || MonthFiltered,
+    [Compliance percentage],
+    CALCULATE(
+        [Compliance percentage],
+        FILTER(
+            ALL('CALENDAR'),
+            'CALENDAR'[WEEK_OF_MONTH] = CurrentWeekVal &&
+            'CALENDAR'[MONTH_YEAR] = CurrentMonthVal
+        )
+    )
+)",,
+Purchase_History,Total Amount All,"
+// CALCULATE([Total Amount], all(Purchase_History[preference]))
+VAR WeekFiltered = ISFILTERED('CALENDAR'[WEEK_OF_MONTH])
+VAR MonthFiltered = ISFILTERED('CALENDAR'[MONTH_YEAR])
+VAR CurrentWeekVal =
+    CALCULATE(MAX('CALENDAR'[WEEK_OF_MONTH]), FILTER(ALL('CALENDAR'), 'CALENDAR'[Date] = TODAY()))
+VAR CurrentMonthVal =
+    CALCULATE(MAX('CALENDAR'[MONTH_YEAR]), FILTER(ALL('CALENDAR'), 'CALENDAR'[Date] = TODAY()))
+RETURN
+IF(
+    WeekFiltered || MonthFiltered,
+    CALCULATE(
+        [Total Amount],
+        REMOVEFILTERS(Purchase_History[preference])
+    ),
+    CALCULATE(
+        [Total Amount],
+        REMOVEFILTERS(Purchase_History[preference]),
+        FILTER(
+            ALL('CALENDAR'),
+            'CALENDAR'[WEEK_OF_MONTH] = CurrentWeekVal &&
+            'CALENDAR'[MONTH_YEAR] = CurrentMonthVal
+        )
+    )
+)",,
+Purchase_History,Total Vessels Slicer,"
+VAR WeekFiltered = ISFILTERED('CALENDAR'[WEEK_OF_MONTH])
+VAR MonthFiltered = ISFILTERED('CALENDAR'[MONTH_YEAR])
+VAR CurrentWeekVal =
+    CALCULATE(
+        MAX('CALENDAR'[WEEK_OF_MONTH]),
+        FILTER(ALL('CALENDAR'), 'CALENDAR'[Date] = TODAY())
+    )
+VAR CurrentMonthVal =
+    CALCULATE(
+        MAX('CALENDAR'[MONTH_YEAR]),
+        FILTER(ALL('CALENDAR'), 'CALENDAR'[Date] = TODAY())
+    )
+RETURN
+IF(
+    WeekFiltered || MonthFiltered,
+    [Total Vessels],
+    CALCULATE(
+        [Total Vessels],
+        FILTER(
+            ALL('CALENDAR'),
+            'CALENDAR'[WEEK_OF_MONTH] = CurrentWeekVal &&
+            'CALENDAR'[MONTH_YEAR] = CurrentMonthVal
+        )
+    )
+)",,
+Purchase_History,Leakage Value Slicer,"
+VAR WeekFiltered = ISFILTERED('CALENDAR'[WEEK_OF_MONTH])
+VAR MonthFiltered = ISFILTERED('CALENDAR'[MONTH_YEAR])
+VAR CurrentWeekVal =
+    CALCULATE(
+        MAX('CALENDAR'[WEEK_OF_MONTH]),
+        FILTER(ALL('CALENDAR'), 'CALENDAR'[Date] = TODAY())
+    )
+VAR CurrentMonthVal =
+    CALCULATE(
+        MAX('CALENDAR'[MONTH_YEAR]),
+        FILTER(ALL('CALENDAR'), 'CALENDAR'[Date] = TODAY())
+    )
+RETURN
+IF(
+    WeekFiltered || MonthFiltered,
+    [Leakage Value],
+    CALCULATE(
+        [Leakage Value],
+        FILTER(
+            ALL('CALENDAR'),
+            'CALENDAR'[WEEK_OF_MONTH] = CurrentWeekVal &&
+            'CALENDAR'[MONTH_YEAR] = CurrentMonthVal
+        )
+    )
+)",,
+Purchase_History,Total Vessels Previous Period,"
+VAR WeekFiltered = ISFILTERED('CALENDAR'[WEEK_OF_MONTH])
+VAR MonthFiltered = ISFILTERED('CALENDAR'[MONTH_YEAR])
+
+RETURN
+IF(
+    WeekFiltered || MonthFiltered,
+    VAR FirstDateOfMonth =
+        CALCULATE(
+            MIN('CALENDAR'[Date]),
+            FILTER(ALL('CALENDAR'), 'CALENDAR'[MONTH_YEAR] = MAX('CALENDAR'[MONTH_YEAR]))
+        )
+    VAR LastDayNum = DAY(EOMONTH(FirstDateOfMonth, 0))
+    VAR Offset = WEEKDAY(FirstDateOfMonth, 2) - 1
+    VAR SelectedWeekNo = IF(WeekFiltered, MAX('CALENDAR'[WEEK_OF_MONTH_NO]))
+
+    VAR WeekStartDay = IF(WeekFiltered, MAX(1, 7*(SelectedWeekNo-1) - Offset + 1), 1)
+    VAR WeekEndDay = IF(WeekFiltered, MIN(LastDayNum, 7*SelectedWeekNo - Offset), LastDayNum)
+
+    VAR EffectiveMinDate = FirstDateOfMonth + WeekStartDay - 1
+    VAR EffectiveMaxDate = FirstDateOfMonth + WeekEndDay - 1
+
+    VAR DaysSpan = DATEDIFF(EffectiveMinDate, EffectiveMaxDate, DAY) + 1
+    VAR PrevMaxDate = EffectiveMinDate - 1
+    VAR PrevMinDate = PrevMaxDate - DaysSpan + 1
+    RETURN
+    CALCULATE(
+        [Total Vessels],
+        FILTER(
+            ALL('CALENDAR'),
+            'CALENDAR'[Date] >= PrevMinDate && 'CALENDAR'[Date] <= PrevMaxDate
+        )
+    ),
+
+    -- Case 2: nothing selected -> unchanged from before
+    VAR CurrentWeekVal =
+        CALCULATE(MAX('CALENDAR'[WEEK_OF_MONTH]), FILTER(ALL('CALENDAR'), 'CALENDAR'[Date] = TODAY()))
+    VAR CurrentMonthVal =
+        CALCULATE(MAX('CALENDAR'[MONTH_YEAR]), FILTER(ALL('CALENDAR'), 'CALENDAR'[Date] = TODAY()))
+    VAR CurrentWeekMinDate =
+        CALCULATE(MIN('CALENDAR'[Date]), FILTER(ALL('CALENDAR'), 'CALENDAR'[WEEK_OF_MONTH] = CurrentWeekVal && 'CALENDAR'[MONTH_YEAR] = CurrentMonthVal))
+    VAR PrevAnchorDate2 = CurrentWeekMinDate - 1
+    VAR PrevWeekVal2 =
+        CALCULATE(MAX('CALENDAR'[WEEK_OF_MONTH]), FILTER(ALL('CALENDAR'), 'CALENDAR'[Date] = PrevAnchorDate2))
+    VAR PrevMonthVal2 =
+        CALCULATE(MAX('CALENDAR'[MONTH_YEAR]), FILTER(ALL('CALENDAR'), 'CALENDAR'[Date] = PrevAnchorDate2))
+    RETURN
+    CALCULATE(
+        [Total Vessels],
+        FILTER(ALL('CALENDAR'), 'CALENDAR'[WEEK_OF_MONTH] = PrevWeekVal2 && 'CALENDAR'[MONTH_YEAR] = PrevMonthVal2)
+    )
+)",,
+Purchase_History,Leakage Value Previous Period,"
+VAR WeekFiltered = ISFILTERED('CALENDAR'[WEEK_OF_MONTH])
+VAR MonthFiltered = ISFILTERED('CALENDAR'[MONTH_YEAR])
+
+RETURN
+IF(
+    WeekFiltered || MonthFiltered,
+    VAR FirstDateOfMonth =
+        CALCULATE(
+            MIN('CALENDAR'[Date]),
+            FILTER(ALL('CALENDAR'), 'CALENDAR'[MONTH_YEAR] = MAX('CALENDAR'[MONTH_YEAR]))
+        )
+    VAR LastDayNum = DAY(EOMONTH(FirstDateOfMonth, 0))
+    VAR Offset = WEEKDAY(FirstDateOfMonth, 2) - 1
+    VAR SelectedWeekNo = IF(WeekFiltered, MAX('CALENDAR'[WEEK_OF_MONTH_NO]))
+
+    VAR WeekStartDay = IF(WeekFiltered, MAX(1, 7*(SelectedWeekNo-1) - Offset + 1), 1)
+    VAR WeekEndDay = IF(WeekFiltered, MIN(LastDayNum, 7*SelectedWeekNo - Offset), LastDayNum)
+
+    VAR EffectiveMinDate = FirstDateOfMonth + WeekStartDay - 1
+    VAR EffectiveMaxDate = FirstDateOfMonth + WeekEndDay - 1
+
+    VAR DaysSpan = DATEDIFF(EffectiveMinDate, EffectiveMaxDate, DAY) + 1
+    VAR PrevMaxDate = EffectiveMinDate - 1
+    VAR PrevMinDate = PrevMaxDate - DaysSpan + 1
+    RETURN
+    CALCULATE(
+        [Leakage Value],
+        FILTER(
+            ALL('CALENDAR'),
+            'CALENDAR'[Date] >= PrevMinDate && 'CALENDAR'[Date] <= PrevMaxDate
+        )
+    ),
+
+    -- Case 2: nothing selected -> previous week via WEEK_OF_MONTH label
+    VAR CurrentWeekVal =
+        CALCULATE(MAX('CALENDAR'[WEEK_OF_MONTH]), FILTER(ALL('CALENDAR'), 'CALENDAR'[Date] = TODAY()))
+    VAR CurrentMonthVal =
+        CALCULATE(MAX('CALENDAR'[MONTH_YEAR]), FILTER(ALL('CALENDAR'), 'CALENDAR'[Date] = TODAY()))
+    VAR CurrentWeekMinDate =
+        CALCULATE(MIN('CALENDAR'[Date]), FILTER(ALL('CALENDAR'), 'CALENDAR'[WEEK_OF_MONTH] = CurrentWeekVal && 'CALENDAR'[MONTH_YEAR] = CurrentMonthVal))
+    VAR PrevAnchorDate2 = CurrentWeekMinDate - 1
+    VAR PrevWeekVal2 =
+        CALCULATE(MAX('CALENDAR'[WEEK_OF_MONTH]), FILTER(ALL('CALENDAR'), 'CALENDAR'[Date] = PrevAnchorDate2))
+    VAR PrevMonthVal2 =
+        CALCULATE(MAX('CALENDAR'[MONTH_YEAR]), FILTER(ALL('CALENDAR'), 'CALENDAR'[Date] = PrevAnchorDate2))
+    RETURN
+    CALCULATE(
+        [Leakage Value],
+        FILTER(ALL('CALENDAR'), 'CALENDAR'[WEEK_OF_MONTH] = PrevWeekVal2 && 'CALENDAR'[MONTH_YEAR] = PrevMonthVal2)
+    )
+)",,
+Purchase_History,Total Amount All Previous Period,"
+VAR WeekFiltered = ISFILTERED('CALENDAR'[WEEK_OF_MONTH])
+VAR MonthFiltered = ISFILTERED('CALENDAR'[MONTH_YEAR])
+
+RETURN
+IF(
+    WeekFiltered || MonthFiltered,
+    VAR FirstDateOfMonth =
+        CALCULATE(
+            MIN('CALENDAR'[Date]),
+            FILTER(ALL('CALENDAR'), 'CALENDAR'[MONTH_YEAR] = MAX('CALENDAR'[MONTH_YEAR]))
+        )
+    VAR LastDayNum = DAY(EOMONTH(FirstDateOfMonth, 0))
+    VAR Offset = WEEKDAY(FirstDateOfMonth, 2) - 1
+    VAR SelectedWeekNo = IF(WeekFiltered, MAX('CALENDAR'[WEEK_OF_MONTH_NO]))
+
+    VAR WeekStartDay = IF(WeekFiltered, MAX(1, 7*(SelectedWeekNo-1) - Offset + 1), 1)
+    VAR WeekEndDay = IF(WeekFiltered, MIN(LastDayNum, 7*SelectedWeekNo - Offset), LastDayNum)
+
+    VAR EffectiveMinDate = FirstDateOfMonth + WeekStartDay - 1
+    VAR EffectiveMaxDate = FirstDateOfMonth + WeekEndDay - 1
+
+    VAR DaysSpan = DATEDIFF(EffectiveMinDate, EffectiveMaxDate, DAY) + 1
+    VAR PrevMaxDate = EffectiveMinDate - 1
+    VAR PrevMinDate = PrevMaxDate - DaysSpan + 1
+    RETURN
+    CALCULATE(
+        [Total Amount],
+        REMOVEFILTERS(Purchase_History[preference]),
+        FILTER(
+            ALL('CALENDAR'),
+            'CALENDAR'[Date] >= PrevMinDate && 'CALENDAR'[Date] <= PrevMaxDate
+        )
+    ),
+
+    VAR CurrentWeekVal =
+        CALCULATE(MAX('CALENDAR'[WEEK_OF_MONTH]), FILTER(ALL('CALENDAR'), 'CALENDAR'[Date] = TODAY()))
+    VAR CurrentMonthVal =
+        CALCULATE(MAX('CALENDAR'[MONTH_YEAR]), FILTER(ALL('CALENDAR'), 'CALENDAR'[Date] = TODAY()))
+    VAR CurrentWeekMinDate =
+        CALCULATE(MIN('CALENDAR'[Date]), FILTER(ALL('CALENDAR'), 'CALENDAR'[WEEK_OF_MONTH] = CurrentWeekVal && 'CALENDAR'[MONTH_YEAR] = CurrentMonthVal))
+    VAR PrevAnchorDate2 = CurrentWeekMinDate - 1
+    VAR PrevWeekVal2 =
+        CALCULATE(MAX('CALENDAR'[WEEK_OF_MONTH]), FILTER(ALL('CALENDAR'), 'CALENDAR'[Date] = PrevAnchorDate2))
+    VAR PrevMonthVal2 =
+        CALCULATE(MAX('CALENDAR'[MONTH_YEAR]), FILTER(ALL('CALENDAR'), 'CALENDAR'[Date] = PrevAnchorDate2))
+    RETURN
+    CALCULATE(
+        [Total Amount],
+        REMOVEFILTERS(Purchase_History[preference]),
+        FILTER(ALL('CALENDAR'), 'CALENDAR'[WEEK_OF_MONTH] = PrevWeekVal2 && 'CALENDAR'[MONTH_YEAR] = PrevMonthVal2)
+    )
+)",,
+Purchase_History,Compliance Improvement,[Compliance percentage slicer]-[Compliance percentage Previous Period],,
+Purchase_History,Compliance percentage Previous Period,"
+VAR WeekFiltered = ISFILTERED('CALENDAR'[WEEK_OF_MONTH])
+VAR MonthFiltered = ISFILTERED('CALENDAR'[MONTH_YEAR])
+
+RETURN
+IF(
+    WeekFiltered || MonthFiltered,
+    VAR FirstDateOfMonth =
+        CALCULATE(
+            MIN('CALENDAR'[Date]),
+            FILTER(ALL('CALENDAR'), 'CALENDAR'[MONTH_YEAR] = MAX('CALENDAR'[MONTH_YEAR]))
+        )
+    VAR LastDayNum = DAY(EOMONTH(FirstDateOfMonth, 0))
+    VAR Offset = WEEKDAY(FirstDateOfMonth, 2) - 1
+    VAR SelectedWeekNo = IF(WeekFiltered, MAX('CALENDAR'[WEEK_OF_MONTH_NO]))
+
+    VAR WeekStartDay = IF(WeekFiltered, MAX(1, 7*(SelectedWeekNo-1) - Offset + 1), 1)
+    VAR WeekEndDay = IF(WeekFiltered, MIN(LastDayNum, 7*SelectedWeekNo - Offset), LastDayNum)
+
+    VAR EffectiveMinDate = FirstDateOfMonth + WeekStartDay - 1
+    VAR EffectiveMaxDate = FirstDateOfMonth + WeekEndDay - 1
+
+    VAR DaysSpan = DATEDIFF(EffectiveMinDate, EffectiveMaxDate, DAY) + 1
+    VAR PrevMaxDate = EffectiveMinDate - 1
+    VAR PrevMinDate = PrevMaxDate - DaysSpan + 1
+    RETURN
+    CALCULATE(
+        [Compliance percentage],
+        FILTER(
+            ALL('CALENDAR'),
+            'CALENDAR'[Date] >= PrevMinDate && 'CALENDAR'[Date] <= PrevMaxDate
+        )
+    ),
+
+    -- Case 2: nothing selected -> previous week via WEEK_OF_MONTH label
+    VAR CurrentWeekVal =
+        CALCULATE(MAX('CALENDAR'[WEEK_OF_MONTH]), FILTER(ALL('CALENDAR'), 'CALENDAR'[Date] = TODAY()))
+    VAR CurrentMonthVal =
+        CALCULATE(MAX('CALENDAR'[MONTH_YEAR]), FILTER(ALL('CALENDAR'), 'CALENDAR'[Date] = TODAY()))
+    VAR CurrentWeekMinDate =
+        CALCULATE(MIN('CALENDAR'[Date]), FILTER(ALL('CALENDAR'), 'CALENDAR'[WEEK_OF_MONTH] = CurrentWeekVal && 'CALENDAR'[MONTH_YEAR] = CurrentMonthVal))
+    VAR PrevAnchorDate2 = CurrentWeekMinDate - 1
+    VAR PrevWeekVal2 =
+        CALCULATE(MAX('CALENDAR'[WEEK_OF_MONTH]), FILTER(ALL('CALENDAR'), 'CALENDAR'[Date] = PrevAnchorDate2))
+    VAR PrevMonthVal2 =
+        CALCULATE(MAX('CALENDAR'[MONTH_YEAR]), FILTER(ALL('CALENDAR'), 'CALENDAR'[Date] = PrevAnchorDate2))
+    RETURN
+    CALCULATE(
+        [Compliance percentage],
+        FILTER(ALL('CALENDAR'), 'CALENDAR'[WEEK_OF_MONTH] = PrevWeekVal2 && 'CALENDAR'[MONTH_YEAR] = PrevMonthVal2)
+    )
+)",,
+Purchase_History,SNo Compperc,"
+RANKX(
+    ALLSELECTED(Purchase_History[DOC]),
+    CALCULATE(
+        [Compliance percentage slicer],
+        REMOVEFILTERS(Purchase_History[Procurement Manager]),
+        REMOVEFILTERS(Purchase_History[category]),
+        REMOVEFILTERS(Purchase_History[compliance_flag])
+    ),
+    ,
+    DESC,
+    DENSE
+)",,
+Purchase_History,DOC Row Highlight,"
+VAR SelectedDOC = SELECTEDVALUE('DOC Slicer Table'[DOC])
+RETURN
+IF(
+    NOT ISBLANK(SelectedDOC) && SelectedDOC = MAX(Purchase_History[DOC]),
+    ""#fcd34d""
+)",,
+CALENDAR,Selected Week,"
+SELECTEDVALUE('CALENDAR'[WEEK_OF_MONTH])",,
+CALENDAR,Selected Month Year,"
+VAR SelectedMonth =
+    SELECTEDVALUE ( 'CALENDAR'[MONTH] ) 
+RETURN
+    IF (
+        ISBLANK ( SelectedMonth ),
+        FORMAT ( TODAY(), ""MMM' yy"" ),
+        SelectedMonth & FORMAT ( TODAY(), ""' yy"" )
+    )",,
+Purchase_History,Compliance perc Previous Month,"
+VAR CurrentDate =
+    MAX ( 'CALENDAR'[Date] )
+VAR PreviousMonthStart =
+    EOMONTH ( CurrentDate, -2 ) + 1
+VAR PreviousMonthEnd =
+    EOMONTH ( CurrentDate, -1 )
+RETURN
+CALCULATE (
+    [Compliance percentage],
+    FILTER (
+        ALL ( 'CALENDAR' ),
+        'CALENDAR'[Date] >= PreviousMonthStart
+            && 'CALENDAR'[Date] <= PreviousMonthEnd
+    )
+)",,
+Purchase_History,Compliance perc Current Month,"
+VAR CurrentDate =
+    MAX ( 'CALENDAR'[Date] )
+VAR CurrentMonthStart =
+    EOMONTH ( CurrentDate, -1 ) + 1
+VAR CurrentMonthEnd =
+    EOMONTH ( CurrentDate, 0 )
+RETURN
+CALCULATE (
+    [comp perc2],
+    FILTER (
+        ALL ( 'CALENDAR' ),
+        'CALENDAR'[Date] >= CurrentMonthStart
+            && 'CALENDAR'[Date] <= CurrentMonthEnd
+    )
+)+0",,
+Purchase_History,comp imp reg,[Compliance perc Current Month] - [Compliance perc Previous Month] ,,
+CALENDAR,Selected Previous Month Year,"
+VAR SelectedMonth =
+    SELECTEDVALUE ( 'CALENDAR'[MONTH] )
+VAR CurrentDate =
+    IF (
+        ISBLANK ( SelectedMonth ),
+        TODAY(),
+        MAX ( 'CALENDAR'[Date] )
+    )
+VAR PreviousMonthDate =
+    EOMONTH ( CurrentDate, -1 )
+RETURN
+    FORMAT ( PreviousMonthDate, ""MMM' yy"" )",,
+Purchase_History,Compliance perc current month pref,"
+CALCULATE([Compliance perc Current Month], Purchase_History[preference] in { ""Preferred/Contracted"", ""Preferred / Contracted""})",,
+Purchase_History,Owners Preferred Vendors Card,"
+IF(
+    [Owners Preferred Vendors] = BLANK(), ""-"", format([Owners Preferred Vendors],""#,##""))",,
+Purchase_History,pref vendors spend Card,"
+var x = [Preferred amount]
+return FORMAT ( x, ""$#,##0"" )",,
+Purchase_History,pref vendors spend perc Card,"
+var x = [Preferred amount]/[Total Amount]
+return FORMAT ( x, ""0.0%"" )",,
+Purchase_History,pref vendors count Card,"
+var x = [Preferred Vendors]
+return FORMAT( x, ""#,##"")",,
+Purchase_History,owners pref vendors spend Card,"
+var x = [Owners Preferred amount]
+return FORMAT ( x, ""$#,##0"" )",,
+Purchase_History,owners pref vendors spend perc Card,"
+var x = [Owners Preferred amount]/[Total Amount]
+return FORMAT ( x, ""0.0%"" )",,
+Purchase_History,Makers Vendors Card,"
+IF(
+    [Maker Vendors] = BLANK(), ""-"", format([Maker Vendors],""#,##""))",,
+Purchase_History,Makers vendors spend Card,"
+var x = [Maker amount]
+return FORMAT ( x, ""$#,##0"" )",,
+Purchase_History,Maker vendors spend perc Card,"
+var x = [Maker amount]/[Total Amount]
+return FORMAT ( x, ""0.0%"" )",,
+Purchase_History,Constrained Vendors Card,"
+IF(
+    [Constrained Vendors] = BLANK(), ""-"", format([Constrained Vendors],""#,##""))",,
+Purchase_History,constrained vendors spend Card,"
+var x = [Constrained amount]
+return FORMAT ( x, ""$#,##0"" )",,
+Purchase_History,constrained vendors spend perc Card,"
+var x = [Constrained amount]/[Total Amount]
+return FORMAT ( x, ""0.0%"" )",,
+Purchase_History,not preferred Vendors Card,"
+IF(
+    [Not Preferred Vendors] = BLANK(), ""-"", format([Not Preferred Vendors],""#,##""))",,
+Purchase_History,not preferred vendors spend Card,"
+var x = [Not Preferred amount]
+return FORMAT ( x, ""$#,##0"" )",,
+Purchase_History,Not pref vendors spend perc Card,"
+var x = [Not Preferred amount]/[Total Amount]
+return FORMAT ( x, ""0.0%"" )",,
+Purchase_History,Inhouse Vendors Card,"
+IF(
+    [InHouse Vendors] = BLANK(), ""-"", format([InHouse Vendors],""#,##""))",,
+Purchase_History,Inhouse vendors spend Card,"
+var x = [InHouse amount]
+return FORMAT ( x, ""$#,##0"" )",,
+Purchase_History,Inhouse vendors spend perc Card,"
+var x = [InHouse amount]/[Total Amount]
+return FORMAT ( x, ""0.0%"" )",,
+Purchase_History,Inhouse perc Current Month,"
+VAR CurrentMonth =
+    MAX ( 'CALENDAR'[Date] )
+VAR MonthStart =
+    DATE ( YEAR ( CurrentMonth ), MONTH ( CurrentMonth ), 1 )
+VAR MonthEnd =
+    EOMONTH ( CurrentMonth, 0 )
+RETURN
+CALCULATE (
+    [Inhouse percentage],
+    FILTER (
+        ALL ( 'CALENDAR' ),
+        'CALENDAR'[Date] >= MonthStart
+            && 'CALENDAR'[Date] <= MonthEnd
+    )
+)+0",,
+Purchase_History,Preferred percentage,"DIVIDE(([Preferred amount]), [Grand Total new])",,
+Purchase_History,Inhouse percentage,"DIVIDE(([InHouse amount]), [Grand Total new])",,
+Purchase_History,preferred perc Current Month,"
+VAR CurrentMonth =
+    MAX ( 'CALENDAR'[Date] )
+VAR MonthStart =
+    DATE ( YEAR ( CurrentMonth ), MONTH ( CurrentMonth ), 1 )
+VAR MonthEnd =
+    EOMONTH ( CurrentMonth, 0 )
+RETURN
+CALCULATE (
+    [Preferred percentage],
+    FILTER (
+        ALL ( 'CALENDAR' ),
+        'CALENDAR'[Date] >= MonthStart
+            && 'CALENDAR'[Date] <= MonthEnd
+    )
+)+0",,
+Purchase_History,preferred perc Previous Month,"
+VAR CurrentDate =
+    MAX ( 'CALENDAR'[Date] )
+VAR PreviousMonthStart =
+    EOMONTH ( CurrentDate, -2 ) + 1
+VAR PreviousMonthEnd =
+    EOMONTH ( CurrentDate, -1 )
+RETURN
+CALCULATE (
+    [Preferred percentage],
+    FILTER (
+        ALL ( 'CALENDAR' ),
+        'CALENDAR'[Date] >= PreviousMonthStart
+            && 'CALENDAR'[Date] <= PreviousMonthEnd
+    )
+)",,
+Purchase_History,Inhouse perc Previous Month,"
+VAR CurrentDate =
+    MAX ( 'CALENDAR'[Date] )
+VAR PreviousMonthStart =
+    EOMONTH ( CurrentDate, -2 ) + 1
+VAR PreviousMonthEnd =
+    EOMONTH ( CurrentDate, -1 )
+RETURN
+CALCULATE (
+    [Inhouse percentage],
+    FILTER (
+        ALL ( 'CALENDAR' ),
+        'CALENDAR'[Date] >= PreviousMonthStart
+            && 'CALENDAR'[Date] <= PreviousMonthEnd
+    )
+)",,
+Purchase_History,Leakage perc Current Month,"
+VAR CurrentMonth =
+    MAX ( 'CALENDAR'[Date] )
+VAR MonthStart =
+    DATE ( YEAR ( CurrentMonth ), MONTH ( CurrentMonth ), 1 )
+VAR MonthEnd =
+    EOMONTH ( CurrentMonth, 0 )
+RETURN
+CALCULATE (
+    [Leakage percentage],
+    FILTER (
+        ALL ( 'CALENDAR' ),
+        'CALENDAR'[Date] >= MonthStart
+            && 'CALENDAR'[Date] <= MonthEnd
+    )
+)+0",,
+Purchase_History,Highest Leakage Vessel,"
+VAR VesselTable =
+    ADDCOLUMNS (
+        ALLSELECTED ( Purchase_History[VESSELNAME] ),
+        ""@Leakage"", CALCULATE ( [Leakage perc Current Month] )
+    )
+VAR TopVessel =
+    TOPN (
+        1,
+        VesselTable,
+        [@Leakage], DESC,
+        Purchase_History[VESSELNAME], ASC
+    )
+RETURN
+    MAXX (
+        TopVessel,
+        Purchase_History[VESSELNAME]
+    )",,
+Purchase_History,Highest Leakage Vendor,"
+VAR VesselTable =
+    ADDCOLUMNS (
+        ALLSELECTED ( Purchase_History[VENDORNAME] ),
+        ""@LeakageAmt"", CALCULATE ( [Leakage Value] )   -- absolute ₹, not %
+    )
+VAR TopVessel =
+    TOPN (
+        1,
+        VesselTable,
+        [@LeakageAmt], DESC,
+        Purchase_History[VENDORNAME], ASC
+    )
+RETURN
+    MAXX ( TopVessel, Purchase_History[VENDORNAME] )",,
+Purchase_History,Highest Leakage Preference,"
+VAR VendorTable =
+    ADDCOLUMNS (
+        ALLSELECTED ( Purchase_History[VENDORNAME] ),
+        ""@LeakageAmt"", CALCULATE ( [Leakage Value] )     -- rank by ₹, not %
+    )
+VAR TopVendor =
+    TOPN (
+        1,
+        FILTER (
+            VendorTable,
+            NOT ISBLANK ( [@LeakageAmt] ) && [@LeakageAmt] > 0
+        ),
+        [@LeakageAmt], DESC,
+        Purchase_History[VENDORNAME], ASC
+    )
+VAR TopVendorName =
+    MAXX (
+        TopVendor,
+        Purchase_History[VENDORNAME]
+    )
+RETURN
+    CALCULATE (
+        SELECTEDVALUE ( Purchase_History[preference], ""Multiple"" ),
+        Purchase_History[VENDORNAME] = TopVendorName
+    )",,
+Purchase_History,Highest Preferred Vendor,"
+VAR VendorTable =
+    ADDCOLUMNS (
+        ALLSELECTED ( Purchase_History[VENDORNAME] ),
+        ""PreferredAmt"", CALCULATE ( [Preferred amount] )
+    )
+VAR FilteredTable =
+    FILTER (
+        VendorTable,
+        NOT ISBLANK ( [PreferredAmt] ) && [PreferredAmt] > 0
+    )
+VAR TopVendor =
+    TOPN (
+        1,
+        FilteredTable,
+        [PreferredAmt], DESC,
+        Purchase_History[VENDORNAME], ASC
+    )
+RETURN
+    MAXX (
+        TopVendor,
+        Purchase_History[VENDORNAME]
+    )",,
+Purchase_History,Highest Preferred Vendor Amount,"
+VAR VendorTable =
+    ADDCOLUMNS (
+        ALLSELECTED ( Purchase_History[VENDORNAME] ),
+        ""PreferredAmt"", CALCULATE ( [Preferred amount] )
+    )
+VAR FilteredTable =
+    FILTER (
+        VendorTable,
+        NOT ISBLANK ( [PreferredAmt] ) && [PreferredAmt] > 0
+    )
+VAR TopVendor =
+    TOPN (
+        1,
+        FilteredTable,
+        [PreferredAmt], DESC,
+        Purchase_History[VENDORNAME], ASC
+    )
+VAR TopVendorName =
+    MAXX (
+        TopVendor,
+        Purchase_History[VENDORNAME]
+    )
+RETURN
+    CALCULATE (
+        [Preferred amount],
+        Purchase_History[VENDORNAME] = TopVendorName
+    )",,
+Purchase_History,Highest second Preferred Vendor,"
+VAR VendorTable =
+    ADDCOLUMNS (
+        ALLSELECTED ( Purchase_History[VENDORNAME] ),
+        ""PreferredAmt"", CALCULATE ( [Preferred amount] )
+    )
+VAR RankedVendors =
+    FILTER (
+        VendorTable,
+        NOT ISBLANK ( [PreferredAmt] ) && [PreferredAmt] > 0
+    )
+VAR Top2 =
+    TOPN (
+        2,
+        RankedVendors,
+        [PreferredAmt], DESC,
+        Purchase_History[VENDORNAME], ASC
+    )
+VAR SecondVendor =
+    TOPN (
+        1,
+        Top2,
+        [PreferredAmt], ASC,
+        Purchase_History[VENDORNAME], DESC
+    )
+RETURN
+    MAXX (
+        SecondVendor,
+        Purchase_History[VENDORNAME]
+    )",,
+Purchase_History,Highest third Preferred Vendor,"
+VAR VendorTable =
+    ADDCOLUMNS (
+        ALLSELECTED ( Purchase_History[VENDORNAME] ),
+        ""PreferredAmt"", CALCULATE ( [Preferred amount] )
+    )
+VAR RankedVendors =
+    FILTER (
+        VendorTable,
+        NOT ISBLANK ( [PreferredAmt] ) && [PreferredAmt] > 0
+    )
+VAR Top3 =
+    TOPN (
+        3,
+        RankedVendors,
+        [PreferredAmt], DESC,
+        Purchase_History[VENDORNAME], ASC
+    )
+VAR ThirdVendor =
+    TOPN (
+        1,
+        Top3,
+        [PreferredAmt], ASC,
+        Purchase_History[VENDORNAME], DESC
+    )
+RETURN
+    IF (
+        COUNTROWS ( RankedVendors ) >= 3,
+        MAXX ( ThirdVendor, Purchase_History[VENDORNAME] )
+    )",,
+Purchase_History,Highest second Preferred Vendor Amount,"
+VAR VendorTable =
+    ADDCOLUMNS (
+        ALLSELECTED ( Purchase_History[VENDORNAME] ),
+        ""PreferredAmt"", CALCULATE ( [Preferred amount] )
+    )
+
+VAR RankedVendors =
+    FILTER (
+        VendorTable,
+        NOT ISBLANK ( [PreferredAmt] ) && [PreferredAmt] > 0
+    )
+
+VAR Top2Vendors =
+    TOPN (
+        2,
+        RankedVendors,
+        [PreferredAmt], DESC,
+        Purchase_History[VENDORNAME], ASC
+    )
+
+VAR SecondVendorName =
+    MAXX (
+        TOPN (
+            1,
+            Top2Vendors,
+            [PreferredAmt], ASC,
+            Purchase_History[VENDORNAME], DESC
+        ),
+        Purchase_History[VENDORNAME]
+    )
+
+RETURN
+    IF (
+        COUNTROWS ( RankedVendors ) >= 2,
+        CALCULATE (
+            [Preferred amount],
+            REMOVEFILTERS ( Purchase_History[VENDORNAME] ),
+            TREATAS (
+                { SecondVendorName },
+                Purchase_History[VENDORNAME]
+            )
+        )
+    )",,
+Purchase_History,Highest Third Preferred Vendor Amount,"
+VAR VendorTable =
+    ADDCOLUMNS (
+        ALLSELECTED ( Purchase_History[VENDORNAME] ),
+        ""PreferredAmt"", CALCULATE ( [Preferred amount] )
+    )
+VAR RankedVendors =
+    FILTER (
+        VendorTable,
+        NOT ISBLANK ( [PreferredAmt] ) && [PreferredAmt] > 0
+    )
+VAR Top3 =
+    TOPN (
+        3,
+        RankedVendors,
+        [PreferredAmt], DESC,
+        Purchase_History[VENDORNAME], ASC
+    )
+VAR ThirdVendor =
+    TOPN (
+        1,
+        Top3,
+        [PreferredAmt], ASC,
+        Purchase_History[VENDORNAME], DESC
+    )
+VAR ThirdVendorName =
+    MAXX ( ThirdVendor, Purchase_History[VENDORNAME] )
+RETURN
+    IF (
+        COUNTROWS ( RankedVendors ) >= 3,
+        CALCULATE (
+            [Preferred amount],
+            REMOVEFILTERS ( Purchase_History[VENDORNAME] ),
+            TREATAS ( { ThirdVendorName }, Purchase_History[VENDORNAME] )
+        )
+    )",,
+Purchase_History,Highest inhouse Vendor,"
+VAR VendorTable =
+    ADDCOLUMNS (
+        ALLSELECTED ( Purchase_History[VENDORNAME] ),
+        ""InHouseAmt"", CALCULATE ( [InHouse amount] )
+    )
+VAR RankedVendors =
+    FILTER (
+        VendorTable,
+        NOT ISBLANK ( [InHouseAmt] ) && [InHouseAmt] > 0
+    )
+VAR TopVendor =
+    TOPN (
+        1,
+        RankedVendors,
+        [InHouseAmt], DESC,
+        Purchase_History[VENDORNAME], ASC
+    )
+RETURN
+    MAXX (
+        TopVendor,
+        Purchase_History[VENDORNAME]
+    )",,
+Purchase_History,Highest inhouse Vendor Amount,"
+VAR VendorTable =
+    ADDCOLUMNS (
+        ALLSELECTED ( Purchase_History[VENDORNAME] ),
+        ""InHouseAmt"", CALCULATE ( [InHouse amount] )
+    )
+VAR RankedVendors =
+    FILTER (
+        VendorTable,
+        NOT ISBLANK ( [InHouseAmt] ) && [InHouseAmt] > 0
+    )
+VAR TopVendor =
+    TOPN (
+        1,
+        RankedVendors,
+        [InHouseAmt], DESC,
+        Purchase_History[VENDORNAME], ASC
+    )
+VAR TopVendorName =
+    MAXX ( TopVendor, Purchase_History[VENDORNAME] )
+RETURN
+    CALCULATE (
+        [InHouse amount],
+        REMOVEFILTERS ( Purchase_History[VENDORNAME] ),
+        TREATAS ( { TopVendorName }, Purchase_History[VENDORNAME] )
+    )",,
+Purchase_History,Highest second Inhouse Vendor,"
+VAR VendorTable =
+    ADDCOLUMNS (
+        ALLSELECTED ( Purchase_History[VENDORNAME] ),
+        ""InHouseAmt"", CALCULATE ( [InHouse amount] )
+    )
+VAR RankedVendors =
+    FILTER (
+        VendorTable,
+        NOT ISBLANK ( [InHouseAmt] ) && [InHouseAmt] > 0
+    )
+VAR Top2 =
+    TOPN (
+        2,
+        RankedVendors,
+        [InHouseAmt], DESC,
+        Purchase_History[VENDORNAME], ASC
+    )
+VAR SecondVendor =
+    TOPN (
+        1,
+        Top2,
+        [InHouseAmt], ASC,
+        Purchase_History[VENDORNAME], DESC
+    )
+RETURN
+    IF (
+        COUNTROWS ( RankedVendors ) >= 2,
+        MAXX ( SecondVendor, Purchase_History[VENDORNAME] )
+    )",,
+Purchase_History,Highest second Inhouse Vendor Amount,"
+VAR VendorTable =
+    ADDCOLUMNS (
+        ALLSELECTED ( Purchase_History[VENDORNAME] ),
+        ""InHouseAmt"", CALCULATE ( [InHouse amount] )
+    )
+VAR RankedVendors =
+    FILTER (
+        VendorTable,
+        NOT ISBLANK ( [InHouseAmt] ) && [InHouseAmt] > 0
+    )
+VAR Top2 =
+    TOPN (
+        2,
+        RankedVendors,
+        [InHouseAmt], DESC,
+        Purchase_History[VENDORNAME], ASC
+    )
+VAR SecondVendor =
+    TOPN (
+        1,
+        Top2,
+        [InHouseAmt], ASC,
+        Purchase_History[VENDORNAME], DESC
+    )
+VAR SecondVendorName =
+    MAXX ( SecondVendor, Purchase_History[VENDORNAME] )
+RETURN
+    IF (
+        COUNTROWS ( RankedVendors ) >= 2,
+        CALCULATE (
+            [InHouse amount],
+            REMOVEFILTERS ( Purchase_History[VENDORNAME] ),
+            TREATAS ( { SecondVendorName }, Purchase_History[VENDORNAME] )
+        )
+    )",,
+Purchase_History,Target Compliance perc,0,,
+Purchase_History,comp perc2,"
+DIVIDE(
+    [Compliance Amount],
+    [Grand Total new]
+)",,
+Purchase_History,Measure,,,
+Purchase_History,Compliance Amount,"
+CALCULATE( [Total Amount], FILTER( Purchase_History,Purchase_History[preference] in { ""Preferred/Contracted"", ""Preferred / Contracted"", ""In-House""}))",,
+Purchase_History,Grand Total new,"
+CALCULATE(
+    [Total Amount],
+    Purchase_History[preference] IN {
+        ""Preferred/Contracted"", ""Preferred / Contracted"",
+        ""In-House"",
+        ""Not Preferred/Not Contracted"", ""Not Preferred / Not Contracted"",
+        ""Constrained"",
+        ""Maker"",
+        ""Owner's Preferred"", ""Owners Preferred""
+    }
+)",,
+Purchase_History,Highest Leakage category,"
+VAR VendorTable =
+    ADDCOLUMNS (
+        ALLSELECTED ( Purchase_History[VENDORNAME] ),
+        ""@LeakageAmt"", CALCULATE ( [Leakage Value] )     -- match the metric used in the other two measures
+    )
+VAR TopVendor =
+    TOPN (
+        1,
+        FILTER (
+            VendorTable,
+            NOT ISBLANK ( [@LeakageAmt] ) && [@LeakageAmt] > 0
+        ),
+        [@LeakageAmt], DESC,
+        Purchase_History[VENDORNAME], ASC
+    )
+VAR TopVendorName =
+    MAXX (
+        TopVendor,
+        Purchase_History[VENDORNAME]
+    )
+RETURN
+    CALCULATE (
+        SELECTEDVALUE ( Purchase_History[Final_Category], ""Multiple"" ),
+        Purchase_History[VENDORNAME] = TopVendorName
+    )",,
+Purchase_History,Highest Leakage Value,"
+VAR VendorTable =
+    ADDCOLUMNS (
+        ALLSELECTED ( Purchase_History[VENDORNAME] ),
+        ""@LeakageAmt"", CALCULATE ( [Leakage Value] )
+    )
+VAR TopVendor =
+    TOPN (
+        1,
+        FILTER (
+            VendorTable,
+            NOT ISBLANK ( [@LeakageAmt] ) && [@LeakageAmt] > 0
+        ),
+        [@LeakageAmt], DESC,
+        Purchase_History[VENDORNAME], ASC
+    )
+VAR TopVendorName =
+    MAXX (
+        TopVendor,
+        Purchase_History[VENDORNAME]
+    )
+RETURN
+    CALCULATE (
+        [Leakage Value],
+        Purchase_History[VENDORNAME] = TopVendorName
+    )",,
+Purchase_History,Highest Leakage Percentage,"
+VAR VendorTable =
+    ADDCOLUMNS (
+        ALLSELECTED ( Purchase_History[VENDORNAME] ),
+        ""@LeakageAmt"", CALCULATE ( [Leakage Value] )
+    )
+VAR TopVendor =
+    TOPN (
+        1,
+        FILTER (
+            VendorTable,
+            NOT ISBLANK ( [@LeakageAmt] ) && [@LeakageAmt] > 0
+        ),
+        [@LeakageAmt], DESC,
+        Purchase_History[VENDORNAME], ASC
+    )
+VAR TopVendorName =
+    MAXX (
+        TopVendor,
+        Purchase_History[VENDORNAME]
+    )
+VAR TopVendorLeakage =
+    CALCULATE (
+        [Leakage Value],
+        Purchase_History[VENDORNAME] = TopVendorName
+    )
+VAR TotalLeakage =
+    CALCULATE (
+        [Leakage Value],
+        ALLSELECTED ( Purchase_History[VENDORNAME] )
+    )
+RETURN
+    DIVIDE ( TopVendorLeakage, TotalLeakage )",,
+doc_target,Total Target,"sum(doc_target[target_percentage]) & ""%""",,
+Purchase_History,compliance percentage card,"([Compliance percentage]*100)&""%""",,

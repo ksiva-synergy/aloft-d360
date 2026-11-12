@@ -1,7 +1,8 @@
 import 'server-only';
 
 import { executeDatabricksSQL, DATABRICKS_API_MAX_WAIT_SECS } from '@/lib/databricks/execute';
-import { getAccessToken } from '@/lib/databricks/token-client';
+import { openDatabricksSession } from '@/lib/databricks/token-client';
+import type { DatabricksSpRole } from '@/lib/databricks/sp-roles';
 import type {
   ContextSource,
   ObjectRef,
@@ -76,6 +77,8 @@ export interface RawColumnLineageRow {
 }
 
 // ── Adapter ───────────────────────────────────────────────────────────────────
+
+type ExecOpts = { rowLimit?: number; waitTimeoutSecs?: number; asyncPolling?: boolean; pollTimeoutMs?: number };
 
 export class DatabricksAdapter implements ContextHarvestAdapter {
   readonly kind = 'databricks' as const;
@@ -454,7 +457,7 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
       if (statementCount >= budget.maxStatements) {
         throw new Error(`Query budget exceeded before fetching columns for ${ref.full_path}`);
       }
-      const columnsResult = await this.exec(
+      const columnsResult = await this.profileExec(
         `SELECT column_name, data_type, is_nullable ` +
         `FROM \`${catSafe}\`.information_schema.columns ` +
         `WHERE table_schema = '${schSafe}' AND table_name = '${tblSafe}' ` +
@@ -483,7 +486,7 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
     let tableDetail: ProfileTableDetail | null = null;
     if (budget.objectKind !== 'view' && statementCount < budget.maxStatements) {
       try {
-        const detailResult = await this.exec(`DESCRIBE DETAIL \`${catSafe}\`.\`${schSafe}\`.\`${tblSafe}\``);
+        const detailResult = await this.profileExec(`DESCRIBE DETAIL \`${catSafe}\`.\`${schSafe}\`.\`${tblSafe}\``);
         statementCount++;
         if (detailResult.rows.length > 0) {
           const row = detailResult.rows[0];
@@ -505,7 +508,7 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
     let exactRowCount: number | null = null;
     if (!isView && tableFormat?.toLowerCase() === 'delta' && statementCount + 2 <= budget.maxStatements) {
       try {
-        const countResult = await this.exec(`SELECT COUNT(*) AS \`__exact_rows\` FROM \`${catSafe}\`.\`${schSafe}\`.\`${tblSafe}\``);
+        const countResult = await this.profileExec(`SELECT COUNT(*) AS \`__exact_rows\` FROM \`${catSafe}\`.\`${schSafe}\`.\`${tblSafe}\``);
         statementCount++;
         const n = Number(countResult.rows[0]?.['__exact_rows']);
         if (Number.isFinite(n) && n >= 0) exactRowCount = n;
@@ -634,7 +637,7 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
       // pathological view can't stall a sequential T1 job — right-sizing those
       // heavy views is a warehouse concern (WS10), not an adapter one. Tables
       // keep the fast synchronous path.
-      queryResult = await this.exec(
+      queryResult = await this.profileExec(
         query,
         isView
           ? { asyncPolling: true, waitTimeoutSecs: DATABRICKS_API_MAX_WAIT_SECS, pollTimeoutMs: PROFILE_VIEW_POLL_TIMEOUT_MS }
@@ -761,7 +764,7 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
     const tblSafe = safeId(table, 'table');
     const rowLimit = Math.max(1, Math.min(limit, 20));
 
-    const result = await this.exec(
+    const result = await this.profileExec(
       `SELECT * FROM \`${catSafe}\`.\`${schSafe}\`.\`${tblSafe}\` LIMIT ${rowLimit}`,
     );
 
@@ -1125,7 +1128,7 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
     let format: string | null = null;
     let sizeBytes: number | null = null;
     try {
-      const detail = await this.exec(`DESCRIBE DETAIL ${fq}`);
+      const detail = await this.profileExec(`DESCRIBE DETAIL ${fq}`);
       const row = detail.rows[0];
       format = row?.format ? String(row.format) : null;
       sizeBytes = row?.sizeInBytes != null ? Number(row.sizeInBytes) : null;
@@ -1134,20 +1137,30 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
       return { ok: false, reason: 'NO_DETAIL', format: null };
     }
     if (format?.toLowerCase() !== 'delta') return { ok: false, reason: 'NOT_DELTA', format };
-    const result = await this.exec(`SELECT COUNT(*) AS \`__exact_rows\` FROM ${fq}`);
+    const result = await this.profileExec(`SELECT COUNT(*) AS \`__exact_rows\` FROM ${fq}`);
     const n = Number(result.rows[0]?.['__exact_rows']);
     if (!Number.isFinite(n) || n < 0) throw new Error('COUNT(*) returned no value');
     return { ok: true, rows: n, format, sizeBytes };
   }
 
-  private async exec(sql: string, opts?: { rowLimit?: number; waitTimeoutSecs?: number; asyncPolling?: boolean; pollTimeoutMs?: number }) {
+  /** Structure, query history and lineage: runs as the `metadata` service principal. */
+  private exec(sql: string, opts?: ExecOpts) {
+    return this.run('metadata', sql, opts);
+  }
+
+  /** Reads data values (profiles, samples, row counts): runs as the `profile` service principal. */
+  private profileExec(sql: string, opts?: ExecOpts) {
+    return this.run('profile', sql, opts);
+  }
+
+  private async run(role: DatabricksSpRole, sql: string, opts?: ExecOpts) {
     this._queryCount++;
-    const token = await getAccessToken(this.conn.id, this.conn.workspace_host);
+    const session = await openDatabricksSession(this.conn, role);
     return executeDatabricksSQL(
       this.conn.id,
-      this.conn.workspace_host,
-      this.conn.default_warehouse_id,
-      token,
+      session.workspaceHost,
+      session.warehouseId,
+      session.token,
       {
         statement: sql,
         ...(opts?.rowLimit !== undefined ? { rowLimit: opts.rowLimit } : {}),

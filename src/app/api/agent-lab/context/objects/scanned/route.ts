@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import { listScannedObjects } from '@/lib/context/reads';
 import { z } from 'zod';
+import { denyUnlessSection } from '@/lib/sections/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +12,7 @@ const querySchema = z.object({
   sourceId: z.string().uuid().optional(),
   kind: z.string().optional(),
   tier: z.enum(['t0', 't1', 't2', 'embed', 't3', 't4']).optional(),
+  needsEmbed: z.string().optional().transform(v => v === 'true'),
   catalog: z.string().optional(),
   schema: z.string().optional(),
   q: z.string().optional(),
@@ -20,6 +22,8 @@ const querySchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
+  const deniedSection = await denyUnlessSection(req, ['estate.catalog', 'view']);
+  if (deniedSection) return deniedSection;
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });

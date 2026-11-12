@@ -5,13 +5,15 @@ import Link from '@/lib/navigation/link';
 import { usePathname } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 import { ESTATE_NAV_ITEMS, isEstateItemActive } from '@/lib/estate/nav-items';
+import { hiddenInNav, type SectionLevels } from '@/lib/sections/registry';
 
 /**
  * Shared header for every Data Estate page: page title + one-line purpose, then
  * the section tabs. Pages render content only, so the estate reads as one product.
  */
-export default function EstateNav() {
+export default function EstateNav({ levels = null }: { levels?: SectionLevels | null }) {
   const pathname = usePathname();
+  const tabs = ESTATE_NAV_ITEMS.filter((tab) => !hiddenInNav(levels, tab.href));
   // Object detail pages belong to the catalog.
   const active =
     ESTATE_NAV_ITEMS.find((tab) => isEstateItemActive(tab, pathname)) ??
@@ -40,7 +42,7 @@ export default function EstateNav() {
 
       <nav aria-label="Data estate sections" className={cn('-mx-1 overflow-x-auto px-1 [scrollbar-width:none]', !isDetail && 'mt-3')}>
         <div className="flex w-max items-center gap-1">
-          {ESTATE_NAV_ITEMS.map((tab) => {
+          {tabs.map((tab) => {
             const isActive = tab === active;
             const Icon = tab.icon;
             return (

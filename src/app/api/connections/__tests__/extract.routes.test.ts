@@ -35,8 +35,8 @@ vi.mock('@/lib/extraction/extract', async (orig) => ({ ...(await orig<object>())
 
 import { POST } from '../[id]/extract/route';
 
-const ana = { userId: 'u-ana', role: 'member', permissions: new Set(['inspector:use']) };
-const ben = { userId: 'u-ben', role: 'member', permissions: new Set(['inspector:use']) };
+const ana = { userId: 'u-ana', role: 'member', permissions: new Set(['inspector:use', 'section:govern.connections:manage']) };
+const ben = { userId: 'u-ben', role: 'member', permissions: new Set(['inspector:use', 'section:govern.connections:manage']) };
 const call = (id: string, body: unknown) =>
   POST(new Request(`http://test/api/connections/${id}/extract`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }), { params: Promise.resolve({ id }) });
 

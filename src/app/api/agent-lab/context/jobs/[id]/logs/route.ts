@@ -7,7 +7,7 @@ import {
 import { authOptions } from '@/lib/auth';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import prisma from '@/lib/db';
-import { denyUnlessSessionRole } from '@/middleware/auth';
+import { denyUnlessSection } from '@/lib/sections/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -91,7 +91,7 @@ async function fetchAllLogsFromCloudWatch(taskId: string): Promise<LogLine[]> {
 type RouteParams = { params: Promise<{ id: string }> };
 
 export async function GET(_req: NextRequest, { params }: RouteParams) {
-  const denied = await denyUnlessSessionRole('admin');
+  const denied = await denyUnlessSection(null, ['estate.jobs', 'view']);
   if (denied) return denied;
   const session = await getServerSession(authOptions);
   if (!session) {

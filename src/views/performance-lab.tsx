@@ -323,7 +323,7 @@ export default function PerformanceLabPage() {
                 Historical Benchmarks
               </h2>
               <p style={{ color: TXT2, fontSize: 'var(--type-ui-regular-size)', maxWidth: '70ch', margin: '0 0 24px' }}>
-                Per-model, per-context-mode averages across all Inspector sessions pulled from the database.
+                Per-model, per-context-mode averages across all Ask Data sessions pulled from the database.
               </p>
               {histLoading ? (
                 <div style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2, textAlign: 'center', padding: '32px' }}>

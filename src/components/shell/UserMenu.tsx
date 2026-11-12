@@ -4,9 +4,10 @@ import { useSession, signOut } from 'next-auth/react';
 import { useTheme } from 'next-themes';
 import { useRouter } from '@/lib/navigation';
 import { useState, useRef, useEffect } from 'react';
-import { Settings, LogOut, Sun, Moon, Monitor } from 'lucide-react';
+import { Settings, LogOut, Sun, Moon, Monitor, KeyRound, Inbox } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AppearanceControls } from './AppearanceControls';
+import { DeveloperModeToggle } from './DeveloperModeToggle';
 import { forgetFirstName } from '@/lib/login-greeting';
 import type { Session } from 'next-auth';
 
@@ -96,6 +97,21 @@ export function UserMenu({
   const { data: session, status, update } = useSession();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [accessUnread, setAccessUnread] = useState(0);
+  // Unread access notices, fetched when the menu opens (no background polling).
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    fetch('/api/access/notifications', { credentials: 'same-origin' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { unread?: number } | null) => {
+        if (!cancelled && d) setAccessUnread(d.unread ?? 0);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
   const menuRef = useRef<HTMLDivElement>(null);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -196,6 +212,9 @@ export function UserMenu({
             <ThemeSwitch />
           </div>
           <div className="border-t border-[var(--line-1)] p-3">
+            <DeveloperModeToggle />
+          </div>
+          <div className="border-t border-[var(--line-1)] p-3">
             <AppearanceControls />
           </div>
           <div className="border-t border-[var(--line-1)] p-2">
@@ -209,6 +228,33 @@ export function UserMenu({
             >
               <Settings className="h-4 w-4 text-[var(--ink-3)]" />
               Settings
+            </button>
+            <button
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                router.push('/my-access');
+              }}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-size-body font-semibold text-[var(--ink-1)] transition-colors hover:bg-[var(--surface-2)]"
+            >
+              <KeyRound className="h-4 w-4 text-[var(--ink-3)]" />
+              My data access
+            </button>
+            <button
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                router.push('/my-access/tickets');
+              }}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-size-body font-semibold text-[var(--ink-1)] transition-colors hover:bg-[var(--surface-2)]"
+            >
+              <Inbox className="h-4 w-4 text-[var(--ink-3)]" />
+              My access tickets
+              {accessUnread > 0 ? (
+                <span className="ml-auto rounded-full bg-[var(--brand-a)] px-1.5 text-size-ui font-semibold text-[var(--on-accent,#fff)]" aria-label={`${accessUnread} new`}>
+                  {accessUnread}
+                </span>
+              ) : null}
             </button>
             <button
               role="menuitem"

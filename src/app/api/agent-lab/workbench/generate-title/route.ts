@@ -11,6 +11,7 @@ import { assertInteractiveBudget, BudgetExceededError } from '@/lib/spend/budget
 import { logInteractiveLlmTurn } from '@/lib/spend/log-llm-turn';
 import { getSessionUserRole } from '@/lib/inspector/session-role';
 import { randomUUID } from 'crypto';
+import { workbenchAuth } from '../_auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +31,9 @@ function fallbackTitle(messages: TitleMessage[]): string | null {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await workbenchAuth(request);
+  if (auth instanceof NextResponse) return auth;
+
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

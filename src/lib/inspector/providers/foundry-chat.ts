@@ -7,6 +7,7 @@ import type { ToolConfiguration, Message } from '@aws-sdk/client-bedrock-runtime
 import type { BoostModel } from '../../boost/models';
 import { measureContext, type AgentLoopParams, type AgentLoopResult, type LoopMetrics, type TrajectoryEntry } from '../agent-loop';
 import { classifyToolCall } from '@/lib/boost/classify';
+import { finishCutOffReply, isOutputCapStop } from '../reply-cutoff';
 
 // ── Resource Configuration ──────────────────────────────────────────────────────
 
@@ -85,6 +86,32 @@ function buildTokenConfig(model: BoostModel, limit: number): Record<string, numb
   return { [model.tokenParam ?? 'max_tokens']: limit };
 }
 
+// ── Prompt caching via the LLM Lite gateway ─────────────────────────────────────
+
+/**
+ * Claude behind the gateway only caches when asked (OpenAI-style models cache automatically).
+ * LiteLLM's `cache_control_injection_points` places Anthropic cache markers for us: one on the
+ * system message (tools + system prefix) and, for `cacheConversation`, a moving one on the last
+ * message so each loop reads everything the previous loop sent. Verified live: write on call 1,
+ * read on call 2. Non-Claude models get nothing (and are never sent the field).
+ */
+export function gatewayCacheParams(
+  model: BoostModel,
+  opts: { cacheSystemPrompt?: boolean; cacheConversation?: boolean },
+): Record<string, unknown> {
+  if (model.resource !== 'llmlite' || !/claude/i.test(model.modelId)) return {};
+  const points: Array<Record<string, unknown>> = [];
+  if (opts.cacheSystemPrompt || opts.cacheConversation) points.push({ location: 'message', role: 'system' });
+  if (opts.cacheConversation) points.push({ location: 'message', index: -1 });
+  return points.length ? { cache_control_injection_points: points } : {};
+}
+
+/** Gateway reports Claude cache writes as `prompt_tokens_details.cache_write_tokens` (0/absent otherwise). */
+function gatewayCacheWriteTokens(usage: unknown): number {
+  const d = (usage as { prompt_tokens_details?: { cache_write_tokens?: number } } | null | undefined)?.prompt_tokens_details;
+  return d?.cache_write_tokens ?? 0;
+}
+
 // ── Bedrock → OpenAI Message Conversion ─────────────────────────────────────────
 
 function convertBedrockMessages(msgs: Message[]): ChatCompletionMessageParam[] {
@@ -113,8 +140,21 @@ function extractSql(toolName: string, input: Record<string, unknown>): string | 
 // deployment is degraded. Cap each model call at FOUNDRY_TOOL_TIMEOUT_MS.
 const FOUNDRY_TOOL_TIMEOUT_MS = parseInt(process.env.FOUNDRY_TOOL_TIMEOUT_MS ?? '45000', 10);
 // grok-4.7 reasons before the first token. 45s is the Azure hang cap and will
-// abort a healthy Grok turn. Refresh this on every stream event.
+// abort a healthy Grok turn. Grok on the LLM Lite gateway uses the same longer cap.
 const XAI_REQUEST_TIMEOUT_MS = parseInt(process.env.XAI_REQUEST_TIMEOUT_MS ?? '180000', 10);
+
+function stallTimeoutMs(modelId: string): number {
+  return modelId.toLowerCase().includes('grok') ? XAI_REQUEST_TIMEOUT_MS : FOUNDRY_TOOL_TIMEOUT_MS;
+}
+
+/** Stop is a separate flag from the stall timer. Check it while the model is silent. */
+function watchUserStop(abortSignal: { value: boolean } | undefined, ac: AbortController): () => void {
+  if (!abortSignal) return () => {};
+  const timer = setInterval(() => {
+    if (abortSignal.value) ac.abort();
+  }, 1000);
+  return () => clearInterval(timer);
+}
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -224,6 +264,7 @@ async function runXaiResponsesLoop(
 
       const ac = new AbortController();
       const stallTimer = setTimeout(() => ac.abort(), XAI_REQUEST_TIMEOUT_MS);
+      const stopWatching = watchUserStop(abortSignal, ac);
 
       const stream = await client.responses.create({
         model: model.modelId,
@@ -270,6 +311,7 @@ async function runXaiResponsesLoop(
         }
       } finally {
         clearTimeout(stallTimer);
+        stopWatching();
       }
 
       if (!completed) {
@@ -309,8 +351,13 @@ async function runXaiResponsesLoop(
       inputItems = inputItems.concat(completed.output as ResponseInputItem[]);
 
       if (calls.length === 0) {
-        reportLoop(0, abortSignal?.value ? 'aborted' : 'end_turn');
+        const cutOff =
+          !(abortSignal?.value) &&
+          completed.status === 'incomplete' &&
+          isOutputCapStop(completed.incomplete_details?.reason);
+        reportLoop(0, abortSignal?.value ? 'aborted' : cutOff ? 'max_tokens' : 'end_turn');
         finalText = assistantContent.trim() || null;
+        if (cutOff) finalText = finishCutOffReply(finalText ?? '');
         if (finalText) onTextReplace?.(finalText);
         return {
           finalText,
@@ -320,6 +367,8 @@ async function runXaiResponsesLoop(
           loops: loopCount,
         };
       }
+
+      if (assistantContent.trim()) onTextReplace?.('');
 
       const toolBatchStart = Date.now();
       const toolResults = await Promise.all(
@@ -385,6 +434,15 @@ async function runXaiResponsesLoop(
       loops: loopCount,
     };
   } catch (err: unknown) {
+    if (abortSignal?.value) {
+      return {
+        finalText,
+        toolCalls: trajectory,
+        outcome: 'truncated',
+        usage: { inputTokens: totalInputTokens, outputTokens: totalOutputTokens },
+        loops: loopCount,
+      };
+    }
     const rawMsg = err instanceof Error ? err.message : 'xAI agent loop failed';
     const isTimeout = rawMsg.includes('timed out') || rawMsg.includes('aborted') || rawMsg.includes('ended before completion');
     const errorDetail = isTimeout
@@ -417,6 +475,7 @@ export async function runFoundryAgentLoop(
 
   const client = getFoundryClient(model);
   const openAITools = translateTools(tools);
+  const cacheParams = gatewayCacheParams(model, params);
   const shouldStream = model.modelId !== 'o3-mini';
 
   let loopCount = 0;
@@ -442,6 +501,8 @@ export async function runFoundryAgentLoop(
       let inputTokens = 0;
       let outputTokens = 0;
       let cacheReadTokens = 0;
+      let cacheWriteTokens = 0;
+      let finishReason: string | null | undefined;
       const loopStartedAt = Date.now();
       const ctx = measureContext('', messages);
       let firstTokenAt: number | null = null;
@@ -451,13 +512,16 @@ export async function runFoundryAgentLoop(
         // Use AbortController to enforce a hard timeout on the full stream lifecycle
         // (Azure GPT-5.4 can hang indefinitely on tool-call requests when degraded)
         const ac = new AbortController();
-        const stallTimer = setTimeout(() => ac.abort(), FOUNDRY_TOOL_TIMEOUT_MS);
+        const stallMs = stallTimeoutMs(model.modelId);
+        const stallTimer = setTimeout(() => ac.abort(), stallMs);
+        const stopWatching = watchUserStop(abortSignal, ac);
 
         const stream = await client.chat.completions.create({
           model: model.modelId,
           messages,
           tools: openAITools,
           ...buildTokenConfig(model, 4096),
+          ...cacheParams,
           stream: true,
           stream_options: { include_usage: true },
         }, { signal: ac.signal });
@@ -471,6 +535,7 @@ export async function runFoundryAgentLoop(
             stallTimer.refresh?.();
             // Text content delta
             const delta = chunk.choices?.[0]?.delta;
+            if (chunk.choices?.[0]?.finish_reason) finishReason = chunk.choices[0].finish_reason;
             if (firstTokenAt === null && (delta?.content || delta?.tool_calls)) firstTokenAt = Date.now();
             if (delta?.content) {
               assistantContent += delta.content;
@@ -502,10 +567,12 @@ export async function runFoundryAgentLoop(
               inputTokens = chunk.usage.prompt_tokens ?? 0;
               outputTokens = chunk.usage.completion_tokens ?? 0;
               cacheReadTokens = chunk.usage.prompt_tokens_details?.cached_tokens ?? 0;
+              cacheWriteTokens = gatewayCacheWriteTokens(chunk.usage);
             }
           }
         } finally {
           clearTimeout(stallTimer);
+          stopWatching();
         }
 
         // Convert accumulated partials into complete tool_call objects
@@ -522,16 +589,19 @@ export async function runFoundryAgentLoop(
           messages,
           tools: openAITools,
           ...buildTokenConfig(model, 4096),
+          ...cacheParams,
           stream: false,
         });
 
         const response = await withTimeout(responsePromise, FOUNDRY_TOOL_TIMEOUT_MS, model.modelId) as OpenAI.Chat.Completions.ChatCompletion;
 
         const choice = response.choices[0];
+        finishReason = choice?.finish_reason;
         assistantContent = choice?.message?.content ?? '';
         inputTokens = response.usage?.prompt_tokens ?? 0;
         outputTokens = response.usage?.completion_tokens ?? 0;
         cacheReadTokens = response.usage?.prompt_tokens_details?.cached_tokens ?? 0;
+        cacheWriteTokens = gatewayCacheWriteTokens(response.usage);
         firstTokenAt = Date.now();
 
         // Emit text for non-streaming path
@@ -559,8 +629,8 @@ export async function runFoundryAgentLoop(
           inputTokens,
           outputTokens,
           cacheReadTokens,
-          // OpenAI-compatible APIs cache automatically and don't bill/report writes.
-          cacheWriteTokens: 0,
+          // OpenAI-style models cache automatically and report no writes; Claude via the gateway does.
+          cacheWriteTokens,
           ...ctx,
           toolCalls: toolCalls.length,
           stopReason,
@@ -568,8 +638,10 @@ export async function runFoundryAgentLoop(
 
       // ── No tool calls → model returned final answer ────────────────────────
       if (toolCalls.length === 0) {
-        reportLoop(0, abortSignal?.value ? 'aborted' : 'end_turn');
+        const cutOff = !(abortSignal?.value) && isOutputCapStop(finishReason);
+        reportLoop(0, abortSignal?.value ? 'aborted' : cutOff ? 'max_tokens' : 'end_turn');
         finalText = assistantContent.trim() || null;
+        if (cutOff) finalText = finishCutOffReply(finalText ?? '');
         // Replace accumulated interim narration (prior tool loops) with the final answer only.
         if (finalText) onTextReplace?.(finalText);
         return {
@@ -580,6 +652,8 @@ export async function runFoundryAgentLoop(
           loops: loopCount,
         };
       }
+
+      if (assistantContent.trim()) onTextReplace?.('');
 
       // ── Execute all tool calls in parallel ─────────────────────────────────
       // Build the assistant message with tool_calls for the conversation history
@@ -667,10 +741,20 @@ export async function runFoundryAgentLoop(
       loops: loopCount,
     };
   } catch (err: unknown) {
+    if (abortSignal?.value) {
+      return {
+        finalText,
+        toolCalls: trajectory,
+        outcome: 'truncated',
+        usage: { inputTokens: totalInputTokens, outputTokens: totalOutputTokens },
+        loops: loopCount,
+      };
+    }
     const rawMsg = err instanceof Error ? err.message : 'Foundry agent loop failed';
     const isTimeout = rawMsg.includes('timed out') || rawMsg.includes('aborted');
+    const capSec = Math.round(stallTimeoutMs(model.modelId) / 1000);
     const errorDetail = isTimeout
-      ? `${model.label} tool-calling is currently unavailable (request timed out after ${FOUNDRY_TOOL_TIMEOUT_MS / 1000}s). This is an Azure deployment issue. Please switch to a different model (e.g. Claude Sonnet, Grok 4.3) and retry.`
+      ? `${model.label} tool-calling is currently unavailable (request timed out after ${capSec}s). This is an Azure deployment issue. Please switch to a different model (e.g. Claude Sonnet, Grok 4.3) and retry.`
       : rawMsg;
     return {
       finalText,

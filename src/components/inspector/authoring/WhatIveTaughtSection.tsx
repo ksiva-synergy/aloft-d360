@@ -160,7 +160,7 @@ function RulesSubsection({ rules, onChanged }: { rules: ContribRule[]; onChanged
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Teach Inspector a rule — e.g. always exclude internal test accounts"
+          placeholder="Teach the chat a rule — e.g. always exclude internal test accounts"
           rows={2}
           disabled={busy}
           style={{

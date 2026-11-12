@@ -17,6 +17,7 @@ import {
   formatCompactCount,
 } from '@/components/estate/catalog-ui';
 import { LinkStatusPill, SiloStepper, SimilarityMeter, VerdictTag } from '@/components/estate/silo/silo-ui';
+import { useCanRunEstatePipeline } from '@/lib/estate/useEstatePipelineAccess';
 
 const CARD = 'rounded-card border border-[var(--estate-border-gold)] bg-[var(--estate-raised)]';
 const TOP_N_OPTIONS = [5, 10, 15, 20, 25, 30, 40, 50];
@@ -32,6 +33,7 @@ function kindLabel(kind: string | null | undefined): string {
 }
 
 function SiloFinderContent() {
+  const canAct = useCanRunEstatePipeline();
   const router = useRouter();
   const searchParams = useSearchParams();
   const objectIdParam = searchParams.get('objectId');
@@ -615,7 +617,8 @@ function SiloFinderContent() {
                 <button
                   type="button"
                   onClick={handleRunScan}
-                  disabled={!selectedObject || submitting}
+                  disabled={!selectedObject || submitting || !canAct}
+                  title={canAct ? undefined : 'Only platform admins can run scans'}
                   className={CATALOG_BTN_PRIMARY}
                 >
                   {submitting ? <Loader2 className="size-3.5 animate-spin" /> : null}
@@ -911,7 +914,11 @@ function SiloFinderContent() {
                               <LinkStatusPill state={linkState} />
                             </td>
                             <td className="px-5 py-3">
-                              {linkState === 'proposed' ? (
+                              {linkState === 'proposed' && !canAct ? (
+                                <div className="flex h-7 items-center justify-end text-caption text-[var(--estate-text-dim)]">
+                                  Awaiting review
+                                </div>
+                              ) : linkState === 'proposed' ? (
                                 <div className="flex justify-end gap-1.5">
                                   <button
                                     type="button"

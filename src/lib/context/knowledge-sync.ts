@@ -316,27 +316,40 @@ export async function syncObjectToKnowledge(
       );
     }
 
-    // 3. Data samples (optional, requires live Databricks connection)
+    // 3. Data samples — Internal tables only (Phase 6 derived-data rule)
     if (opts.includeSamples) {
       try {
-        const srcRow = await prisma.platformContextSource.findUniqueOrThrow({
-          where: { id: obj.source_id },
-          select: { connection_ref: true, connection_kind: true },
-        });
-        if (srcRow.connection_kind === 'databricks') {
-          const connRow = await prisma.platformDatabricksConnection.findUniqueOrThrow({
-            where: { id: srcRow.connection_ref },
-            select: { id: true, workspace_host: true, default_warehouse_id: true },
+        const { getAccessModel } = await import('@/lib/access/model-store');
+        const { pathProtections } = await import('@/lib/access/engine');
+        const { model } = await getAccessModel(obj.org_id);
+        const table = obj.full_path.toLowerCase();
+        // Simplified model: no samples from a protected table, or from a table with protected
+        // columns (samples are stored for everyone; metadata docs still sync above).
+        const isProtected =
+          pathProtections(model, table).length > 0 ||
+          model.targets.some((t) => t.column !== null && t.path === table);
+        if (isProtected) {
+          // Skip live row samples
+        } else {
+          const srcRow = await prisma.platformContextSource.findUniqueOrThrow({
+            where: { id: obj.source_id },
+            select: { connection_ref: true, connection_kind: true },
           });
-          const adapter = new DatabricksAdapter(connRow);
-          const rows = await adapter.fetchSampleRows(obj.full_path, 5);
-          if (rows.length > 0) {
-            const sampleDoc = buildSampleDoc(obj, rows);
-            totalChunks += await ingestDocument(
-              knowledgeSourceId, obj.org_id,
-              `context:${obj.full_path}:samples`,
-              sampleDoc,
-            );
+          if (srcRow.connection_kind === 'databricks') {
+            const connRow = await prisma.platformDatabricksConnection.findUniqueOrThrow({
+              where: { id: srcRow.connection_ref },
+              select: { id: true, workspace_host: true, default_warehouse_id: true },
+            });
+            const adapter = new DatabricksAdapter(connRow);
+            const rows = await adapter.fetchSampleRows(obj.full_path, 5);
+            if (rows.length > 0) {
+              const sampleDoc = buildSampleDoc(obj, rows);
+              totalChunks += await ingestDocument(
+                knowledgeSourceId, obj.org_id,
+                `context:${obj.full_path}:samples`,
+                sampleDoc,
+              );
+            }
           }
         }
       } catch {
