@@ -97,6 +97,25 @@ type RecreationSummary = {
   published: number;
   recreation_pct: number;
   published_pct: number;
+  root_causes?: Record<string, number>;
+};
+
+const ROOT_CAUSE_LABEL: Record<string, string> = {
+  empty_dax: 'empty DAX',
+  ui_slicer_helper: 'slicer helper',
+  text_result: 'text result',
+  nondeterministic_source: 'non-deterministic in PBI',
+  unsupported_dax: 'DAX not modeled',
+  harvest_gap: 'harvest gap',
+  unbound_table: 'unbound table',
+  pq_unsupported: 'Power Query step',
+  warehouse_error: 'warehouse error',
+  engine_limit: 'Spark planning limit',
+  llm_failed: 'LLM failed',
+  data_freshness: 'dataset stale',
+  parity_mismatch: 'value mismatch',
+  parity_no_oracle: 'no oracle value',
+  not_translated: 'not translated',
 };
 
 type ModelDetail = {
@@ -116,6 +135,7 @@ type ModelDetail = {
     dax_preview: string;
     recreation_stage?: MeasureRecreationStage;
     recreation_reason?: string | null;
+    root_cause?: { category: string; detail: string; fix: string } | null;
     translation_tier?: string | null;
     parity_verdict?: string | null;
     verified_query_status?: string | null;
@@ -124,6 +144,17 @@ type ModelDetail = {
       mapped_count: number;
       ref_count: number;
       unmapped: string[];
+    } | null;
+    measure_logic?: {
+      complexity_class: string;
+      reproduction_strategy: string;
+      block_automated_sql: boolean;
+      block_reason: string | null;
+      tables_involved: string[];
+      calc_columns: string[];
+      pq_filter_count: number;
+      harvest_gap_refs: string[];
+      aggregation_hint: string | null;
     } | null;
   }[];
   reports: { id: string; name: string; web_url: string | null }[];
@@ -265,6 +296,15 @@ function RecreationSummaryBar({ recreation }: { recreation: RecreationSummary })
         {recreation.parity_fail > 0 && <> · mismatch {recreation.parity_fail}</>}
         {recreation.parity_skip > 0 && <> · parity skipped {recreation.parity_skip}</>}
       </p>
+      {recreation.root_causes && Object.keys(recreation.root_causes).length > 0 && (
+        <p className="mt-1 text-caption text-[var(--estate-text-muted)]">
+          Not recreated:{' '}
+          {Object.entries(recreation.root_causes)
+            .sort((a, b) => b[1] - a[1])
+            .map(([k, n]) => `${ROOT_CAUSE_LABEL[k] ?? k} ${n}`)
+            .join(' · ')}
+        </p>
+      )}
     </div>
   );
 }
@@ -610,6 +650,14 @@ function MeasuresTab({
                   </button>
                   {open && (
                     <div className="space-y-2 px-4 pb-3 pl-10">
+                      {m.root_cause && (
+                        <p className="text-caption text-[var(--estate-text-secondary)]">
+                          <span className="text-[var(--estate-ink)]">
+                            {ROOT_CAUSE_LABEL[m.root_cause.category] ?? m.root_cause.category}:
+                          </span>{' '}
+                          {m.root_cause.fix}
+                        </p>
+                      )}
                       {m.recreation_reason && (
                         <p className="text-caption text-[var(--estate-text-secondary)]">
                           {m.recreation_reason}
@@ -631,6 +679,41 @@ function MeasuresTab({
                               {' '}
                               · unmapped: {m.column_resolution.unmapped.slice(0, 4).join(', ')}
                               {m.column_resolution.unmapped.length > 4 ? '…' : ''}
+                            </span>
+                          )}
+                        </p>
+                      )}
+                      {m.measure_logic && (
+                        <p className="text-caption text-[var(--estate-text-secondary)]">
+                          Logic: {m.measure_logic.complexity_class} → {m.measure_logic.reproduction_strategy}
+                          {m.measure_logic.aggregation_hint && (
+                            <span className="text-[var(--estate-text-muted)]">
+                              {' '}
+                              · agg {m.measure_logic.aggregation_hint}
+                            </span>
+                          )}
+                          {m.measure_logic.calc_columns.length > 0 && (
+                            <span className="text-[var(--estate-text-muted)]">
+                              {' '}
+                              · calc: {m.measure_logic.calc_columns.slice(0, 3).join(', ')}
+                              {m.measure_logic.calc_columns.length > 3 ? '…' : ''}
+                            </span>
+                          )}
+                          {m.measure_logic.pq_filter_count > 0 && (
+                            <span className="text-[var(--estate-text-muted)]">
+                              {' '}
+                              · {m.measure_logic.pq_filter_count} PQ filter(s)
+                            </span>
+                          )}
+                          {m.measure_logic.harvest_gap_refs?.length > 0 && (
+                            <span className="block text-amber-700/90 dark:text-amber-400/90">
+                              Harvest gap: {m.measure_logic.harvest_gap_refs.slice(0, 4).join(', ')}
+                              {m.measure_logic.harvest_gap_refs.length > 4 ? '…' : ''}
+                            </span>
+                          )}
+                          {m.measure_logic.block_automated_sql && m.measure_logic.block_reason && (
+                            <span className="block text-[var(--estate-text-muted)]">
+                              {m.measure_logic.block_reason}
                             </span>
                           )}
                         </p>

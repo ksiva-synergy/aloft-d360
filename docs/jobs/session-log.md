@@ -5,6 +5,31 @@
 
 ---
 
+### 2026-11-13: Audit-bridge pattern expander in translate (Cursor)
+
+- **What:** `expand-audit-bridge`, `measure-sql-expand`, translate tier `expand` for multi_table_calc DISTINCTCOUNT measures.
+- **Why:** Generalize SIRE_Fin manual SQL to dynamic pattern (PSC_*, audit bridge calcs).
+- **Verified:** vitest expand-audit-bridge.
+
+### 2026-11-13: Vessel re-harvest + translate (Cursor)
+
+- **What:** Parse/catalog/translate scripts; quoted TMDL column names; comment-safe DAX refs; audit script (36-table parity).
+- **Why:** Post–force-parse catalog link required; PSC `Key Column` and comment false gaps blocked analyzer.
+- **Verified:** `run-vessel-translate.ts`; zero harvest_gap measures; `PSC_Det` multi_table_expand logic_gate.
+
+### 2026-11-13: TMDL calc-column parse fix (Cursor)
+
+- **What:** `tmdl-parse.ts` fenced/open expression modes; `force_parse` on `pbi_parse` scope; vessel def+parse script uses it.
+- **Why:** Harvest dropped VIA calc columns (`PSC_Check_Det` etc.); parse skip when definition hash unchanged blocked re-harvest.
+- **Verified:** vitest `powerbi-parse.test.ts`; estate TMDL → 35 columns locally.
+
+### 2026-11-13: Measure logic analyzer + translate gate (Cursor)
+
+- **What:** `measure-logic-analyze.ts`, `pq-filter-parse.ts`; translate `logic_gate` tier; Estate measure logic panel; xAI-only fallback policy when `XAI_API_KEY` set.
+- **Why:** Generic analyze→reproduce dossier per measure (calc closure, PQ filters) before rule/LLM SQL.
+- **Verified:** `vitest measure-logic-analyze.test.ts`.
+- **Not done:** calc expander / steward SQL templates wired to translate.
+
 ### 2026-11-13: Vessel pilot retrospective doc (Cursor)
 
 - **What:** `docs/jobs/powerbi-vessel-pilot-issues-and-wiring.md`.

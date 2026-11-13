@@ -92,6 +92,8 @@ export async function runPbiParse(
     reportIds?: string[];
     maxModels?: number;
     maxReports?: number;
+    /** Re-harvest columns/measures even when definition hash matches last parse. */
+    forceReparse?: boolean;
   },
 ): Promise<PbiParseResult> {
   const source = await prisma.platformContextSource.findFirst({
@@ -128,7 +130,7 @@ export async function runPbiParse(
       modelsSkipped += 1;
       continue;
     }
-    if (!needsModelParse(defMeta.content_hash, model.props)) {
+    if (!opts.forceReparse && !needsModelParse(defMeta.content_hash, model.props)) {
       modelsSkipped += 1;
       continue;
     }
@@ -140,13 +142,42 @@ export async function runPbiParse(
       let measureCount = 0;
 
       await prisma.$transaction(async (tx) => {
-        await tx.pbiMeasure.deleteMany({ where: { model_id: model.id } });
+        // Reconcile instead of wipe-and-rebuild: tables and measures keep their ids across
+        // re-parses (matched by TMDL lineageTag, then name), so translations, oracle results,
+        // verified queries and steward source bindings stay attached. Stateless children
+        // (columns, relationships, roles, embedded-table rows) are rebuilt.
+        const existingTables = await tx.pbiTable.findMany({
+          where: { model_id: model.id },
+          select: { id: true, name: true, lineage_tag: true },
+        });
+        const existingMeasures = await tx.pbiMeasure.findMany({
+          where: { model_id: model.id },
+          select: { id: true, name: true, lineage_tag: true, table_id: true },
+        });
+        const existingBindings = await tx.pbiSourceBinding.findMany({
+          where: { model_id: model.id },
+          select: { id: true, table_id: true, source_m_hash: true },
+        });
+        const tableByTag = new Map(
+          existingTables.filter((t) => t.lineage_tag).map((t) => [t.lineage_tag!, t]),
+        );
+        const tableByName = new Map(existingTables.map((t) => [t.name, t]));
+        const measureByTag = new Map(
+          existingMeasures.filter((m) => m.lineage_tag).map((m) => [m.lineage_tag!, m]),
+        );
+        const measureByTableName = new Map(existingMeasures.map((m) => [`${m.table_id}\0${m.name}`, m]));
+        const measureByName = new Map<string, (typeof existingMeasures)[number] | null>();
+        for (const m of existingMeasures) {
+          measureByName.set(m.name, measureByName.has(m.name) ? null : m); // null = ambiguous
+        }
+        const bindingByTable = new Map(existingBindings.map((b) => [b.table_id, b]));
+        const seenTables = new Set<string>();
+        const seenMeasures = new Set<string>();
+
         await tx.pbiColumn.deleteMany({ where: { model_id: model.id } });
-        await tx.pbiSourceBinding.deleteMany({ where: { model_id: model.id } });
         await tx.pbiEmbeddedTable.deleteMany({ where: { model_id: model.id } });
         await tx.pbiRelationship.deleteMany({ where: { model_id: model.id } });
         await tx.pbiRole.deleteMany({ where: { model_id: model.id } });
-        await tx.pbiTable.deleteMany({ where: { model_id: model.id } });
 
         const tmdlFiles = walkTmdl(absDir);
         for (const file of tmdlFiles) {
@@ -197,44 +228,79 @@ export async function runPbiParse(
             partitionKinds.push(kind);
           }
 
-          const table = await tx.pbiTable.create({
-            data: {
-              org_id: orgId,
-              model_id: model.id,
-              name: parsed.name,
-              lineage_tag: parsed.lineageTag,
-              partition_kind: kind,
-              storage_mode: parsed.partitionMode,
-              hidden: parsed.hidden,
-              source_m: parsed.partitionSourceM.slice(0, 500_000) || null,
-              is_auto_date: kind === 'auto_date_table',
-              content_hash: sha256Short(text),
-              first_seen_run: opts.runId,
-              last_seen_run: opts.runId,
-            },
-          });
+          const tableData = {
+            name: parsed.name,
+            lineage_tag: parsed.lineageTag,
+            partition_kind: kind,
+            storage_mode: parsed.partitionMode,
+            hidden: parsed.hidden,
+            source_m: parsed.partitionSourceM.slice(0, 500_000) || null,
+            is_auto_date: kind === 'auto_date_table',
+            content_hash: sha256Short(text),
+            last_seen_run: opts.runId,
+            lifecycle: 'active',
+          };
+          const prior =
+            (parsed.lineageTag ? tableByTag.get(parsed.lineageTag) : undefined) ??
+            tableByName.get(parsed.name);
+          const table =
+            prior && !seenTables.has(prior.id)
+              ? await tx.pbiTable.update({ where: { id: prior.id }, data: tableData })
+              : await tx.pbiTable.create({
+                  data: {
+                    org_id: orgId,
+                    model_id: model.id,
+                    first_seen_run: opts.runId,
+                    ...tableData,
+                  },
+                });
+          seenTables.add(table.id);
           tableCount += 1;
 
+          const priorBinding = bindingByTable.get(table.id);
           if (kind === 'warehouse_query') {
             const nativeSql = extractNativeSql(parsed.partitionSourceM);
             const host = extractDatabricksHost(parsed.partitionSourceM);
             const paths = nativeSql ? extractTablePathsFromSql(nativeSql) : [];
             const ucPath = paths[0] ?? null;
-            await tx.pbiSourceBinding.create({
-              data: {
-                org_id: orgId,
-                model_id: model.id,
-                table_id: table.id,
-                partition_kind: kind,
-                connector: 'databricks',
-                connection_host: host,
-                native_sql: nativeSql,
-                uc_full_path: ucPath,
-                bind_status: 'pending',
-                source_m_hash: sha256Short(parsed.partitionSourceM),
-              },
-            });
-          } else if (kind === 'embedded_table') {
+            const sourceHash = sha256Short(parsed.partitionSourceM);
+            const bindingData = {
+              partition_kind: kind,
+              connector: 'databricks',
+              connection_host: host,
+              native_sql: nativeSql,
+              source_m_hash: sourceHash,
+            };
+            if (priorBinding && priorBinding.source_m_hash === sourceHash) {
+              // unchanged source: keep match status, UC object and steward edits
+              await tx.pbiSourceBinding.update({ where: { id: priorBinding.id }, data: bindingData });
+            } else if (priorBinding) {
+              await tx.pbiSourceBinding.update({
+                where: { id: priorBinding.id },
+                data: {
+                  ...bindingData,
+                  uc_full_path: ucPath,
+                  bind_status: 'pending',
+                  context_object_id: null,
+                  databricks_source_id: null,
+                },
+              });
+            } else {
+              await tx.pbiSourceBinding.create({
+                data: {
+                  org_id: orgId,
+                  model_id: model.id,
+                  table_id: table.id,
+                  uc_full_path: ucPath,
+                  bind_status: 'pending',
+                  ...bindingData,
+                },
+              });
+            }
+          } else if (priorBinding) {
+            await tx.pbiSourceBinding.delete({ where: { id: priorBinding.id } });
+          }
+          if (kind === 'embedded_table') {
             await tx.pbiEmbeddedTable.create({
               data: {
                 org_id: orgId,
@@ -269,22 +335,41 @@ export async function runPbiParse(
           for (const m of parsed.measures) {
             if (!m.name) continue;
             measureCount += 1;
-            await tx.pbiMeasure.create({
-              data: {
-                org_id: orgId,
-                model_id: model.id,
-                table_id: table.id,
-                name: m.name,
-                dax: m.dax.slice(0, 500_000) || ' ',
-                dax_hash: sha256Short(m.dax),
-                lineage_tag: m.lineageTag,
-                format_string: m.formatString,
-                display_folder: m.displayFolder,
-                content_hash: sha256Short(JSON.stringify(m)),
-              },
-            });
+            const measureData = {
+              table_id: table.id,
+              name: m.name,
+              dax: m.dax.slice(0, 500_000) || ' ',
+              dax_hash: sha256Short(m.dax),
+              lineage_tag: m.lineageTag,
+              format_string: m.formatString,
+              display_folder: m.displayFolder,
+              content_hash: sha256Short(JSON.stringify(m)),
+              lifecycle: 'active',
+            };
+            const priorMeasure =
+              (m.lineageTag ? measureByTag.get(m.lineageTag) : undefined) ??
+              measureByTableName.get(`${table.id}\0${m.name}`) ??
+              measureByName.get(m.name) ??
+              undefined;
+            if (priorMeasure && !seenMeasures.has(priorMeasure.id)) {
+              await tx.pbiMeasure.update({ where: { id: priorMeasure.id }, data: measureData });
+              seenMeasures.add(priorMeasure.id);
+            } else {
+              const created = await tx.pbiMeasure.create({
+                data: { org_id: orgId, model_id: model.id, ...measureData },
+              });
+              seenMeasures.add(created.id);
+            }
           }
         }
+
+        // Only what is really gone from the model definition is removed.
+        await tx.pbiMeasure.deleteMany({
+          where: { model_id: model.id, id: { notIn: [...seenMeasures] } },
+        });
+        await tx.pbiTable.deleteMany({
+          where: { model_id: model.id, id: { notIn: [...seenTables] } },
+        });
       }, { maxWait: PARSE_TX_MAX_WAIT_MS, timeout: PARSE_TX_TIMEOUT_MS });
 
       const answerability = classifyModelAnswerability({

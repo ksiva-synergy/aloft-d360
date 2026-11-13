@@ -638,6 +638,7 @@ async function dispatchSingleJob(
           reportIds,
           maxModels: typeof scope.max_models === 'number' ? scope.max_models : undefined,
           maxReports: typeof scope.max_reports === 'number' ? scope.max_reports : undefined,
+          forceReparse: scope.force_parse === true,
         });
         await finalize(job.id, 'succeeded', stats as unknown as Record<string, unknown>);
         console.log(
@@ -772,7 +773,7 @@ async function dispatchSingleJob(
         });
         await finalize(job.id, 'succeeded', stats as unknown as Record<string, unknown>);
         console.log(
-          `[pbi_translate] rule=${stats.rule_translated} llm=${stats.llm_translated}/${stats.measures_scanned} dax_uc=${stats.uc_via_dax_refs ?? 0} no_bind=${stats.skipped_no_binding} unsupported=${stats.skipped_unsupported_dax} cost_usd=${stats.cost_usd.toFixed(4)}`,
+          `[pbi_translate] rule=${stats.rule_translated} expand=${stats.pattern_expanded ?? 0} expand_fail=${stats.expand_compile_failed ?? 0}c/${stats.expand_warehouse_failed ?? 0}w orphans_removed=${stats.orphan_translations_removed ?? 0} llm=${stats.llm_translated}/${stats.measures_scanned} dax_uc=${stats.uc_via_dax_refs ?? 0} no_bind=${stats.skipped_no_binding} logic_gate=${stats.skipped_logic_gate ?? 0} unsupported=${stats.skipped_unsupported_dax} cost_usd=${stats.cost_usd.toFixed(4)}`,
         );
         return { status: 'succeeded' };
       } catch (err) {

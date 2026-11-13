@@ -1,7 +1,11 @@
 import 'server-only';
 
 import prisma from '@/lib/db';
-import { executeDatasetQueries, PowerBiApiError } from '@/lib/powerbi/client';
+import {
+  executeDatasetQueries,
+  getLatestDatasetRefreshEnd,
+  PowerBiApiError,
+} from '@/lib/powerbi/client';
 import { buildMeasureOracleQuery } from '@/lib/powerbi/dax-query';
 import { hashOracleRows } from '@/lib/powerbi/oracle-result-hash';
 
@@ -137,6 +141,23 @@ export async function runPbiOracle(
     const wsId = model.workspace.pbi_workspace_id;
     const datasetId = model.pbi_model_id;
     modelsScanned += 1;
+
+    // Snapshot time of the oracle values: lets parity tell stale-dataset mismatches apart.
+    try {
+      const refreshedAt = await getLatestDatasetRefreshEnd(wsId, datasetId);
+      if (refreshedAt) {
+        model.last_refresh_at = refreshedAt;
+        await prisma.pbiModel.update({
+          where: { id: model.id },
+          data: { last_refresh_at: refreshedAt },
+        });
+      }
+    } catch (err) {
+      console.warn(
+        `[pbi_oracle] refresh history unavailable for ${model.name}:`,
+        err instanceof Error ? err.message : err,
+      );
+    }
 
     for (const measure of measures) {
       measuresRun += 1;

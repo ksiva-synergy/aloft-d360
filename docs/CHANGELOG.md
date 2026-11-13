@@ -2,6 +2,72 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-11-13 — Single-table calc agg expander (Avg_Audit_Duration)
+
+- **What:** `expand-calc-aggregate.ts` — pattern `single_table_calc_agg` for `AVERAGE|SUM|…(home[calc])` (incl. `FORMAT(…) & " days"`) when calc DAX is inline `DATEDIFF` duration ÷ 24; wired in `measure-sql-expand.ts`; `parity-compare.ts` parses `"N.NN days"` oracle text.
+- **Why:** `calc_expand` measures stopped at `logic_gate`; only audit-bridge DISTINCTCOUNT was expanded.
+- **Verified:** vitest `expand-calc-aggregate.test.ts`, existing `expand-audit-bridge.test.ts`.
+- **Not done:** Other calc shapes (non-duration); live parity on warehouse.
+
+## 2026-11-13 — Vessel full pipeline script
+
+- **What:** `scripts/powerbi/run-vessel-pipeline-full.ts` — catalog_link → translate (LLM cap 30) → oracle → parity → publish for Vessel report.
+- **Why:** Move recreation % beyond expand-only translate; oracle/parity on `tier: expand` SQL.
+- **Verified:** Local run: sql_drafted 20, oracle 14, parity 14 pass / 4 fail / 2 err, published 11, recreation_pct **12.3%** (was ~9.6%).
+
+## 2026-11-13 — Vessel pipeline coverage report
+
+- **What:** `scripts/powerbi/audit-vessel-pipeline-report.ts` — per-measure `analyzeMeasureLogic` + `tryExpandMeasureSql` vs `pbi_translations` (no measure-name hardcoding).
+- **Why:** Operator view of what the pipeline identifies, expands, or still cannot reproduce on Vessel Internal Audit.
+- **Verified:** Run after `run-vessel-translate.ts` — 3 `audit_bridge_distinct`, 20 logic_gate (other patterns), 23 no_uc, 17 LLM-candidate rows skipped when `llm_translate: false`.
+
+## 2026-11-13 — Dynamic audit-bridge SQL expander (translate)
+
+- **What:** `measure-sql-expand.ts`, `expand-audit-bridge.ts`, `pq-predicate-sql.ts` — detect `DISTINCTCOUNTNOBLANK(home[calc])` + audit-window / remote MAX calc DAX; emit CTE SQL with PQ filters; translate `tier: expand` when logic_gate would block (`pattern_expanded` stat).
+- **Why:** SIRE_Fin, PSC_Det, PSC_Fin share one PBI pattern — analyzer blocked with no codegen; manual SQL was out-of-band.
+- **Verified:** vitest `expand-audit-bridge.test.ts`.
+- **Not done:** Nested KeyConcatenate parse from harvest; all VIA PQ filters → SQL; parity run on expand tier.
+
+## 2026-11-13 — Vessel recreation test script
+
+- **What:** `scripts/powerbi/run-vessel-recreation-test.ts` — oracle → parity → publish for report `093a04a2-…` / model `b7d7e779-…`.
+- **Why:** One command to validate the Vessel Internal Audit report end-to-end after harvest/translate.
+- **Verified:** Local run: oracle 10, parity 12 pass / 4 fail, publish 9; 7 measures `published` (e.g. `Vessel_Count_TB`, `SIRE` path N/A — `SIRE_Fin` logic_gate).
+
+## 2026-11-13 — Vessel re-harvest: translate + gap fixes
+
+- **What:** `audit-vessel-harvest.ts`, `run-vessel-translate.ts` (catalog_link → translate); `stripTmdlQuotedName` for columns like `Key Column`; DAX `//` comments ignored in `extractDaxColumnRefs`; `run-vessel-def-parse` chains `pbi_catalog_link` after force parse.
+- **Why:** Force `pbi_parse` resets bindings (`bind_status` pending) — translate was no-op until catalog link; quoted TMDL names and comment refs caused false harvest gaps.
+- **Verified:** 36/36 tables column parity; harvest gaps none; `PSC_Det`/`SIRE_Fin` `logic_gate` (multi-table calc); translate `rule=3 llm=7 logic_gate=23`.
+- **Scripts:** `run-vessel-translate.ts`, `audit-vessel-harvest.ts`.
+
+## 2026-11-13 — TMDL parser: multiline calculated columns
+
+- **What:** `tmdl-parse.ts` — expression `fenced` / `open` modes for `column`/`measure` DAX so fenced bodies and `Updt_TOD =` style lines are not parsed as nested blocks; fixture + test in `powerbi-parse.test.ts`.
+- **Why:** Vessel Internal Audit dropped `PSC_Check_Det`, `port`, etc. (28 vs 35 columns); closing ``` attached to DAX comment blocks.
+- **Verified:** vitest `powerbi-parse.test.ts`; local `parseTmdlTableFile` on estate TMDL → 35 columns including `PSC_Check_Det`.
+- **Also:** `runPbiParse` / orchestrator `scope.force_parse` so parser fixes re-harvest without definition hash change; `run-vessel-def-parse.ts` sets it.
+
+## 2026-11-13 — Measure logic: harvest gap + unquoted DAX refs
+
+- **What:** Analyzer marks `harvest_gap` when DAX cites a column on a harvested table but `pbi_columns` lacks it (`reparse_required`); bare `Table[Col]` extraction; Estate shows harvest gap refs.
+- **Why:** `PSC_Check_Det` etc. visible in Power BI but only 28/40+ VIA columns parsed — was mislabeled `steward_required`.
+- **Verified:** vitest `measure-logic-analyze`, `translate-dax-refs`.
+
+## 2026-11-13 — Power BI measure logic analyzer + translate gate (xAI)
+
+- **What:** `measure-logic-analyze.ts`, `pq-filter-parse.ts` — per-measure dossier (calc closure, PQ filters, complexity/strategy, `block_automated_sql`). Translate skips rule/LLM when blocked (`tier: logic_gate`); LLM prompt v3 includes analysis; Estate measure detail shows logic summary. PBI translate LLM uses `XAI_API_KEY` + `XAI_MODEL` (no Sonnet fallback unless `PBI_TRANSLATE_LLM_FALLBACK=1`).
+- **Why:** Pipeline should analyze reproduction like manual investigation, not invent warehouse columns for calc measures.
+- **Verified:** `npx vitest run src/lib/powerbi/__tests__/measure-logic-analyze.test.ts`.
+- **Not done:** SQL expander (calc → CTE); auto-generated `validate-*.ts` stubs.
+
+## 2026-11-13 — SIRE_Fin warehouse SQL + validation script
+
+- **What:** `scripts/powerbi/validate-sire-fin.ts` and `scripts/powerbi/sql/sire-fin-measure.sql` — SQL that mirrors PBI `SIRE_Check` (audit window + `KeyConcatenate` from SIRE 2.0 with PQ filters including `NO_OF_FINDINGS > 10`) and scalar `SIRE_Fin`.
+- **Why:** Practical path to recreate calc-column measure in Databricks; naive `COUNT(DISTINCT SIRE_Check)` on `bi_vw_internalaudit` is invalid.
+- **Verified:** `npx tsx --require ./scripts/context/noserver.cjs scripts/powerbi/validate-sire-fin.ts` → **60** vs PBI oracle **62** (PQ filters); without SIRE PQ filters **449**.
+- **Not done:** Wire into `pbi_translations` / publish; close 2-count gap (row-level spot-check).
+
 ## 2026-11-13 — Doc: Vessel pilot issues, fixes, wiring
 
 - **What:** `docs/jobs/powerbi-vessel-pilot-issues-and-wiring.md` — issues/resolutions table, app harness map, Vessel metrics after catalog resolve pilot run, code map, next steps.

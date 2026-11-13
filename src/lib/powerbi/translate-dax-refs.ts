@@ -9,18 +9,37 @@ export type TableUcRow = {
 /** Table names referenced as `'Name'[column]` or `Name[column]` in DAX. */
 export type DaxColumnRef = { table: string; column: string };
 
-/** PBI column refs in DAX: `'Table'[Column]` (quoted table names). */
+const DAX_FUNC_SKIP =
+  /^(SUM|COUNT|DISTINCTCOUNT|DISTINCTCOUNTNOBLANK|CALCULATE|FILTER|IF|DIVIDE|VAR|RETURN|MAX|MIN|AVERAGE|AVERAGEX|SUMX|SWITCH|TRUE|FALSE|BLANK|COALESCE|EDATE|DATEDATE|VALUES|ALL|REMOVEFILTERS|AND|OR|NOT|IN|SELECTEDVALUE|SELECTEDMEASURE|ISBLANK)$/i;
+
+function stripDaxLineComments(dax: string): string {
+  return dax.replace(/\/\/.*$/gm, '');
+}
+
+/** PBI column refs: `'Table'[Column]` and `Table[Column]` (unquoted table names). */
 export function extractDaxColumnRefs(dax: string): DaxColumnRef[] {
+  const daxBody = stripDaxLineComments(dax);
   const seen = new Set<string>();
   const refs: DaxColumnRef[] = [];
-  const quoted = /'([^']+)'\s*\[([^\]]+)\]/g;
-  for (const m of dax.matchAll(quoted)) {
-    const table = m[1].trim();
-    const column = m[2].trim();
+  const push = (table: string, column: string) => {
     const key = `${table.toLowerCase()}\0${column.toLowerCase()}`;
-    if (!column || seen.has(key)) continue;
+    if (!column || seen.has(key)) return;
+    if (DAX_FUNC_SKIP.test(table.trim())) return;
+    if (isSkippableRef(table)) return;
     seen.add(key);
-    refs.push({ table, column });
+    refs.push({ table: table.trim(), column: column.trim() });
+  };
+
+  const quoted = /'([^']+)'\s*\[([^\]]+)\]/g;
+  for (const m of daxBody.matchAll(quoted)) {
+    push(m[1], m[2]);
+  }
+
+  const bare = /(?:^|[^\w'])((?:[A-Za-z_][\w\s]*)?)\[([^\]]+)\]/g;
+  for (const m of daxBody.matchAll(bare)) {
+    const table = m[1].trim();
+    if (!table || table.startsWith("'")) continue;
+    push(table, m[2]);
   }
   return refs;
 }

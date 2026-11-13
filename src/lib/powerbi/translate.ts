@@ -16,10 +16,19 @@ import {
 } from '@/lib/powerbi/catalog-column-resolve';
 import {
   estimateHarvestLlmCostUsd,
+  getPbiTranslateLlmRouting,
   isPbiTranslateLlmAvailable,
   translateMeasureWithLlm,
 } from '@/lib/powerbi/translate-llm';
+import {
+  analyzeMeasureLogic,
+  loadMeasureLogicCatalog,
+  measureLogicAnalysisProps,
+  type MeasureLogicAnalysis,
+} from '@/lib/powerbi/measure-logic-analyze';
 import { validateSqlAgainstAllowlist } from '@/lib/powerbi/translate-llm-validate';
+import { expandAndTestMeasure } from '@/lib/powerbi/expand-validate';
+import { validateLlmSql } from '@/lib/powerbi/translate-llm-validate';
 import { tryRuleTierSql } from '@/lib/powerbi/translate-rule';
 
 type MeasureRow = Awaited<ReturnType<typeof loadMeasures>>[number];
@@ -31,6 +40,8 @@ type LlmCandidate = {
   nativeSql: string | null;
   via: 'home_table' | 'dax_ref';
   columnResolution: MeasureColumnResolution;
+  measureLogic: MeasureLogicAnalysis;
+  compileFailure: Record<string, unknown> | null;
 };
 
 async function loadMeasures(orgId: string, modelIds?: string[]) {
@@ -111,6 +122,7 @@ async function loadCatalogByModel(
       where: { org_id: orgId, model_id: modelId },
       select: {
         name: true,
+        source_m: true,
         sourceBinding: {
           select: {
             native_sql: true,
@@ -123,6 +135,7 @@ async function loadCatalogByModel(
       name: t.name,
       nativeSql: t.sourceBinding?.native_sql ?? null,
       contextObjectId: t.sourceBinding?.context_object_id ?? null,
+      sourceM: t.source_m,
     }));
     out.set(modelId, await loadModelColumnCatalog(orgId, modelId, rows));
   }
@@ -161,6 +174,11 @@ export interface PbiTranslateResult {
   llm_skipped_unavailable: number;
   skipped_no_binding: number;
   skipped_unsupported_dax: number;
+  skipped_logic_gate: number;
+  pattern_expanded: number;
+  expand_compile_failed: number;
+  expand_warehouse_failed: number;
+  orphan_translations_removed: number;
   uc_via_dax_refs: number;
   llm_input_tokens: number;
   llm_output_tokens: number;
@@ -188,17 +206,137 @@ export async function runPbiTranslate(
 
   const measures = await loadMeasures(orgId, opts.modelIds);
   const internalModelIds = [...new Set(measures.map((m) => m.model_id))];
+
+  // Re-harvest assigns new measure ids; rows for ids that no longer exist would otherwise
+  // linger (the DB has no FK cascade) and shadow the live translation in name-based lookups.
+  const orphanCleanup = internalModelIds.length
+    ? await prisma.pbiTranslation.deleteMany({
+        where: {
+          org_id: orgId,
+          model_id: { in: internalModelIds },
+          measure_id: { not: null, notIn: measures.map((m) => m.id) },
+        },
+      })
+    : { count: 0 };
+  if (orphanCleanup.count > 0) {
+    console.log(`[pbi_translate] removed ${orphanCleanup.count} translations for deleted measures`);
+  }
   const modelTableUc = await loadModelTableUcMaps(orgId, internalModelIds);
   const catalogByModel = await loadCatalogByModel(orgId, internalModelIds);
+  const logicCatalogByModel = new Map<string, Awaited<ReturnType<typeof loadMeasureLogicCatalog>>>();
+  for (const modelId of internalModelIds) {
+    logicCatalogByModel.set(modelId, await loadMeasureLogicCatalog(orgId, modelId));
+  }
+
+  const llmRouting = isPbiTranslateLlmAvailable() ? getPbiTranslateLlmRouting() : null;
+  if (llmRouting) {
+    console.log(
+      `[pbi_translate] llm routing provider=${llmRouting.provider} model=${llmRouting.modelId}`,
+    );
+  }
 
   let ruleTranslated = 0;
   let skippedNoBinding = 0;
   let skippedUnsupported = 0;
+  let skippedLogicGate = 0;
+  let patternExpanded = 0;
+  let expandCompileFailed = 0;
+  let expandWarehouseFailed = 0;
   let ucViaDaxRefs = 0;
   const llmCandidates: LlmCandidate[] = [];
 
+  /** Record why a measure has no SQL (shown by recreation summary / Estate). */
+  async function persistNoSql(
+    measure: MeasureRow,
+    tier: string,
+    props: Record<string, unknown>,
+  ) {
+    const data = {
+      measure_name: measure.name,
+      dax_hash: measure.dax_hash,
+      sql_text: null,
+      tier,
+      status: 'draft',
+      parity_verdict: null,
+      run_id: opts.runId,
+      props: props as object,
+    };
+    await prisma.pbiTranslation.upsert({
+      where: { org_id_measure_id: { org_id: orgId, measure_id: measure.id } },
+      create: { org_id: orgId, model_id: measure.model_id, measure_id: measure.id, ...data },
+      update: { ...data, updated_at: new Date() },
+    });
+  }
+
   for (const measure of measures) {
     const binding = measure.table.sourceBinding;
+    const logicCatalogForCompile = logicCatalogByModel.get(measure.model_id);
+    const tableMapForCompile =
+      modelTableUc.get(measure.model_id) ?? new Map<string, TableUcRow>();
+
+    // 1) Compile-first: DAX → SQL from the harvested model (calc columns, PQ lineage,
+    //    calculated tables, relationships, measure refs), tested on the warehouse.
+    let compileFailure: Record<string, unknown> | null = null;
+    if (logicCatalogForCompile) {
+      const compileLogic = analyzeMeasureLogic({
+        dax: measure.dax,
+        catalog: logicCatalogForCompile,
+        hasUc: true,
+      });
+      const outcome = await expandAndTestMeasure({
+        orgId,
+        modelId: measure.model_id,
+        measureDax: measure.dax,
+        measureLogic: compileLogic,
+        catalog: logicCatalogForCompile,
+        anyStrategy: true,
+      });
+      const compiledSql = outcome.ok ? validateLlmSql(outcome.expanded.sql) : null;
+      if (outcome.ok && compiledSql) {
+        const tablesUsed = (outcome.expanded.expand_spec.tables ?? []) as string[];
+        const ucTable = tablesUsed.find((t) => tableMapForCompile.get(normalizePbiTableName(t)));
+        const uc = ucTable ? tableMapForCompile.get(normalizePbiTableName(ucTable))!.uc : '';
+        const props = translationProps(uc, 'dax_ref', ucTable ?? measure.table.name, {
+          pattern: outcome.expanded.pattern,
+          expand_spec: outcome.expanded.expand_spec,
+          expand_test: {
+            mode: outcome.test.mode,
+            value: outcome.test.value,
+            attempts: outcome.attempts,
+          },
+          ...measureLogicAnalysisProps(compileLogic),
+        }) as object;
+        const data = {
+          measure_name: measure.name,
+          dax_hash: measure.dax_hash,
+          sql_text: compiledSql,
+          tier: 'expand',
+          status: 'draft',
+          parity_verdict: null,
+          run_id: opts.runId,
+          props,
+        };
+        await prisma.pbiTranslation.upsert({
+          where: { org_id_measure_id: { org_id: orgId, measure_id: measure.id } },
+          create: { org_id: orgId, model_id: measure.model_id, measure_id: measure.id, ...data },
+          update: { ...data, updated_at: new Date() },
+        });
+        patternExpanded += 1;
+        continue;
+      }
+      if (!outcome.ok) {
+        if (outcome.stage === 'compile') expandCompileFailed += 1;
+        else expandWarehouseFailed += 1;
+        compileFailure = {
+          stage: outcome.stage,
+          reason: outcome.reason,
+          sql: outcome.sql ?? null,
+          notes: outcome.notes,
+          attempts: outcome.attempts,
+        };
+      }
+    }
+
     const homeUc =
       binding?.bind_status === 'matched' && binding.uc_full_path
         ? binding.uc_full_path
@@ -215,6 +353,10 @@ export async function runPbiTranslate(
 
     if (!resolved) {
       skippedNoBinding += 1;
+      await persistNoSql(measure, 'unresolved', {
+        uc_resolution: 'none',
+        expand_failure: compileFailure,
+      });
       continue;
     }
     if (resolved.via === 'dax_ref') ucViaDaxRefs += 1;
@@ -241,6 +383,59 @@ export async function runPbiTranslate(
         };
 
     const colProps = columnResolutionProps(columnResolution);
+    const logicCatalog = logicCatalogByModel.get(measure.model_id);
+    const measureLogic = logicCatalog
+      ? analyzeMeasureLogic({
+          dax: measure.dax,
+          catalog: logicCatalog,
+          hasUc: Boolean(resolved.uc),
+        })
+      : analyzeMeasureLogic({ dax: measure.dax, catalog: { columnsByTable: new Map(), tableMeta: new Map() }, hasUc: Boolean(resolved.uc) });
+    const logicProps = measureLogicAnalysisProps(measureLogic);
+
+    async function persistLogicGateOnly(extra?: Record<string, unknown>) {
+      skippedLogicGate += 1;
+      await prisma.pbiTranslation.upsert({
+        where: { org_id_measure_id: { org_id: orgId, measure_id: measure.id } },
+        create: {
+          org_id: orgId,
+          model_id: measure.model_id,
+          measure_id: measure.id,
+          measure_name: measure.name,
+          dax_hash: measure.dax_hash,
+          sql_text: null,
+          tier: 'logic_gate',
+          status: 'draft',
+          parity_verdict: null,
+          run_id: opts.runId,
+          props: translationProps(resolved.uc, resolved.via, resolved.sourceTable, {
+            ...colProps,
+            ...logicProps,
+            ...extra,
+          }),
+        },
+        update: {
+          measure_name: measure.name,
+          dax_hash: measure.dax_hash,
+          sql_text: null,
+          tier: 'logic_gate',
+          status: 'draft',
+          parity_verdict: null,
+          run_id: opts.runId,
+          props: translationProps(resolved.uc, resolved.via, resolved.sourceTable, {
+            ...colProps,
+            ...logicProps,
+            ...extra,
+          }),
+          updated_at: new Date(),
+        },
+      });
+    }
+
+    if (measureLogic.block_automated_sql) {
+      await persistLogicGateOnly(compileFailure ? { expand_failure: compileFailure } : undefined);
+      continue;
+    }
 
     const attempt = tryRuleTierSql({
       dax: measure.dax,
@@ -258,6 +453,8 @@ export async function runPbiTranslate(
         nativeSql: resolved.nativeSql,
         via: resolved.via,
         columnResolution,
+        measureLogic,
+        compileFailure,
       });
     };
 
@@ -288,10 +485,12 @@ export async function runPbiTranslate(
         sql_text: attempt.sql,
         tier: 'rule',
         status: 'draft',
+        parity_verdict: null,
         run_id: opts.runId,
         props: translationProps(resolved.uc, resolved.via, resolved.sourceTable, {
           pattern: attempt.pattern,
           ...colProps,
+          ...logicProps,
         }),
       },
       update: {
@@ -300,10 +499,12 @@ export async function runPbiTranslate(
         sql_text: attempt.sql,
         tier: 'rule',
         status: 'draft',
+        parity_verdict: null,
         run_id: opts.runId,
         props: translationProps(resolved.uc, resolved.via, resolved.sourceTable, {
           pattern: attempt.pattern,
           ...colProps,
+          ...logicProps,
         }),
         updated_at: new Date(),
       },
@@ -321,12 +522,26 @@ export async function runPbiTranslate(
   let llmInputTokens = 0;
   let llmOutputTokens = 0;
 
+  const persistLlmFailure = (cand: LlmCandidate, reason: string) =>
+    persistNoSql(
+      cand.measure,
+      'llm_failed',
+      translationProps(cand.uc, cand.via, cand.sourceTable, {
+        llm_failure: { reason },
+        expand_failure: cand.compileFailure,
+        ...columnResolutionProps(cand.columnResolution),
+        ...measureLogicAnalysisProps(cand.measureLogic),
+      }),
+    );
+
   if (!llmEnabled && llmCandidates.length > 0) {
     llmSkippedUnavailable = llmCandidates.length;
+    for (const cand of llmCandidates) await persistLlmFailure(cand, 'LLM translate disabled or unavailable');
   } else {
     for (const cand of llmCandidates) {
       if (maxLlm > 0 && llmTranslated >= maxLlm) {
         llmSkippedCap += 1;
+        await persistLlmFailure(cand, `LLM cap reached (${maxLlm} measures per run)`);
         continue;
       }
 
@@ -340,13 +555,18 @@ export async function runPbiTranslate(
           nativeSql: cand.nativeSql,
           allowedColumns: cand.columnResolution.allowed_columns,
           columnMap: cand.columnResolution.column_map,
+          measureLogicAnalysis: cand.measureLogic as unknown as Record<string, unknown>,
         });
         if (!result) {
           llmFailed += 1;
+          await persistLlmFailure(cand, 'LLM returned no usable SQL');
           continue;
         }
 
-        const colProps = columnResolutionProps(cand.columnResolution);
+        const colProps = {
+          ...columnResolutionProps(cand.columnResolution),
+          ...measureLogicAnalysisProps(cand.measureLogic),
+        };
         const allowCheck = validateSqlAgainstAllowlist(
           result.sql,
           cand.columnResolution.allowed_columns,
@@ -356,6 +576,10 @@ export async function runPbiTranslate(
             `[pbi_translate] llm sql allowlist reject measure=${cand.measure.name} invalid=${allowCheck.invalid.join(',')}`,
           );
           llmFailed += 1;
+          await persistLlmFailure(
+            cand,
+            `LLM SQL referenced columns outside the allowlist: ${allowCheck.invalid.join(', ')}`,
+          );
           continue;
         }
 
@@ -375,6 +599,7 @@ export async function runPbiTranslate(
             sql_text: result.sql,
             tier: 'llm',
             status: 'draft',
+            parity_verdict: null,
             run_id: opts.runId,
             props: translationProps(cand.uc, cand.via, cand.sourceTable, {
               grain: result.grain,
@@ -391,6 +616,7 @@ export async function runPbiTranslate(
             sql_text: result.sql,
             tier: 'llm',
             status: 'draft',
+            parity_verdict: null,
             run_id: opts.runId,
             props: translationProps(cand.uc, cand.via, cand.sourceTable, {
               grain: result.grain,
@@ -410,6 +636,10 @@ export async function runPbiTranslate(
           err instanceof Error ? err.message : err,
         );
         llmFailed += 1;
+        await persistLlmFailure(
+          cand,
+          `LLM error: ${(err instanceof Error ? err.message : String(err)).slice(0, 300)}`,
+        );
       }
     }
   }
@@ -425,6 +655,11 @@ export async function runPbiTranslate(
     llm_skipped_unavailable: llmSkippedUnavailable,
     skipped_no_binding: skippedNoBinding,
     skipped_unsupported_dax: skippedUnsupported,
+    skipped_logic_gate: skippedLogicGate,
+    pattern_expanded: patternExpanded,
+    expand_compile_failed: expandCompileFailed,
+    expand_warehouse_failed: expandWarehouseFailed,
+    orphan_translations_removed: orphanCleanup.count,
     uc_via_dax_refs: ucViaDaxRefs,
     llm_input_tokens: llmInputTokens,
     llm_output_tokens: llmOutputTokens,

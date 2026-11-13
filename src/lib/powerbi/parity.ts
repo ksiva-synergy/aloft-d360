@@ -6,9 +6,10 @@ import { runWarehouseQuery } from '@/lib/access/warehouse';
 import { PowerBiApiError } from '@/lib/powerbi/client';
 import { normalizePbiTableName } from '@/lib/powerbi/translate-dax-refs';
 import {
-  decideParityVerdict,
-  extractOracleScalar,
-  extractSqlScalar,
+  decideTypedParity,
+  extractOracleValue,
+  extractSqlValue,
+  type ParityRaw,
 } from '@/lib/powerbi/parity-compare';
 
 async function resolveDatabricksSourceIdForTranslation(
@@ -110,11 +111,12 @@ export async function runPbiParity(
       orderBy: { created_at: 'desc' },
     });
 
-    const oracleValue = oracle ? extractOracleScalar(oracle.result_preview) : null;
+    const oracleRaw: ParityRaw = oracle
+      ? extractOracleValue(oracle.result_preview)
+      : { present: false, raw: null };
 
     const ctxSourceId = await resolveDatabricksSourceIdForTranslation(orgId, tr);
     if (!ctxSourceId) {
-      const verdict = decideParityVerdict({ oracleValue, sqlValue: null });
       await prisma.pbiTranslation.update({
         where: { id: tr.id },
         data: {
@@ -144,7 +146,7 @@ export async function runPbiParity(
       continue;
     }
 
-    let sqlValue: number | null = null;
+    let sqlRaw: ParityRaw = { present: false, raw: null };
     let sqlError: string | null = null;
 
     try {
@@ -156,14 +158,15 @@ export async function runPbiParity(
         level: 'read',
         surface: 'harvest',
       });
-      sqlValue = extractSqlScalar(result.rows);
+      sqlRaw = extractSqlValue(result.rows);
     } catch (err) {
       sqlError = err instanceof Error ? err.message : String(err);
     }
 
-    const decision = decideParityVerdict({ oracleValue, sqlValue: sqlError ? null : sqlValue });
+    const decision = decideTypedParity({ oracle: oracleRaw, sql: sqlRaw });
     const verdict = sqlError ? 'error' : decision.verdict;
     const summary = sqlError ? `SQL error: ${sqlError.slice(0, 200)}` : decision.summary;
+    const asJson = (v: unknown) => (v instanceof Date ? v.toISOString() : v ?? null);
 
     await prisma.pbiTranslation.update({
       where: { id: tr.id },
@@ -174,8 +177,10 @@ export async function runPbiParity(
           parity: {
             verdict,
             summary,
-            oracle_value: oracleValue,
-            sql_value: sqlValue,
+            oracle_value: asJson(decision.oracleValue),
+            sql_value: sqlError ? null : asJson(decision.sqlValue),
+            model_refresh_at: oracle?.model_refresh_at?.toISOString() ?? null,
+            checked_at: new Date().toISOString(),
             run_id: opts.runId,
           },
         },

@@ -26,6 +26,55 @@ function tablesFromTranslationProps(props: unknown, fallbackUc?: string | null):
   return uc?.trim() ? [uc.trim()] : [];
 }
 
+/**
+ * Re-parse assigns new PbiMeasure ids. Verified queries still pointing at ids that no longer
+ * exist would keep answering with superseded SQL, so demote them (reversible: status
+ * `candidate` + `demoted_reason`, the same path as a schema-hash change).
+ */
+export async function retireStaleVerifiedQueries(
+  orgId: string,
+  pbiModelIds?: string[],
+): Promise<number> {
+  const models = await prisma.pbiModel.findMany({
+    where: {
+      org_id: orgId,
+      lifecycle: 'active',
+      ...(pbiModelIds?.length ? { pbi_model_id: { in: pbiModelIds } } : {}),
+    },
+    select: { pbi_model_id: true, measures: { select: { id: true } } },
+  });
+  const now = new Date();
+  let retired = 0;
+  for (const m of models) {
+    const stale = await prisma.kbVerifiedQuery.findMany({
+      where: {
+        org_id: orgId,
+        origin: 'powerbi',
+        status: 'verified',
+        props: { path: ['pbi_model_id'], equals: m.pbi_model_id },
+        pbi_measure_id: { notIn: m.measures.map((x) => x.id) },
+      },
+      select: { id: true, props: true },
+    });
+    for (const vq of stale) {
+      await prisma.kbVerifiedQuery.update({
+        where: { id: vq.id },
+        data: {
+          status: 'candidate',
+          props: {
+            ...(vq.props as object),
+            demoted_reason: 'measure_removed',
+            demoted_at: now.toISOString(),
+          },
+          updated_at: now,
+        },
+      });
+      retired += 1;
+    }
+  }
+  return retired;
+}
+
 export async function runPbiPublish(
   orgId: string,
   _sourceId: string,
@@ -97,27 +146,11 @@ export async function runPbiPublish(
       where: { org_id: orgId, pbi_measure_id: tr.measure_id },
     });
 
-    if (existing && existing.schema_hash !== schemaHash) {
-      await prisma.kbVerifiedQuery.update({
-        where: { id: existing.id },
-        data: {
-          status: 'candidate',
-          last_validated_at: now,
-          props: {
-            ...(existing.props as object),
-            demoted_reason: 'schema_hash_changed',
-            ...provenance,
-          },
-          updated_at: now,
-        },
-      });
-      await prisma.pbiTranslation.update({
-        where: { id: tr.id },
-        data: { status: 'draft', updated_at: now },
-      });
-      demoted += 1;
-      continue;
-    }
+    // SQL/schema changed since the last publish. Translate clears parity_verdict on every
+    // rewrite, so a `pass` here means parity re-verified the *new* SQL against Power BI:
+    // replace the verified query in place (history kept) instead of demoting it forever.
+    const supersededHash =
+      existing && existing.schema_hash !== schemaHash ? existing.schema_hash : null;
 
     const baseData = {
       question,
@@ -132,7 +165,9 @@ export async function runPbiPublish(
       verified_by: opts.verifiedBy ?? 'harvest',
       verified_at: now,
       last_validated_at: now,
-      props: provenance,
+      props: supersededHash
+        ? { ...provenance, superseded_schema_hash: supersededHash, superseded_at: now.toISOString() }
+        : provenance,
     };
 
     const row = existing
@@ -168,6 +203,8 @@ export async function runPbiPublish(
 
     published += 1;
   }
+
+  demoted += await retireStaleVerifiedQueries(orgId, opts.modelIds);
 
   if (translations.length === 0) {
     throw new PowerBiApiError(

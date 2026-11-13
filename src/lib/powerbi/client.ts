@@ -97,6 +97,18 @@ export async function listDatasets(workspaceId: string): Promise<PbiDatasetListI
   return data.value ?? [];
 }
 
+/** End time of the most recent completed refresh of a dataset, or null (none / no access). */
+export async function getLatestDatasetRefreshEnd(
+  workspaceId: string,
+  datasetId: string,
+): Promise<Date | null> {
+  const data = await powerBiGet<{ value: { status?: string; endTime?: string }[] }>(
+    `groups/${workspaceId}/datasets/${datasetId}/refreshes?$top=5`,
+  );
+  const done = (data.value ?? []).find((r) => r.status === 'Completed' && r.endTime);
+  return done?.endTime ? new Date(done.endTime) : null;
+}
+
 export async function listReports(workspaceId: string): Promise<PbiReportListItem[]> {
   const data = await powerBiGet<{ value: PbiReportListItem[] }>(`groups/${workspaceId}/reports`);
   return data.value ?? [];

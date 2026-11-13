@@ -11,7 +11,7 @@ import {
 import { isLlmLiteConfigured } from '@/lib/llmlite/config';
 import { extractJsonObject, validateLlmSql } from '@/lib/powerbi/translate-llm-validate';
 
-export const PBI_TRANSLATE_LLM_PROMPT_VERSION = 'pbi-dax-sql-v2-catalog';
+export const PBI_TRANSLATE_LLM_PROMPT_VERSION = 'pbi-dax-sql-v3-logic';
 
 const LlmTranslateSchema = z.object({
   sql: z.string(),
@@ -28,6 +28,7 @@ Rules:
 - Use only warehouse column names listed in allowed_columns or column_map values.
 - Do not invent tables or columns not in the provided catalog context.
 - Prefer simple, readable SQL over clever shortcuts.
+- When measure_logic_analysis.block_automated_sql is true or reproduction_strategy is calc_expand/multi_table_expand/steward_required, return empty sql and assumptions cannot_translate unless you can faithfully expand calc columns using table_context pq_filters and calc_closure.
 - If the DAX cannot be faithfully translated, return {"sql":"","grain":null,"assumptions":"cannot_translate","explanation":"..."} with empty sql.
 - Keep assumptions and explanation under 200 characters each so the JSON fits in one response.`;
 
@@ -65,6 +66,13 @@ export function getPbiTranslateLlmRouting(): HarvestLlmCallOverrides {
 function getPbiTranslateLlmFallbackRouting(
   primary: HarvestLlmCallOverrides,
 ): HarvestLlmCallOverrides | null {
+  if (
+    process.env.XAI_API_KEY?.trim() &&
+    process.env.PBI_TRANSLATE_LLM_FALLBACK !== '1' &&
+    process.env.PBI_TRANSLATE_LLM_FALLBACK !== 'true'
+  ) {
+    return null;
+  }
   const fallbackModel = process.env.PBI_TRANSLATE_LLM_FALLBACK_MODEL?.trim();
   if (fallbackModel) {
     return { provider: 'llmlite', modelId: fallbackModel };
@@ -99,6 +107,7 @@ export type LlmTranslateMeasureInput = {
   nativeSql?: string | null;
   allowedColumns?: string[];
   columnMap?: Record<string, string>;
+  measureLogicAnalysis?: Record<string, unknown>;
 };
 
 export type LlmTranslateMeasureResult = {
@@ -125,6 +134,7 @@ export async function translateMeasureWithLlm(
       native_sql_for_table: input.nativeSql?.slice(0, 4000) ?? null,
       allowed_columns: input.allowedColumns?.slice(0, 200) ?? [],
       column_map: input.columnMap ?? {},
+      measure_logic_analysis: input.measureLogicAnalysis ?? null,
       dax,
     },
     null,

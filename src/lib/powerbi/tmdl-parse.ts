@@ -11,6 +11,71 @@ export type TmdlBlock = {
   children: TmdlBlock[];
 };
 
+const CHILD_BLOCK_KEYWORDS = new Set([
+  'table',
+  'column',
+  'measure',
+  'partition',
+  'relationship',
+  'role',
+  'model',
+  'annotation',
+  'variation',
+  'changedProperty',
+  'extendedProperty',
+  'hierarchy',
+  'level',
+  'calculationGroup',
+  'calculationItem',
+  'formatStringDefinition',
+  'detailRowsDefinition',
+  'refreshPolicy',
+  'alternateOf',
+]);
+
+/** Bare boolean TMDL properties (`isHidden`, `isNameInferred`, …) carry no colon. */
+const BARE_FLAG_RE = /^is[A-Z]\w*$/;
+
+type TmdlStackFrame = {
+  indent: number;
+  block: TmdlBlock;
+  expressionMode?: 'fenced' | 'open';
+};
+
+function isPropertyOrChildHeader(content: string): boolean {
+  const trimmed = content.trim();
+  const header = parseHeader(content);
+  if (CHILD_BLOCK_KEYWORDS.has(header.keyword)) return true;
+  if (BARE_FLAG_RE.test(trimmed)) return true;
+  return /^\w[\w.]*\s*:/.test(trimmed);
+}
+
+const TRAILING_TMDL_PROPERTY_RE = new RegExp(
+  String.raw`^\s*(?:(?:${[...CHILD_BLOCK_KEYWORDS].join('|')})(?:\s|=|$)|is[A-Z]\w*\s*(?::|$)|(?:lineageTag|formatString|summarizeBy|dataType|displayFolder|sourceColumn|dataCategory|sortByColumn|description)\s*:)`,
+);
+
+/**
+ * Drop TMDL property / child-object lines that a pre-fix harvest appended to a DAX
+ * expression (e.g. trailing `changedProperty = DataType`). Only trailing lines are removed.
+ */
+export function stripTrailingTmdlProperties(dax: string | null | undefined): string | null {
+  if (dax == null) return null;
+  const lines = dax.replace(/\r\n/g, '\n').split('\n');
+  while (lines.length > 0 && TRAILING_TMDL_PROPERTY_RE.test(lines[lines.length - 1]!)) lines.pop();
+  const out = lines.join('\n').trimEnd();
+  return out ? out : null;
+}
+
+function expressionModeForHeader(keyword: string, headerLine: string, rest?: string): 'fenced' | 'open' | undefined {
+  if (keyword !== 'column' && keyword !== 'measure') return undefined;
+  if (rest === '```') return 'fenced';
+  const eq = headerLine.indexOf('=');
+  if (eq === -1) return undefined;
+  const afterEq = headerLine.slice(eq + 1).trim();
+  if (!afterEq) return 'open';
+  return undefined;
+}
+
 function countLeadingTabs(line: string): number {
   let n = 0;
   for (const ch of line) {
@@ -18,6 +83,14 @@ function countLeadingTabs(line: string): number {
     else break;
   }
   return n;
+}
+
+/** Strip TMDL single-quoted identifiers (`'Key Column'` → `Key Column`). */
+export function stripTmdlQuotedName(name: string | undefined): string {
+  if (!name?.trim()) return name?.trim() ?? '';
+  const t = name.trim();
+  if (t.length >= 2 && t.startsWith("'") && t.endsWith("'")) return t.slice(1, -1);
+  return t;
 }
 
 function parseHeader(line: string): { keyword: string; name?: string; rest?: string } {
@@ -41,7 +114,7 @@ function parseHeader(line: string): { keyword: string; name?: string; rest?: str
 export function parseTmdl(text: string): TmdlBlock[] {
   const lines = text.replace(/\r\n/g, '\n').split('\n');
   const root: TmdlBlock[] = [];
-  const stack: { indent: number; block: TmdlBlock }[] = [];
+  const stack: TmdlStackFrame[] = [];
 
   let i = 0;
   while (i < lines.length) {
@@ -53,18 +126,50 @@ export function parseTmdl(text: string): TmdlBlock[] {
     const indent = countLeadingTabs(line);
     const content = line.slice(indent);
 
+    const frame = stack[stack.length - 1];
+    if (frame?.expressionMode === 'fenced') {
+      if (content.trimStart().startsWith('```')) {
+        frame.expressionMode = undefined;
+        i += 1;
+        continue;
+      }
+      frame.block.bodyLines.push(content);
+      i += 1;
+      continue;
+    }
+
     if (content.trimStart().startsWith('```')) {
-      const parent = stack[stack.length - 1]?.block;
+      if (frame?.expressionMode === 'open') {
+        frame.expressionMode = 'fenced';
+        i += 1;
+        continue;
+      }
+      const parent = frame?.block;
       if (parent) {
         const body: string[] = [];
         i += 1;
         while (i < lines.length && !lines[i].trim().startsWith('```')) {
-          body.push(lines[i]);
+          body.push(lines[i].slice(countLeadingTabs(lines[i])));
           i += 1;
         }
         parent.bodyLines.push(...body);
         if (i < lines.length) i += 1;
         continue;
+      }
+    }
+
+    if (frame?.expressionMode === 'open') {
+      const propIndent = frame.indent + 1;
+      if (indent > frame.indent) {
+        if (indent === propIndent && isPropertyOrChildHeader(content)) {
+          frame.expressionMode = undefined;
+        } else {
+          frame.block.bodyLines.push(content);
+          i += 1;
+          continue;
+        }
+      } else {
+        frame.expressionMode = undefined;
       }
     }
 
@@ -87,7 +192,16 @@ export function parseTmdl(text: string): TmdlBlock[] {
     } else {
       stack[stack.length - 1].block.children.push(block);
     }
-    stack.push({ indent, block });
+    const parentBlock = stack.length > 0 ? stack[stack.length - 1].block : null;
+    const expressionMode =
+      isCalculatedPartitionSource(block, parentBlock)
+        ? header.rest === '```'
+          ? 'fenced'
+          : header.rest
+            ? undefined
+            : 'open'
+        : expressionModeForHeader(block.keyword, block.headerLine, header.rest);
+    stack.push({ indent, block, expressionMode });
     i += 1;
   }
 
@@ -95,21 +209,23 @@ export function parseTmdl(text: string): TmdlBlock[] {
   return root;
 }
 
+/** `source = …` directly under `partition X = calculated` holds a DAX table expression. */
+function isCalculatedPartitionSource(block: TmdlBlock, parent: TmdlBlock | null): boolean {
+  return (
+    block.keyword === 'source' &&
+    parent?.keyword === 'partition' &&
+    /=\s*calculated\s*$/i.test(parent.headerLine)
+  );
+}
+
 function attachPropertyLines(blocks: TmdlBlock[]): void {
   for (const b of blocks) {
-    const childKeywords = new Set([
-      'table',
-      'column',
-      'measure',
-      'partition',
-      'relationship',
-      'role',
-      'model',
-      'annotation',
-    ]);
+    const childKeywords = CHILD_BLOCK_KEYWORDS;
     const kept: TmdlBlock[] = [];
     for (const child of b.children) {
-      if (childKeywords.has(child.keyword)) {
+      if (isCalculatedPartitionSource(child, b)) {
+        kept.push(child);
+      } else if (childKeywords.has(child.keyword)) {
         kept.push(child);
         attachPropertyLines([child]);
       } else if (child.headerLine.includes(':') && !child.keyword.includes(' ')) {
@@ -182,6 +298,9 @@ function extractPartitionM(table: TmdlBlock, fileText: string): { source: string
     ? [...sourceChild.bodyLines, ...sourceChild.children.flatMap(collectBlockLines)]
     : [...partition.bodyLines, ...partition.children.flatMap(collectBlockLines)];
   const fromTree = lines.join('\n').trim();
+  if (sourceChild && isCalculatedPartitionSource(sourceChild, partition) && fromTree) {
+    return { source: fromTree, mode };
+  }
   if (fromTree.includes('NativeQuery') || fromTree.includes('FromRows')) {
     return { source: fromTree, mode };
   }
@@ -213,7 +332,7 @@ export function parseTmdlTableFile(text: string): ParsedTmdlTable | null {
   const columns = table.children
     .filter((c) => c.keyword === 'column')
     .map((col) => ({
-      name: col.name ?? '',
+      name: stripTmdlQuotedName(col.name ?? col.headerLine.replace(/^column\s+/i, '').split('=')[0]),
       dataType: col.properties.dataType ?? null,
       sourceColumn: col.properties.sourceColumn ?? null,
       lineageTag: col.properties.lineageTag ?? null,
@@ -235,7 +354,7 @@ export function parseTmdlTableFile(text: string): ParsedTmdlTable | null {
   const { source, mode } = extractPartitionM(table, text);
 
   return {
-    name: table.name,
+    name: stripTmdlQuotedName(table.name),
     lineageTag: table.properties.lineageTag ?? null,
     hidden: table.properties.isHidden === 'true',
     columns,

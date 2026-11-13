@@ -7,6 +7,7 @@ import {
   normalizeColumnKey,
   tokenOverlapScore,
 } from '@/lib/powerbi/catalog-column-parse';
+import { parseMLineage, type MLineage } from '@/lib/powerbi/m-lineage';
 import {
   extractDaxColumnRefs,
   normalizePbiTableName,
@@ -16,6 +17,7 @@ import {
 
 export type ColumnResolveVia =
   | 'pbi_source_column'
+  | 'pq_lineage'
   | 'catalog_exact'
   | 'catalog_normalized'
   | 'native_sql'
@@ -47,7 +49,26 @@ export type ModelColumnCatalog = {
   catalogNamesByObjectId: Map<string, string[]>;
   catalogNormIndex: Map<string, Map<string, string>>;
   nativeSqlColumnsByTable: Map<string, Set<string>>;
+  /** Power Query lineage per table key (reverses Table.RenameColumns etc.). */
+  lineageByTable: Map<string, MLineage>;
 };
+
+/**
+ * PBI `source_column` is the Power Query *output* name. Map it back to the warehouse
+ * column via the table's M lineage (renames, transforms). Returns null when the lineage
+ * cannot express it as a single warehouse column.
+ */
+function warehouseColumnViaLineage(
+  lineage: MLineage | undefined,
+  mName: string,
+): { column: string; renamed: boolean } | null {
+  if (!lineage) return null;
+  const expr = lineage.column(mName);
+  if ('error' in expr) return null;
+  if (expr.leaves.length !== 1) return null;
+  const leaf = expr.leaves[0]!;
+  return { column: leaf, renamed: leaf !== mName };
+}
 
 function resolveOneRef(
   ref: DaxColumnRef,
@@ -56,14 +77,25 @@ function resolveOneRef(
   catalogNames: string[],
   normIndex: Map<string, string>,
   nativeCols: Set<string> | undefined,
+  lineage?: MLineage,
 ): ResolvedDaxColumn {
   const pbi = ref.column;
   const sourceCol = pbiCols?.get(pbi) ?? pbiCols?.get(pbi.toLowerCase());
-  if (sourceCol?.trim()) {
+  const mName = sourceCol?.trim() || null;
+  const viaLineage = warehouseColumnViaLineage(lineage, mName ?? pbi);
+  if (viaLineage?.renamed) {
     return {
       table: ref.table,
       pbi_column: pbi,
-      warehouse_column: sourceCol.trim(),
+      warehouse_column: viaLineage.column,
+      via: 'pq_lineage',
+    };
+  }
+  if (mName) {
+    return {
+      table: ref.table,
+      pbi_column: pbi,
+      warehouse_column: mName,
       via: 'pbi_source_column',
     };
   }
@@ -202,7 +234,12 @@ async function embedResolveUnmapped(
 export async function loadModelColumnCatalog(
   orgId: string,
   internalModelId: string,
-  tableRows: { name: string; nativeSql: string | null; contextObjectId: string | null }[],
+  tableRows: {
+    name: string;
+    nativeSql: string | null;
+    contextObjectId: string | null;
+    sourceM?: string | null;
+  }[],
 ): Promise<ModelColumnCatalog> {
   const pbiColumns = await prisma.pbiColumn.findMany({
     where: { org_id: orgId, model_id: internalModelId, lifecycle: 'active' },
@@ -255,9 +292,11 @@ export async function loadModelColumnCatalog(
   }
 
   const nativeSqlColumnsByTable = new Map<string, Set<string>>();
+  const lineageByTable = new Map<string, MLineage>();
   for (const t of tableRows) {
     const key = normalizePbiTableName(t.name).toLowerCase();
     nativeSqlColumnsByTable.set(key, new Set(extractColumnNamesFromNativeSql(t.nativeSql)));
+    if (t.sourceM?.trim()) lineageByTable.set(key, parseMLineage(t.sourceM));
   }
 
   return {
@@ -265,6 +304,7 @@ export async function loadModelColumnCatalog(
     catalogNamesByObjectId,
     catalogNormIndex,
     nativeSqlColumnsByTable,
+    lineageByTable,
   };
 }
 
@@ -316,6 +356,7 @@ export async function resolveMeasureColumnContext(input: {
       catalogNames,
       objectId ? (input.catalog.catalogNormIndex.get(objectId) ?? new Map()) : new Map(),
       input.catalog.nativeSqlColumnsByTable.get(tKey),
+      input.catalog.lineageByTable?.get(tKey),
     );
     resolvedRefs.push(r);
     if (r.warehouse_column) {

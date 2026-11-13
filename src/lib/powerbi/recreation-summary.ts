@@ -2,6 +2,17 @@ import 'server-only';
 
 import prisma from '@/lib/db';
 import {
+  analyzeMeasureLogic,
+  loadMeasureLogicCatalog,
+  summarizeMeasureLogic,
+  type MeasureLogicSummary,
+} from '@/lib/powerbi/measure-logic-analyze';
+import {
+  classifyRootCause,
+  type RootCause,
+  type RootCauseCategory,
+} from '@/lib/powerbi/recreation-root-cause';
+import {
   normalizePbiTableName,
   resolveUcForMeasure,
   type TableUcRow,
@@ -29,7 +40,14 @@ export type ModelRecreationSummary = {
   recreation_pct: number;
   published_pct: number;
   by_stage: Record<MeasureRecreationStage, number>;
-  failures: { measure_name: string; stage: MeasureRecreationStage; reason: string }[];
+  /** Not-recreated measures grouped by root cause. */
+  root_causes: Partial<Record<RootCauseCategory, number>>;
+  failures: {
+    measure_name: string;
+    stage: MeasureRecreationStage;
+    reason: string;
+    root_cause: RootCauseCategory | null;
+  }[];
 };
 
 export type MeasureColumnResolutionSummary = {
@@ -48,7 +66,20 @@ export type MeasureRecreationRow = {
   verified_query_status: string | null;
   uc_source_table: string | null;
   column_resolution: MeasureColumnResolutionSummary | null;
+  measure_logic: MeasureLogicSummary | null;
+  root_cause: RootCause | null;
 };
+
+function measureLogicFromProps(props: unknown): MeasureLogicSummary | null {
+  if (!props || typeof props !== 'object') return null;
+  const raw = (props as Record<string, unknown>).measure_logic_analysis;
+  if (!raw || typeof raw !== 'object') return null;
+  try {
+    return summarizeMeasureLogic(raw as Parameters<typeof summarizeMeasureLogic>[0]);
+  } catch {
+    return null;
+  }
+}
 
 function columnResolutionFromProps(props: unknown): MeasureColumnResolutionSummary | null {
   if (!props || typeof props !== 'object') return null;
@@ -81,7 +112,16 @@ function stageFromTranslation(
   verifiedStatus: string | null,
 ): { stage: MeasureRecreationStage; reason: string | null } {
   if (!tr?.sql_text?.trim()) {
-    return { stage: 'no_sql', reason: tr ? 'Translation row without SQL' : null };
+    const props = tr?.props as Record<string, unknown> | undefined;
+    const logic = measureLogicFromProps(props);
+    const expandReason = (props?.expand_failure as { reason?: string } | undefined)?.reason;
+    if (tr?.tier === 'logic_gate' && (expandReason || logic?.block_reason)) {
+      return { stage: 'no_sql', reason: expandReason ?? logic!.block_reason };
+    }
+    const failure =
+      (props?.expand_failure as { reason?: string } | undefined)?.reason ??
+      (props?.llm_failure as { reason?: string } | undefined)?.reason;
+    return { stage: 'no_sql', reason: failure ?? (tr ? 'Translation row without SQL' : null) };
   }
   if (verifiedStatus === 'verified') {
     return {
@@ -127,6 +167,8 @@ export async function buildModelRecreationSummary(
       sourceBinding: { select: { bind_status: true, uc_full_path: true, native_sql: true } },
     },
   });
+  const logicCatalog = await loadMeasureLogicCatalog(orgId, internalModelId);
+
   const ucMap = new Map<string, TableUcRow>();
   for (const t of tables) {
     const b = t.sourceBinding;
@@ -174,6 +216,7 @@ export async function buildModelRecreationSummary(
   };
 
   const rows: MeasureRecreationRow[] = [];
+  const rootCauses: Partial<Record<RootCauseCategory, number>> = {};
   const failures: ModelRecreationSummary['failures'] = [];
   let ucResolved = 0;
 
@@ -200,7 +243,7 @@ export async function buildModelRecreationSummary(
       reason = !(m.dax ?? '').trim()
         ? 'Empty DAX in catalog'
         : 'No Unity Catalog binding for DAX table refs';
-      if (tr?.sql_text?.trim()) {
+      if (tr) {
         const fromTr = stageFromTranslation(tr, vqStatus);
         stage = fromTr.stage;
         reason = fromTr.reason ?? reason;
@@ -221,6 +264,43 @@ export async function buildModelRecreationSummary(
     const ucTable =
       typeof props?.uc_source_table === 'string' ? props.uc_source_table : resolved?.sourceTable ?? null;
 
+    let measureLogic = measureLogicFromProps(props);
+    if (!measureLogic && resolved) {
+      measureLogic = summarizeMeasureLogic(
+        analyzeMeasureLogic({
+          dax: m.dax ?? '',
+          catalog: logicCatalog,
+          hasUc: true,
+        }),
+      );
+    } else if (!measureLogic) {
+      measureLogic = summarizeMeasureLogic(
+        analyzeMeasureLogic({
+          dax: m.dax ?? '',
+          catalog: logicCatalog,
+          hasUc: false,
+        }),
+      );
+    }
+
+    if (
+      !reason &&
+      measureLogic.block_automated_sql &&
+      measureLogic.block_reason &&
+      stage === 'no_sql'
+    ) {
+      reason = measureLogic.block_reason;
+    }
+
+    const rootCause = classifyRootCause({
+      stage,
+      dax: m.dax ?? '',
+      tier: tr?.tier ?? null,
+      props: (props ?? null) as Record<string, unknown> | null,
+      catalog: logicCatalog,
+    });
+    if (rootCause) rootCauses[rootCause.category] = (rootCauses[rootCause.category] ?? 0) + 1;
+
     byStage[stage] += 1;
     if (
       stage === 'no_uc' ||
@@ -233,6 +313,7 @@ export async function buildModelRecreationSummary(
         measure_name: m.name,
         stage,
         reason: reason ?? stage,
+        root_cause: rootCause?.category ?? null,
       });
     }
 
@@ -246,6 +327,8 @@ export async function buildModelRecreationSummary(
       verified_query_status: vqStatus,
       uc_source_table: ucTable,
       column_resolution: columnResolutionFromProps(tr?.props),
+      measure_logic: measureLogic,
+      root_cause: rootCause,
     });
   }
 
@@ -266,6 +349,7 @@ export async function buildModelRecreationSummary(
     published_pct:
       measures.length > 0 ? Math.round((byStage.published / measures.length) * 1000) / 10 : 0,
     by_stage: byStage,
+    root_causes: rootCauses,
     failures: failures.sort((a, b) => a.measure_name.localeCompare(b.measure_name)),
   };
 

@@ -125,6 +125,8 @@ export async function GET(req: NextRequest, ctx: Ctx) {
             verified_query_status: rec?.verified_query_status ?? null,
             uc_source_table: rec?.uc_source_table ?? null,
             column_resolution: rec?.column_resolution ?? null,
+            measure_logic: rec?.measure_logic ?? null,
+            root_cause: rec?.root_cause ?? null,
           };
         }),
         relationships: model.relationships,

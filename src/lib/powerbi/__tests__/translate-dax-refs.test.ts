@@ -1,12 +1,23 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  extractDaxColumnRefs,
   extractDaxTableNames,
   normalizePbiTableName,
   resolveUcForMeasure,
 } from '@/lib/powerbi/translate-dax-refs';
 
 describe('translate-dax-refs', () => {
+  it('extracts unquoted table[column] refs', () => {
+    const dax = `SUMX(VALUES(IMO_Master_List[IMO_NO]), IF([Report_Status] = BLANK(), 0, 1))`;
+    const refs = extractDaxColumnRefs(dax);
+    expect(refs).toEqual(
+      expect.arrayContaining([
+        { table: 'IMO_Master_List', column: 'IMO_NO' },
+      ]),
+    );
+  });
+
   it('extracts quoted table names from DAX', () => {
     const dax = `CALCULATE(DISTINCTCOUNT('Vessel Internal Audit'[ReferenceNo]), FILTER(ALL('Vessel Internal Audit'[AuditFromDate]), ...))`;
     expect(extractDaxTableNames(dax)).toContain('Vessel Internal Audit');
@@ -29,6 +40,12 @@ describe('translate-dax-refs', () => {
     expect(r?.via).toBe('dax_ref');
     expect(r?.sourceTable).toBe('Vessel Internal Audit');
     expect(r?.uc).toContain('bi_vw_internalaudit');
+  });
+
+  it('ignores // comment lines when extracting column refs', () => {
+    const dax = `VAR x = 1\n// 'Vessel Internal Audit'[TakeoverDate] + 365\nRETURN 'Vessel Internal Audit'[port]`;
+    const refs = extractDaxColumnRefs(dax);
+    expect(refs.map((r) => r.column)).toEqual(['port']);
   });
 
   it('prefers home table UC when present', () => {

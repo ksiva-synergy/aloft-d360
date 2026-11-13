@@ -56,6 +56,21 @@ describe('TMDL parse', () => {
     expect(kind).toBe('warehouse_query');
   });
 
+  it('parses calculated columns with fenced and open DAX bodies', () => {
+    const text = fs.readFileSync(path.join(fixturesDir, 'vessel-calc-columns.tmdl'), 'utf8');
+    const table = parseTmdlTableFile(text);
+    expect(table?.columns.map((c) => c.name)).toEqual([
+      'Due_Date_Last_Audit',
+      'port',
+      'Updt_TOD',
+      'PSC_Check_Det',
+      'Key Column',
+    ]);
+    expect(table?.columns[0]?.calculatedDax).toContain('VAR x');
+    expect(table?.columns[2]?.calculatedDax).toContain('RELATED');
+    expect(table?.columns[3]?.calculatedDax).toContain('RETURN BLANK');
+  });
+
   it('parses relationships file', () => {
     const text = `relationship rel-1
 	fromColumn: A.Col

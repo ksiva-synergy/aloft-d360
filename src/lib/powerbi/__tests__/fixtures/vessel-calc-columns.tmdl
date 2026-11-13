@@ -1,0 +1,25 @@
+table 'Test_Table'
+	lineageTag: test-001
+
+	column Due_Date_Last_Audit = ```
+			VAR x = 1
+			RETURN x + 1
+			```
+		dataType: dateTime
+
+	column port
+		dataType: string
+		sourceColumn: port
+
+	column Updt_TOD =
+			RELATED(Other[Col])
+		formatString: Long Date
+
+	column PSC_Check_Det = ```
+			RETURN BLANK()
+			```
+		lineageTag: psc-det
+
+	column 'Key Column'
+		dataType: string
+		sourceColumn: Key Column
