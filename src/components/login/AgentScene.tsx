@@ -449,7 +449,8 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
       // a soft, faint halo around the eyes (night eyes are pure white; day keeps the warm white), a little stronger while Captain speaks
       const color = props.current.theme === 'light' ? '#FFF4EC' : '#FFFFFF';
       const halo = props.current.theme === 'light' ? 'rgba(255,244,236,.4)' : 'rgba(255,255,255,.4)';
-      ledGroup.style.filter = `drop-shadow(0 0 ${(1.2 + amp * 1.8).toFixed(1)}px ${halo})`;
+      // at rest the eyes have no halo: even a 1.2px glow on 12px eyes reads as out of focus. It fades in only while speaking.
+      ledGroup.style.filter = amp > 0.02 ? `drop-shadow(0 0 ${(amp * 2.4).toFixed(1)}px ${halo})` : 'none';
       const k = 1 - Math.exp(-dt * 26), ke = 1 - Math.exp(-dt * 20);
       // a finished message leaves the visor (checked once, so both eyes switch back together)
       if (msg && ('icon' in msg ? t - msg.start > msg.dur : Math.floor((t - msg.start) * SCROLL) > msg.cols.length - 14)) msg = null;
@@ -728,8 +729,10 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
       // lean into the motion, like it's heading somewhere on purpose; it straightens up as it arrives
       const lean = Math.max(-4, Math.min(4, body.vx * 0.08));
       const stretch = 0;
+      // 2D only: a 3D function (perspective, translateZ, rotateX/Y) promotes the head to its own GPU layer, which Chrome
+      // rasterizes at a fixed scale (often mid pop-in from scale(0)) and then stretches every frame, so the SVG goes soft
       headEl.style.transform =
-        `perspective(520px) translateY(${(4 - float - rm.lift - hov * 3).toFixed(2)}px) ` +
+        `translateY(${(4 - float - rm.lift - hov * 3).toFixed(2)}px) ` +
         `rotateZ(${(st.roll + rm.spin + lean).toFixed(2)}deg) scale(${(b * (1 + hov * 0.03 + stretch) * (1 - (sq - 1) * 0.5)).toFixed(3)}, ${(b * (1 + hov * 0.03 - stretch * 0.6) * sq).toFixed(3)})`;
       // the ground shadow stays on the ground: it cancels the body's vertical drift and shrinks as Captain rises
       const height = float + rm.lift - body.y;
