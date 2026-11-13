@@ -21,9 +21,8 @@ export function getHarvestLlmProvider(): HarvestLlmProvider {
   return 'llmlite';
 }
 
-/** Model id stored on platform_context_semantic.model_id and used for API calls. */
-export function getHarvestLlmModelId(): string {
-  const provider = getHarvestLlmProvider();
+/** Model id for a given harvest LLM provider (shared by translate overrides). */
+export function getHarvestLlmModelIdForProvider(provider: HarvestLlmProvider): string {
   const configuredDefault = getFeatureGatewayModelIdSync('harvest_semantic');
   if (provider === 'llmlite') {
     return (
@@ -52,6 +51,16 @@ export function getHarvestLlmModelId(): string {
     configuredDefault
   );
 }
+
+/** Model id stored on platform_context_semantic.model_id and used for API calls. */
+export function getHarvestLlmModelId(): string {
+  return getHarvestLlmModelIdForProvider(getHarvestLlmProvider());
+}
+
+export type HarvestLlmCallOverrides = {
+  provider?: HarvestLlmProvider;
+  modelId?: string;
+};
 
 export function getHarvestLlmCostPerMillion(): { input: number; output: number } {
   const inEnv = process.env.HARVEST_LLM_INPUT_PRICE_PER_M_USD;
@@ -119,21 +128,35 @@ function getBedrockClient(): BedrockRuntimeClient {
   });
 }
 
+function chatCompletionOmitsTemperature(modelId: string): boolean {
+  const id = modelId.toLowerCase();
+  // LLM Lite → Bedrock routes for Grok reject `temperature` in the request body.
+  if (id.includes('grok')) return true;
+  if (process.env.HARVEST_LLM_OMIT_TEMPERATURE === '1') return true;
+  return false;
+}
+
 async function completeViaOpenAiCompatible(
   client: OpenAI,
   params: HarvestLlmCompleteParams,
+  modelId?: string,
 ): Promise<HarvestLlmCompleteResult> {
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
     { role: 'system', content: params.system },
     ...params.messages.map(m => ({ role: m.role, content: m.content })),
   ];
 
-  const resp = await client.chat.completions.create({
-    model: getHarvestLlmModelId(),
+  const model = modelId ?? getHarvestLlmModelId();
+  const body: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming = {
+    model,
     messages,
     max_tokens: params.maxTokens,
-    temperature: params.temperature ?? 0.2,
-  });
+  };
+  if (!chatCompletionOmitsTemperature(model)) {
+    body.temperature = params.temperature ?? 0.2;
+  }
+
+  const resp = await client.chat.completions.create(body);
 
   const text = resp.choices[0]?.message?.content ?? '';
   return {
@@ -143,21 +166,30 @@ async function completeViaOpenAiCompatible(
   };
 }
 
-async function completeViaXai(params: HarvestLlmCompleteParams): Promise<HarvestLlmCompleteResult> {
-  return completeViaOpenAiCompatible(getXaiClient(), params);
+async function completeViaXai(
+  params: HarvestLlmCompleteParams,
+  modelId?: string,
+): Promise<HarvestLlmCompleteResult> {
+  return completeViaOpenAiCompatible(getXaiClient(), params, modelId);
 }
 
-async function completeViaGroq(params: HarvestLlmCompleteParams): Promise<HarvestLlmCompleteResult> {
-  return completeViaOpenAiCompatible(getGroqClient(), params);
+async function completeViaGroq(
+  params: HarvestLlmCompleteParams,
+  modelId?: string,
+): Promise<HarvestLlmCompleteResult> {
+  return completeViaOpenAiCompatible(getGroqClient(), params, modelId);
 }
 
-async function completeViaBedrock(params: HarvestLlmCompleteParams): Promise<HarvestLlmCompleteResult> {
+async function completeViaBedrock(
+  params: HarvestLlmCompleteParams,
+  modelId?: string,
+): Promise<HarvestLlmCompleteResult> {
   const client = getBedrockClient();
-  const modelId = getHarvestLlmModelId();
+  const resolvedModelId = modelId ?? getHarvestLlmModelId();
 
   const resp = await client.send(
     new ConverseCommand({
-      modelId,
+      modelId: resolvedModelId,
       system: [{ text: params.system }],
       messages: params.messages.map(m => ({
         role: m.role,
@@ -180,10 +212,14 @@ async function completeViaBedrock(params: HarvestLlmCompleteParams): Promise<Har
 
 export async function harvestLlmComplete(
   params: HarvestLlmCompleteParams,
+  overrides?: HarvestLlmCallOverrides,
 ): Promise<HarvestLlmCompleteResult> {
-  const provider = getHarvestLlmProvider();
-  if (provider === 'llmlite') return completeViaOpenAiCompatible(getLlmLiteClient(), params);
-  if (provider === 'xai') return completeViaXai(params);
-  if (provider === 'groq') return completeViaGroq(params);
-  return completeViaBedrock(params);
+  const provider = overrides?.provider ?? getHarvestLlmProvider();
+  const modelId = overrides?.modelId ?? getHarvestLlmModelIdForProvider(provider);
+  if (provider === 'llmlite') {
+    return completeViaOpenAiCompatible(getLlmLiteClient(), params, modelId);
+  }
+  if (provider === 'xai') return completeViaXai(params, modelId);
+  if (provider === 'groq') return completeViaGroq(params, modelId);
+  return completeViaBedrock(params, modelId);
 }

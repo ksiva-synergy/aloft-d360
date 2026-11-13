@@ -305,6 +305,7 @@ const JOB_KIND_LABELS: Record<string, string> = {
   pbi_parse: 'PBI Parse',
   pbi_catalog_link: 'PBI Catalog Link',
   pbi_domains: 'PBI Domains',
+  pbi_families: 'PBI Families',
   pbi_oracle: 'PBI Oracle',
   pbi_translate: 'PBI Translate',
   pbi_parity: 'PBI Parity',

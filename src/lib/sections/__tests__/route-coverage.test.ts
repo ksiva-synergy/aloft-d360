@@ -10,6 +10,7 @@ const API = join(__dirname, '..', '..', '..', 'app', 'api');
 
 const GUARDED_FOLDERS = [
   'agent-lab/context', // Data Estate
+  'agent-lab/powerbi', // Data Estate → Power BI
   'model-config', // Govern → Models
   'users', // Govern → Users
   'sections', // Govern → Users → Section access

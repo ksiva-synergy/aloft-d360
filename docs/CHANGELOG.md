@@ -2,6 +2,206 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-11-13 — Doc: Vessel pilot issues, fixes, wiring
+
+- **What:** `docs/jobs/powerbi-vessel-pilot-issues-and-wiring.md` — issues/resolutions table, app harness map, Vessel metrics after catalog resolve pilot run, code map, next steps.
+- **Why:** Single steward/engineer reference for what we fixed and how catalog/PBI/Jobs/Estate connect.
+- **Verified:** Aligns with `diag-vessel-recreation.ts` output 2026-11-13 and local `run-pilot-local` translate→publish run.
+
+## 2026-11-13 — Doc: Inspector + semantic layer + Power BI
+
+- **What:** Added `docs/inspector/semantic-layer-and-powerbi.md` — positioning of governed semantic vs verified queries, separate Power BI portal vs embed, retrieval order (target vs implemented), `kb_verified_queries` matching, portal deep-link fields, steward overlap policies, CII pilot checklist, code map. Cross-links from `docs/powerbi-integration-validation.md` and `docs/jobs/powerbi-implementation-tracker.md`.
+- **Why:** Stewards and engineers need one reference for how Inspector combines existing semantic layer with the Power BI bridge.
+- **Verified:** Markdown only; links relative paths checked.
+- **Not done:** Portal resolver and domain-filtered VQ match (documented as gaps only).
+
+## 2026-11-13 — Power BI estate header: no subtitle
+
+- **What:** Removed the Power BI nav item `description` in `src/lib/estate/nav-items.ts`, so the estate header shows only "Power BI".
+- **Why:** User request; the subtitle used vertical space.
+- **Verified:** `description` is optional (`EstateNav.tsx` renders it only when set); no other references to the string.
+
+## 2026-11-13 — Power BI estate page: compact header
+
+- **What:** `src/views/agent-lab/estate/powerbi.tsx`. Removed the duplicate "Power BI semantic estate" title and description (the estate layout already shows "Power BI" and its subtitle). The seven KPI cards are now one stats bar: counts, a mini parsed bar, Answerable/Caveated filter toggles, and a measure-conflicts toggle with Harvest jobs on the right. In the detail pane, the four stat cards are gone (the tabs carry the counts), tags sit on the title row, and "N of M tables bound to Unity Catalog" moves to the meta line. Removed the domain from model list rows, where it truncated to "Q…".
+- **Why:** User feedback: the header and cards took about 200px before any content.
+- **Verified:** `tsc --noEmit` shows no errors in the file; ESLint shows only the 2 pre-existing `set-state-in-effect` errors. Not checked in a browser.
+
+## 2026-11-13 — Power BI estate page redesign
+
+- **What:** Rebuilt `src/views/agent-lab/estate/powerbi.tsx` layout. KPI tiles replace the inline stat line (Parsed shows a progress bar; Answerable/Caveated tiles filter the list). Measure conflicts collapse into a tile and an on-demand panel; each conflicting model is a chip that opens that model with the measure filtered and its DAX expanded. Model list gains search, a status filter (All / Answerable / Caveated / Blocked / Not parsed, with counts), compact side-by-side workspace/domain selects, and sorts parsed models first; unparsed models read "Not parsed" instead of "Unknown · 0 measures · 0 tables". Detail pane has a header (workspace, status, domain, RLS, Open in Power BI), stat cards (measures, tables, UC-bound tables, reports), and Measures / Tables / Reports tabs; measures are searchable with expandable DAX (all shown, not the first 24). Unparsed models show a "Run PBI Parse" callout. The first parsed model opens by default. Filter changes no longer swap the whole page for a spinner.
+- **Fix:** The domain tag showed "1800%" because `domain_assignment.confidence` is a weighted score from `src/lib/powerbi/domain-score.ts`, not 0–1. It now appears as "match score N" in the tag tooltip.
+- **Why:** The page was hard to use: the conflicts box used half the screen with an inner scroll and clipped rows, the 451-model list had no search or status filter, and the detail pane showed raw tables only.
+- **Verified:** `tsc --noEmit` shows no errors in the file. ESLint reports 2 `react-hooks/set-state-in-effect` errors, both in the data-loading effects carried over unchanged. Not checked in a browser yet.
+- **Not done:** The selected model is not written back to `?model=`. The list is not virtualized (fine at 451 rows).
+
+## 2026-11-13 — PBI catalog column resolve (translate P0)
+
+- **What:** `catalog-column-resolve.ts` (PBI `source_column`, catalog names, native SQL, token match; optional `PBI_COLUMN_RESOLVE_EMBED=1`); wired into `translate.ts` / `translate-llm.ts`; SQL allowlist in `translate-llm-validate.ts`; rule-tier `COUNT(DISTINCT …)`; recreation + Estate measure detail show column map stats.
+- **Why:** Cut invented warehouse columns before parity; harness harvested `platform_context_columns`.
+- **Verified:** `src/lib/powerbi/__tests__/catalog-column-resolve.test.ts`; full Vessel re-translate not re-run in this session.
+
+## 2026-11-13 — Power BI recreation summary (API + Estate UI)
+
+- **What:** `recreation-summary.ts`; `GET /api/agent-lab/powerbi/models/[id]` returns `recreation` funnel + per-measure `recreation_stage` / reason; Estate detail shows **Databricks recreation** bar and measure tags. `scripts/powerbi/diag-vessel-recreation.ts`.
+- **Why:** Steward-visible “recreated in Databricks” vs failure class (no UC, no SQL, SQL error, published).
+- **Verified:** `diag-vessel-recreation.ts` on Vessel; UI not browser-checked.
+
+## 2026-11-13 — PBI pipeline: translate → oracle(translated) → parity
+
+- **What:** `run-pilot-local` order `pbi_translate` then `pbi_oracle`; `oracle_only_translated` scopes oracle to measures with `pbi_translations.sql_text`. `runPbiOracle` `onlyWithTranslation` mode.
+- **Why:** Parity skipped measures that had SQL but no oracle (first-8-by-name cap).
+- **Verified:** Vessel pilot `--from-kind pbi_translate`.
+
+## 2026-11-13 — PBI translate: xAI Grok + fallback LLM
+
+- **What:** `translate-llm.ts` routes via `XAI_API_KEY` → provider `xai` + `XAI_MODEL` (override `PBI_TRANSLATE_LLM_PROVIDER` / `PBI_TRANSLATE_XAI_MODEL`); on API/JSON failure retries `PBI_TRANSLATE_LLM_FALLBACK_MODEL` or Claude Sonnet on LLM Lite. `harvest-llm.ts` accepts per-call `provider`/`modelId`. Pilot logs routing.
+- **Why:** Bedrock-routed Grok rejected temperature and truncated JSON; estate already has direct xAI creds in `.env`.
+- **Verified:** `probe-llm-failures.ts` / operator `run-pilot-local --from-kind pbi_translate`.
+
+## 2026-11-13 — Vessel translate/parity failure fixes
+
+- **What:** `parity.ts` resolves `databricks_source_id` from `uc_source_table` (not `Measure` home table); `pickDatabricksSourceId` single-source + URL host normalization; `translate-llm.ts` zod accepts `cannot_translate` / null grain, higher default max tokens, parse warnings; diag scripts `diag-vessel-translate-failures.ts`, `probe-llm-failures.ts`, `diag-databricks-sources.ts`.
+- **Why:** Parity skipped all rows (home table unbound); catalog link left `databricks_source_id` null when `connection_ref` is connection id not hostname; LLM rows failed zod on empty sql or truncated JSON.
+- **Verified:** Vessel pilot `pass=2 err=8 skip=2 publish=2` after re-run from `pbi_catalog_link`.
+
+## 2026-11-13 — `pbi_translations` upsert index (Prisma)
+
+- **What:** `20261114_pbi_translation_upsert_index` migration — drop partial unique index (`WHERE measure_id IS NOT NULL`); full unique on `(org_id, measure_id)`. Same fix in phase3 translate migration SQL for fresh installs.
+- **Why:** Prisma `pbiTranslation.upsert` failed with Postgres `42P10` on Vessel re-run.
+- **Verified:** `node scripts/db/prisma-rds-retry.mjs db execute --file prisma/migrations/20261114_pbi_translation_upsert_index/migration.sql`; Vessel pilot `pbi_translate` wrote rows.
+
+## 2026-11-13 — Translate UC via DAX table refs + Grok LLM fix
+
+- **What:** `translate-dax-refs.ts` (DAX `'Table'[col]` → UC when home table unbound); `normalizePbiTableName()` strips stray quote chars on parsed table names so refs like `Vessel Internal Audit` match `'Vessel Internal Audit'` in `pbi_tables`; fixed `resolveUcForMeasure` using `input.modelTables`; `harvest-llm.ts` omits `temperature` for Grok / `HARVEST_LLM_OMIT_TEMPERATURE=1` (LLM Lite → Bedrock). Operator script `scripts/powerbi/diag-vessel-uc.ts`.
+- **Why:** Vessel pilot showed `dax_uc=6 no_bind=24` — quote mismatch on bound fact tables, not missing DAX refs; translate LLM was 0/30 on temperature 400.
+- **Verified:** Vitest `translate-dax-refs.test.ts`; diag before RDS blip → expect ~24+ measures via `dax_ref` after quote fix; re-run Vessel `--from-kind pbi_translate` when VPN/RDS up.
+
+## 2026-11-13 — Translate UC via DAX table refs (measure tables)
+
+- **What:** Initial `translate-dax-refs.ts` wiring in `translate.ts` and orchestrator `dax_uc` stat.
+- **Why:** Vessel Internal Audit pilot — measures on embedded `Measure` / `Measure2`.
+- **Verified:** Vitest; superseded by quote-normalization entry above.
+
+## 2026-11-13 — `run-pilot-local` `--no-llm-cap`
+
+- **What:** `--no-llm-cap` / `--max-llm-measures`; `max_llm_measures=0` = unlimited LLM candidates in `translate.ts`.
+- **Why:** Single-report runs (e.g. Vessel Internal Audit) without artificial pilot cap.
+- **Verified:** Operator command.
+
+## 2026-11-13 — Power BI `pbi_translate` LLM tier (v1)
+
+- **What:** `src/lib/powerbi/translate-llm.ts`; `runPbiTranslate` runs rule tier then harvest LLM for UC-bound measures rule tier skipped; stats include `llm_translated`, tokens, `cost_usd`. Pilot scope `max_llm_measures: 12`. Env: `PBI_TRANSLATE_LLM`, `PBI_TRANSLATE_LLM_MAX_MEASURES`.
+- **Why:** Build plan §9.1 — CII DAX needs LLM tier to produce draft SQL for parity/publish.
+- **Verified:** Vitest `translate-llm.test.ts`; operator re-run `--from-kind pbi_translate`.
+
+## 2026-11-13 — `pbi_parse` long transaction timeout
+
+- **What:** `src/lib/powerbi/parse.ts` — `maxWait`/`timeout` on model parse `$transaction` (default 60s / 600s); optional `PBI_PARSE_TX_*` env; stderr on model parse failure.
+- **Why:** Pilot failed with Prisma “Transaction not found” after ~5s while inserting many `pbiColumn` rows.
+- **Verified:** Operator re-run `--from-kind pbi_parse` on CII five-report pilot.
+
+## 2026-11-13 — `pbi_parse` logs model failures
+
+- **What:** `src/lib/powerbi/parse.ts` — log model id/name when parse transaction fails (was silent `models_failed`).
+- **Why:** CII five-report pilot showed 5/5 `models_failed` with no measures; needed stderr to diagnose.
+- **Verified:** Superseded by long-transaction fix above.
+
+## 2026-11-13 — Power BI local pilot runner (`run-pilot-local.ts`)
+
+- **What:** Enqueue + run scoped PBI pipeline locally; `--list-reports`; orchestrator `max_models` / `max_reports` scope.
+- **Why:** Five-report pilot before Fargate (validation doc §4.1b).
+- **Verified:** Manual (operator).
+
+## 2026-11-13 — Inspector verified-query retrieval (Power BI bridge)
+
+- **What:** `verified-query-context.ts`, `run-verified-query.ts`; chat route injects matches; new `run_verified_query` tool; SSE `answerSource: powerbi_verified`.
+- **Why:** Build plan §10.3 step 2 — match published queries before catalog/compiler paths.
+- **Verified:** Vitest `verified-query-context.test.ts`.
+
+## 2026-11-13 — Power BI `pbi_publish` + `kb_verified_queries` (Phase 3)
+
+- **What:** Migration `20261113_powerbi_bridge_phase3_publish`; `publish.ts`, `verified-query-embed.ts`, `verified-query-match.ts`; orchestrator **PBI Publish**; Jobs launch enabled.
+- **Why:** Build plan §6.5 / §8.1 — parity-pass translations become verified queries for Inspector retrieval.
+- **Verified:** Vitest `publish-question`, `schema-hash`.
+- **Not done:** Inspector chat wiring; steward `require_approved` UI; `platform_sem_*` promotion.
+
+## 2026-11-13 — Power BI `pbi_parity` job (Phase 3)
+
+- **What:** `parity-compare.ts`, `parity.ts` — run translated SQL via warehouse, compare to latest oracle; updates `pbi_translations.parity_verdict`; Jobs **PBI Parity** enabled.
+- **Why:** Build plan §9.2 pilot parity before publish.
+- **Verified:** Vitest `parity-compare.test.ts`.
+- **Not done:** `pbi_publish`; multi-grain / hold-out periods.
+
+## 2026-11-13 — Power BI `pbi_translate` rule tier + phase3 translate migration
+
+- **What:** `pbi_translations` table; `translate-rule.ts`, `translate.ts`; Jobs **PBI Translate**; apply-phase3-translate script.
+- **Why:** Phase 3 translation pipeline step 1 per build plan §9.1.
+- **Verified:** Vitest; oracle migration applied on dev; `prisma generate --stop-dev`.
+- **Not done:** LLM tier; `pbi_parity` / publish.
+
+## 2026-11-13 — Power BI Phase 3 start: `pbi_oracle` + conflict steward UI
+
+- **What:** `pbi_oracle_results` migration; `executeDatasetQueries`, `oracle.ts`, orchestrator + Jobs **PBI Oracle**; conflicts GET/PATCH APIs; Power BI estate conflict panel with **Acknowledge** (manage).
+- **Paths:** `src/lib/powerbi/{client,dax-query,oracle,oracle-result-hash}.ts`, `api/agent-lab/powerbi/conflicts*`, `powerbi.tsx`, `apply-phase3-oracle-migration.mjs`, tests.
+- **Why:** Continue bridge after Phase 2 per build plan (oracle baseline + steward queue v1).
+- **Verified:** `npx vitest run src/lib/powerbi/__tests__/ src/app/api/agent-lab/powerbi/__tests__/`.
+- **Not done:** Apply phase3 migration; `pbi_translate` / parity / publish.
+
+## 2026-11-13 — Power BI `pbi_families` job (Phase 2)
+
+- **What:** Migration `20261113_powerbi_bridge_phase2_families`; `family-cluster.ts`, `families.ts`; orchestrator + Jobs launch; models API family fields; `apply-phase2-families-migration.mjs`; tests.
+- **Why:** Group year-variant / near-duplicate models per build plan Phase 2.
+- **Verified:** `npx vitest run src/lib/powerbi/__tests__/`.
+- **Not done:** Operator migration on dev; steward conflict review UI; Phase 3 oracle.
+
+## 2026-11-13 — Windows `prisma generate` helper (`scripts/db/prisma-generate.mjs`)
+
+- **What:** Cleans stale query-engine tmp files; optional `--stop-dev` kills this repo’s next/vite/dev-all node processes before generate; apply-phase2 script calls it.
+- **Why:** On this Windows laptop `EPERM` on `query_engine-windows.dll.node` when `dev-all` / `next dev -p 3001` runs; other OSes do not lock the DLL the same way.
+- **Verified:** Operator run `node scripts/db/prisma-generate.mjs --stop-dev` then restart dev.
+- **Not done:** n/a
+
+## 2026-11-13 — Power BI phase2 domains migration SQL fix
+
+- **What:** `trim(domain_id)` on UUID coercion failed on Postgres (`btrim(uuid)`); migration now casts via `::text` and skips ALTER when column is already UUID.
+- **Paths:** `prisma/migrations/20261113_powerbi_bridge_phase2_domains/migration.sql`
+- **Why:** Operator `apply-phase2-domains-migration.mjs` failed on dev Aurora.
+- **Verified:** Re-run `node scripts/powerbi/apply-phase2-domains-migration.mjs` after fix.
+- **Not done:** n/a
+
+## 2026-11-13 — Power BI Phase 2: `pbi_domains` + estate domain UI
+
+- **What:** Migration `20261113_powerbi_bridge_phase2_domains` (`pbi_domains`, `pbi_conflicts`, `pbi_models.domain_id` FK); `domain-registry.ts`, `domain-score.ts`, `domains.ts`; orchestrator + Jobs launch; `GET …/powerbi/domains`; models APIs expose domain assignment; Power BI browse filters by domain + conflict banner; `apply-phase2-domains-migration.mjs`; `domain-score` tests.
+- **Paths:** `prisma/schema.prisma`, `src/lib/powerbi/{domain-registry,domain-score,domains}.ts`, `api/agent-lab/powerbi/domains`, `models/*`, `views/.../powerbi.tsx`, orchestrator, jobs UI.
+- **Why:** Build plan Phase 2 domain scoring and cross-model measure conflict detection.
+- **Verified:** `npx vitest run src/lib/powerbi/__tests__/ src/app/api/agent-lab/powerbi/__tests__/`.
+- **Not done:** Apply phase2 migration on Aurora; steward conflict workflow; `pbi_families`.
+
+## 2026-11-13 — Power BI Phase 2: catalog link + object usage panel
+
+- **What:** `pbi_catalog_link` job; `native-sql.ts` + `catalog-link.ts`; migration 1c; object aggregate `powerbiUsage`; catalog object Relationships panel; apply-phase1c script; tests.
+- **Paths:** `src/lib/powerbi/{native-sql,catalog-link,catalog-read}.ts`, orchestrator, jobs UI, `objects/[id]/route`, `ObjectKnowledgePage`, `PowerBiObjectUsage.tsx`.
+- **Why:** Phase 2 bind warehouse partitions to scanned UC objects per build plan §8.7.
+- **Verified:** `npx vitest run src/lib/powerbi/__tests__/native-sql.test.ts` + existing powerbi tests.
+- **Not done:** `pbi_domains`; steward review for `ambiguous` bindings.
+
+## 2026-11-13 — Power BI browse UI + read APIs (Phase 1)
+
+- **What:** `estate.powerbi` section; Estate nav **Power BI** tab; `/agent-lab/estate/powerbi` browse UI; `GET …/powerbi/workspaces`, `models`, `models/[id]`; route guard tests; summary API uses `estate.powerbi`.
+- **Paths:** `src/lib/sections/registry.ts`, `nav-items.ts`, `views/.../powerbi.tsx`, `web/src/router.tsx`, `api/agent-lab/powerbi/**`.
+- **Why:** Complete Phase 1 browse-only exit item per build plan.
+- **Verified:** `npx vitest run` on powerbi parse + routes + section coverage tests.
+- **Not done:** Phase 2 `pbi_catalog_link`.
+
+## 2026-11-13 — Power BI Phase 1b: parse job, TMDL parser, classifier
+
+- **What:** Migration `20261113_powerbi_bridge_phase1b` (parsed structure tables); `tmdl-parse.ts`, `partition-kind.ts` (§8.5), `parse.ts`, `report-parse-legacy.ts`; orchestrator `pbi_parse`; Jobs UI + launch enabled; summary API counts tables/measures/classification; `apply-phase1b-migration.mjs`; tests + `docs/jobs/powerbi-phase1-implementation-report.md`.
+- **Paths:** `prisma/migrations/20261113_powerbi_bridge_phase1b/`, `prisma/schema.prisma`, `src/lib/powerbi/*`, `scripts/context/orchestrator.ts`, `src/views/agent-lab/estate/jobs.tsx`, `src/lib/estate/launch-kinds.ts`, `src/app/api/agent-lab/powerbi/summary/route.ts`, `src/lib/powerbi/__tests__/`.
+- **Why:** User asked to start full planned implementation with tested phases.
+- **Verified:** `npx vitest run src/lib/powerbi/__tests__/powerbi-parse.test.ts` (7 passed).
+- **Not done:** Apply 1b on Aurora; Phase 1 UI tab; catalog_link+; Fargate raw-store persistence; full estate parse run.
+
 ## 2026-11-11 — Power BI Phase 1 migration applied (dev Aurora)
 
 - **What:** Ran `scripts/powerbi/apply-phase1-migration.mjs` — `pbi_workspaces`, `pbi_models`, `pbi_model_datasources`, `pbi_reports`, `pbi_usage`; migration `20261111_powerbi_bridge_phase1` marked applied; `prisma generate`.

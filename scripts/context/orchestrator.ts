@@ -36,6 +36,14 @@ import { copyRunnerFlagsToChildScope, readJobScopeRunnerFlags } from '@/lib/cont
 import { runScheduledEstateHarvest } from '@/lib/context/scheduled-estate-harvest';
 import { runPbiInventory } from '@/lib/powerbi/inventory';
 import { runPbiDefinitions } from '@/lib/powerbi/definitions';
+import { runPbiParse } from '@/lib/powerbi/parse';
+import { runPbiCatalogLink } from '@/lib/powerbi/catalog-link';
+import { runPbiDomains } from '@/lib/powerbi/domains';
+import { runPbiFamilies } from '@/lib/powerbi/families';
+import { runPbiOracle } from '@/lib/powerbi/oracle';
+import { runPbiTranslate } from '@/lib/powerbi/translate';
+import { runPbiParity } from '@/lib/powerbi/parity';
+import { runPbiPublish } from '@/lib/powerbi/publish';
 import {
   copyPipelineChainMetadata,
   shouldAdvanceChainAfterT3,
@@ -596,6 +604,8 @@ async function dispatchSingleJob(
           reportIds,
           fetchModels: scope.fetch_models !== false,
           fetchReports: scope.fetch_reports !== false,
+          maxModels: typeof scope.max_models === 'number' ? scope.max_models : undefined,
+          maxReports: typeof scope.max_reports === 'number' ? scope.max_reports : undefined,
         });
         await finalize(job.id, 'succeeded', stats as unknown as Record<string, unknown>);
         console.log(
@@ -609,16 +619,218 @@ async function dispatchSingleJob(
       }
     }
 
-    case 'pbi_parse':
-    case 'pbi_catalog_link':
-    case 'pbi_domains':
-    case 'pbi_oracle':
-    case 'pbi_translate':
-    case 'pbi_parity':
+    case 'pbi_parse': {
+      if (!job.source_id) {
+        await finalize(job.id, 'failed', {}, 'pbi_parse missing source_id');
+        return { status: 'failed', error: 'missing source_id' };
+      }
+      try {
+        const scope = (job.scope ?? {}) as Record<string, unknown>;
+        const modelIds = Array.isArray(scope.model_ids)
+          ? scope.model_ids.filter((x): x is string => typeof x === 'string')
+          : undefined;
+        const reportIds = Array.isArray(scope.report_ids)
+          ? scope.report_ids.filter((x): x is string => typeof x === 'string')
+          : undefined;
+        const stats = await runPbiParse(orgId, job.source_id, {
+          runId: job.id,
+          modelIds,
+          reportIds,
+          maxModels: typeof scope.max_models === 'number' ? scope.max_models : undefined,
+          maxReports: typeof scope.max_reports === 'number' ? scope.max_reports : undefined,
+        });
+        await finalize(job.id, 'succeeded', stats as unknown as Record<string, unknown>);
+        console.log(
+          `[pbi_parse] models=${stats.models_parsed}/${stats.models_skipped}/${stats.models_failed} reports=${stats.reports_parsed}/${stats.reports_skipped}/${stats.reports_failed}`,
+        );
+        return { status: 'succeeded' };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        await finalize(job.id, 'failed', {}, msg);
+        return { status: 'failed', error: msg };
+      }
+    }
+
+    case 'pbi_catalog_link': {
+      if (!job.source_id) {
+        await finalize(job.id, 'failed', {}, 'pbi_catalog_link missing source_id');
+        return { status: 'failed', error: 'missing source_id' };
+      }
+      try {
+        const scope = (job.scope ?? {}) as Record<string, unknown>;
+        const modelIds = Array.isArray(scope.model_ids)
+          ? scope.model_ids.filter((x): x is string => typeof x === 'string')
+          : undefined;
+        const stats = await runPbiCatalogLink(orgId, job.source_id, { runId: job.id, modelIds });
+        await finalize(job.id, 'succeeded', stats as unknown as Record<string, unknown>);
+        console.log(
+          `[pbi_catalog_link] matched=${stats.matched} unscanned=${stats.unscanned} ambiguous=${stats.ambiguous}`,
+        );
+        return { status: 'succeeded' };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        await finalize(job.id, 'failed', {}, msg);
+        return { status: 'failed', error: msg };
+      }
+    }
+
+    case 'pbi_domains': {
+      if (!job.source_id) {
+        await finalize(job.id, 'failed', {}, 'pbi_domains missing source_id');
+        return { status: 'failed', error: 'missing source_id' };
+      }
+      try {
+        const scope = (job.scope ?? {}) as Record<string, unknown>;
+        const modelIds = Array.isArray(scope.model_ids)
+          ? scope.model_ids.filter((x): x is string => typeof x === 'string')
+          : undefined;
+        const stats = await runPbiDomains(orgId, job.source_id, { runId: job.id, modelIds });
+        await finalize(job.id, 'succeeded', stats as unknown as Record<string, unknown>);
+        console.log(
+          `[pbi_domains] models=${stats.models_assigned}/${stats.models_scored} conflicts=${stats.conflicts}`,
+        );
+        return { status: 'succeeded' };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        await finalize(job.id, 'failed', {}, msg);
+        return { status: 'failed', error: msg };
+      }
+    }
+
+    case 'pbi_families': {
+      if (!job.source_id) {
+        await finalize(job.id, 'failed', {}, 'pbi_families missing source_id');
+        return { status: 'failed', error: 'missing source_id' };
+      }
+      try {
+        const scope = (job.scope ?? {}) as Record<string, unknown>;
+        const modelIds = Array.isArray(scope.model_ids)
+          ? scope.model_ids.filter((x): x is string => typeof x === 'string')
+          : undefined;
+        const stats = await runPbiFamilies(orgId, job.source_id, { runId: job.id, modelIds });
+        await finalize(job.id, 'succeeded', stats as unknown as Record<string, unknown>);
+        console.log(
+          `[pbi_families] families=${stats.families_upserted} models=${stats.models_linked} cleared=${stats.singletons_cleared}`,
+        );
+        return { status: 'succeeded' };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        await finalize(job.id, 'failed', {}, msg);
+        return { status: 'failed', error: msg };
+      }
+    }
+
+    case 'pbi_oracle': {
+      if (!job.source_id) {
+        await finalize(job.id, 'failed', {}, 'pbi_oracle missing source_id');
+        return { status: 'failed', error: 'missing source_id' };
+      }
+      try {
+        const scope = (job.scope ?? {}) as Record<string, unknown>;
+        const modelIds = Array.isArray(scope.model_ids)
+          ? scope.model_ids.filter((x): x is string => typeof x === 'string')
+          : undefined;
+        const maxMeasuresPerModel =
+          typeof scope.max_measures_per_model === 'number' ? scope.max_measures_per_model : undefined;
+        const stats = await runPbiOracle(orgId, job.source_id, {
+          runId: job.id,
+          modelIds,
+          maxMeasuresPerModel,
+          onlyCanonicalFamily: scope.only_canonical_family === true,
+          onlyWithTranslation: scope.oracle_only_translated === true,
+        });
+        await finalize(job.id, 'succeeded', stats as unknown as Record<string, unknown>);
+        console.log(
+          `[pbi_oracle] mode=${stats.oracle_mode} written=${stats.results_written} failed=${stats.measures_failed} skipped_rls=${stats.models_skipped_rls} run=${stats.measures_run}`,
+        );
+        return { status: 'succeeded' };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        await finalize(job.id, 'failed', {}, msg);
+        return { status: 'failed', error: msg };
+      }
+    }
+
+    case 'pbi_translate': {
+      if (!job.source_id) {
+        await finalize(job.id, 'failed', {}, 'pbi_translate missing source_id');
+        return { status: 'failed', error: 'missing source_id' };
+      }
+      try {
+        const scope = (job.scope ?? {}) as Record<string, unknown>;
+        const modelIds = Array.isArray(scope.model_ids)
+          ? scope.model_ids.filter((x): x is string => typeof x === 'string')
+          : undefined;
+        const maxLlmMeasures =
+          typeof scope.max_llm_measures === 'number' ? scope.max_llm_measures : undefined;
+        const stats = await runPbiTranslate(orgId, job.source_id, {
+          runId: job.id,
+          modelIds,
+          maxLlmMeasures,
+          llmEnabled: scope.llm_translate !== false,
+          pilot: scope.pilot === true,
+        });
+        await finalize(job.id, 'succeeded', stats as unknown as Record<string, unknown>);
+        console.log(
+          `[pbi_translate] rule=${stats.rule_translated} llm=${stats.llm_translated}/${stats.measures_scanned} dax_uc=${stats.uc_via_dax_refs ?? 0} no_bind=${stats.skipped_no_binding} unsupported=${stats.skipped_unsupported_dax} cost_usd=${stats.cost_usd.toFixed(4)}`,
+        );
+        return { status: 'succeeded' };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        await finalize(job.id, 'failed', {}, msg);
+        return { status: 'failed', error: msg };
+      }
+    }
+
+    case 'pbi_parity': {
+      if (!job.source_id) {
+        await finalize(job.id, 'failed', {}, 'pbi_parity missing source_id');
+        return { status: 'failed', error: 'missing source_id' };
+      }
+      try {
+        const scope = (job.scope ?? {}) as Record<string, unknown>;
+        const modelIds = Array.isArray(scope.model_ids)
+          ? scope.model_ids.filter((x): x is string => typeof x === 'string')
+          : undefined;
+        const stats = await runPbiParity(orgId, job.source_id, { runId: job.id, modelIds });
+        await finalize(job.id, 'succeeded', stats as unknown as Record<string, unknown>);
+        console.log(
+          `[pbi_parity] pass=${stats.passed} fail=${stats.failed} skip=${stats.skipped} err=${stats.errors}`,
+        );
+        return { status: 'succeeded' };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        await finalize(job.id, 'failed', {}, msg);
+        return { status: 'failed', error: msg };
+      }
+    }
+
     case 'pbi_publish': {
-      const reason = `${job.job_kind}: not implemented yet (Power BI phase 1 ships inventory only)`;
-      await finalize(job.id, 'failed', { note: reason }, reason);
-      return { status: 'failed', error: reason };
+      if (!job.source_id) {
+        await finalize(job.id, 'failed', {}, 'pbi_publish missing source_id');
+        return { status: 'failed', error: 'missing source_id' };
+      }
+      try {
+        const scope = (job.scope ?? {}) as Record<string, unknown>;
+        const modelIds = Array.isArray(scope.model_ids)
+          ? scope.model_ids.filter((x): x is string => typeof x === 'string')
+          : undefined;
+        const requireApproved = scope.require_approved === true;
+        const stats = await runPbiPublish(orgId, job.source_id, {
+          runId: job.id,
+          modelIds,
+          requireApproved,
+        });
+        await finalize(job.id, 'succeeded', stats as unknown as Record<string, unknown>);
+        console.log(
+          `[pbi_publish] published=${stats.published} skip=${stats.skipped} demoted=${stats.demoted}`,
+        );
+        return { status: 'succeeded' };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        await finalize(job.id, 'failed', {}, msg);
+        return { status: 'failed', error: msg };
+      }
     }
 
     default: {
@@ -776,6 +988,36 @@ export async function runOrchestratorLoop(
 
   console.log(`[orchestrator] done — processed=${processed} t1_profile_dispatched=${t1JobsCreated}`);
   return { processed, t1JobsCreated };
+}
+
+/** Run one queued/running job by id (local pilots — avoids spawning a second Node process). */
+export async function runQueuedJobById(
+  orgId: string,
+  jobId: string,
+): Promise<{ status: string; error?: string | null }> {
+  const job = await prisma.platformContextJob.findUnique({ where: { id: jobId } });
+  if (!job) {
+    throw new Error(`job not found: ${jobId}`);
+  }
+  if (job.status === 'queued') {
+    await prisma.platformContextJob.update({
+      where: { id: job.id },
+      data: { status: 'running', started_at: new Date() },
+    });
+  }
+  console.log(`[orchestrator] pilot-job=${job.id} kind=${job.job_kind}`);
+  try {
+    const result = await dispatchSingleJob(job, orgId);
+    return { status: result.status, error: result.error ?? null };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    try {
+      await finalize(job.id, 'failed', {}, msg);
+    } catch {
+      /* best-effort */
+    }
+    return { status: 'failed', error: msg };
+  }
 }
 
 // ── CLI entry point ───────────────────────────────────────────────────────────

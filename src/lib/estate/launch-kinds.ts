@@ -9,13 +9,6 @@ export const LAUNCH_DISABLED_JOB_KINDS = new Set<string>([
   't4_dim_propose',
   'silo_scan',
   'recompute_entity_tags',
-  'pbi_parse',
-  'pbi_catalog_link',
-  'pbi_domains',
-  'pbi_oracle',
-  'pbi_translate',
-  'pbi_parity',
-  'pbi_publish',
 ]);
 
 export function isLaunchDisabledKind(kind: string): boolean {

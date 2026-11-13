@@ -1,0 +1,17 @@
+table Demo_Fact
+	lineageTag: aaa-bbb-ccc
+
+	column Vessel
+		dataType: string
+		sourceColumn: Vessel
+
+	measure Total = SUM(Demo_Fact[Amount])
+		formatString: 0
+
+	partition Demo_Fact-part = m
+		mode: import
+		source =
+			let
+			    Source = Value.NativeQuery(Databricks.Catalogs("adb-example.azuredatabricks.net", "/sql/1.0/warehouses/x"){[Name="db",Kind="Database"]}[Data], "SELECT * FROM REPORTING_LAYER.DBO.FACT", null, [EnableFolding=true])
+			in
+			    Source

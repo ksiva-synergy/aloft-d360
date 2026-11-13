@@ -509,6 +509,8 @@ Vectors use the existing Titan v2 1024-dimension path (`embedQuery` in `src/lib/
 
 Full `kb_index` with rank fusion arrives in v1.1, per the knowledge base design; v1 does not wait for it.
 
+**Operator guide (semantic layer + portal, no embed):** [`inspector/semantic-layer-and-powerbi.md`](inspector/semantic-layer-and-powerbi.md).
+
 ---
 
 ## 11. App surfaces

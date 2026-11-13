@@ -5,6 +5,112 @@
 
 ---
 
+### 2026-11-13: Vessel pilot retrospective doc (Cursor)
+
+- **What:** `docs/jobs/powerbi-vessel-pilot-issues-and-wiring.md`.
+- **Why:** Document issues, fixes, wiring, and post-resolve pilot numbers.
+- **Verified:** Matches latest `run-pilot-local` + `diag-vessel-recreation.ts`.
+
+### 2026-11-13: Catalog column resolver in PBI translate (Cursor)
+
+- **What:** `catalog-column-resolve.ts`, translate allowlist, UI column map line on measures.
+- **Why:** Ground DAX→SQL in harvested catalog columns.
+- **Verified:** unit tests; re-run pilot translate locally to refresh translations.
+
+### 2026-11-13: Recreation summary UI + failure taxonomy (Cursor)
+
+- **What:** `recreation-summary.ts`, Estate Power BI detail bar/tags, Vessel diag script.
+- **Why:** Track Databricks recreation % and explain parity/translate failures per measure.
+- **Verified:** Vessel 4/30 match, 3 published, 8 SQL errors, 10 no SQL, 8 no UC.
+
+### 2026-11-13: Vessel translate re-run (Cursor)
+
+- **What:** Applied `20261114_pbi_translation_upsert_index`; re-ran Vessel `--from-kind pbi_translate`.
+- **Outcome:** `dax_uc=22 no_bind=8 rule=3 llm=6 cost≈$0.09`; parity `skip=9` (no pass); publish blocked.
+- **Verified:** `diag-vessel-uc.ts` 22/30 resolved; pilot through parity step.
+
+### 2026-11-13: Vessel translate — DAX UC refs + quote table names (Cursor)
+
+- **What:** Track B follow-up: `normalizePbiTableName` on UC map keys; `input.modelTables` bugfix; Grok omit `temperature` in `harvest-llm.ts`; `scripts/powerbi/diag-vessel-uc.ts`.
+- **Why:** Vessel `dax_uc=6` was mostly IMO-only; `'Vessel Internal Audit'` stored with literal quotes blocked DAX ref match; LLM 0/30 on Bedrock Grok temperature.
+- **Verified:** Vitest; pilot translate once (pre-fix stats); full re-run pending RDS/VPN.
+
+### 2026-11-13: Power BI estate page compact header (Claude Code)
+
+- **What:** Replaced the duplicate title and 7 KPI cards with a one-line stats bar; removed the detail stat cards.
+- **Why:** Too much vertical space before content.
+
+### 2026-11-13: Power BI estate page UI redesign (Claude Code)
+
+- **What:** `src/views/agent-lab/estate/powerbi.tsx`: KPI tiles, collapsible conflicts panel with model chips that jump to the measure, model search and status filter, and a tabbed detail pane (Measures / Tables / Reports). The domain score no longer renders as a percentage ("1800%").
+- **Why:** The page was not usable at 451 models, and the conflicts box took half the viewport.
+- **Verified:** tsc clean for the file; not checked in a browser.
+
+### 2026-11-13: Power BI `pbi_translate` LLM tier v1 (Cursor)
+
+- **What:** `translate-llm.ts` + second pass in `runPbiTranslate` after rule tier; pilot cap 12 measures; job `cost_usd` in stats.
+- **Why:** CII pilot DAX too rich for rule tier; unblock parity with draft `tier=llm` rows.
+
+### 2026-11-13: Power BI local 5-report pilot script (Cursor)
+
+- **What:** `scripts/powerbi/run-pilot-local.ts`; orchestrator honors `max_models` / `max_reports` in scope.
+- **Why:** Validate pipeline locally before Fargate harvest.
+
+### 2026-11-13: Inspector verified-query path (Cursor)
+
+- **What:** Match `kb_verified_queries` on user turn; `run_verified_query` tool in chat.
+- **Verified:** Vitest format block.
+
+### 2026-11-13: Power BI `pbi_publish` + kb_verified_queries (Cursor)
+
+- **What:** Publish job writes verified queries from parity-pass translations; embed + match helper.
+- **Verified:** Vitest publish-question, schema-hash.
+
+### 2026-11-13: Power BI `pbi_parity` (Cursor)
+
+- **What:** Parity job compares rule-tier SQL to oracle; updates translation verdicts.
+- **Verified:** Vitest parity-compare.
+
+### 2026-11-13: Power BI oracle + conflict steward UI (Cursor)
+
+- **What:** `pbi_oracle` job + results table; conflicts acknowledge API; estate conflict panel.
+- **Verified:** Vitest powerbi lib + API route tests.
+- **Not done:** Operator `apply-phase3-oracle-migration.mjs`.
+
+### 2026-11-13: Power BI `pbi_families` (Cursor)
+
+- **What:** Model family clustering job; `pbi_families` table; models API family fields; migration + apply script.
+- **Verified:** Vitest `family-cluster` + existing powerbi tests.
+- **Not done:** Operator migration; Phase 3 `pbi_oracle`.
+
+### 2026-11-13: Power BI `pbi_domains` (Cursor)
+
+- **What:** Domain registry upsert, model scoring, `pbi_conflicts`; orchestrator job; domains API; estate UI domain filter + conflict banner; migration + apply script.
+- **Verified:** Vitest powerbi lib + API route tests.
+- **Not done:** Operator migration on Aurora; steward review UI.
+
+### 2026-11-13: Power BI Phase 2 catalog link (Cursor)
+
+- **What:** `pbi_catalog_link`; SQL path extraction; links to `platform_context_objects`; object page usage panel; migration 1c.
+- **Verified:** Vitest `native-sql` + powerbi parse + API route tests (18).
+- **Not done:** `pbi_domains`.
+
+### 2026-11-13: Power BI browse tab + read APIs (Cursor)
+
+- **What:** `estate.powerbi` section; Power BI estate page; workspace/model list + model detail APIs.
+- **Files:** `powerbi.tsx`, `api/agent-lab/powerbi/{workspaces,models}`, `registry.ts`, `nav-items.ts`, `router.tsx`, route tests.
+- **Before → after:** No in-app browse → admins view harvested models, tables, measures, classification.
+- **Verified:** Vitest powerbi routes + section route-coverage.
+- **Not done:** Catalog link job.
+
+### 2026-11-13: Power BI Phase 1b — `pbi_parse` + parsers (Cursor)
+
+- **What:** Phase 1b schema; TMDL parser; partition classifier §8.5; `runPbiParse`; legacy report summary parse; Jobs launch PBI Parse; summary API parse metrics; implementation report.
+- **Files:** `prisma/migrations/20261113_powerbi_bridge_phase1b/`, `src/lib/powerbi/{tmdl-parse,partition-kind,parse,report-parse-legacy}.ts`, orchestrator, jobs UI, `powerbi/summary`, tests, `docs/jobs/powerbi-phase1-implementation-report.md`.
+- **Before → after:** `pbi_parse` failed as stub → runnable after definitions + migration 1b; models get `classification.answerability` in `props`.
+- **Verified:** `npx vitest run src/lib/powerbi/__tests__/powerbi-parse.test.ts`.
+- **Not done:** Operator `apply-phase1b-migration.mjs`; browse UI; Phases 2–7.
+
 ### 2026-11-11: Phase 1 migration applied on dev Aurora (Cursor)
 
 - **What:** `apply-phase1-migration.mjs` — five `pbi_*` tables live; Prisma migration history updated.

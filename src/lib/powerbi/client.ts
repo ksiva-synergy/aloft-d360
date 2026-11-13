@@ -111,3 +111,42 @@ export async function listDatasetDatasources(
   );
   return data.value ?? [];
 }
+
+export interface PbiExecuteQueriesResponse {
+  results?: Array<{
+    tables?: Array<{
+      rows?: unknown[];
+    }>;
+    error?: { code?: string; message?: string };
+  }>;
+}
+
+/** Run DAX against a dataset in a workspace (service principal). */
+export async function executeDatasetQueries(
+  workspaceId: string,
+  datasetId: string,
+  queries: string[],
+): Promise<PbiExecuteQueriesResponse> {
+  const token = await getPowerBiAccessToken();
+  const url = `${PBI_API_ROOT}/groups/${workspaceId}/datasets/${datasetId}/executeQueries`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      queries: queries.map((query) => ({ query })),
+      serializerSettings: { includeNulls: true },
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new PowerBiApiError(
+      `executeQueries ${datasetId} → ${res.status}: ${text.slice(0, 300)}`,
+      res.status,
+    );
+  }
+  return res.json() as Promise<PbiExecuteQueriesResponse>;
+}

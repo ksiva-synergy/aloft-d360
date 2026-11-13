@@ -2,7 +2,7 @@
 
 **Purpose:** Prove what changed in the application when the Power BI harvest track ships, and avoid claiming user-facing wins before Inspector uses verified queries (Phase 3).
 
-**Related:** [powerbi-harvest-build-plan.md](./powerbi-harvest-build-plan.md) §0, §10.3, §13.2 exit gates · [powerbi-implementation-tracker.md](./jobs/powerbi-implementation-tracker.md)
+**Related:** [powerbi-harvest-build-plan.md](./powerbi-harvest-build-plan.md) §0, §10.3, §13.2 exit gates · [powerbi-implementation-tracker.md](./jobs/powerbi-implementation-tracker.md) · [Inspector: semantic layer and Power BI](./inspector/semantic-layer-and-powerbi.md) (positioning, retrieval order, portal links) · [Vessel pilot issues & wiring](./jobs/powerbi-vessel-pilot-issues-and-wiring.md) (CII translate/parity retrospective)
 
 ---
 
@@ -131,6 +131,47 @@ Read-only SQL (safe on shared dev):
 -- See eval/powerbi/snapshot-queries.sql
 SELECT COUNT(*) AS context_sources FROM platform_context_sources WHERE connection_kind = 'powerbi';
 ```
+
+### 4.1b Local 5-report pilot (before Fargate)
+
+Run the full Power BI chain **on your machine** with `report_ids` / `model_ids` scope (orchestrator reads `job.scope`). No `HARVEST_RUNTIME=local` needed — the script spawns the orchestrator per job.
+
+1. Ensure `PBI_*` creds and an active `powerbi` context source in Estate.
+2. List report GUIDs already in Aurora (after a one-time inventory, or from the portal):
+
+   ```bash
+   npx tsx --require ./scripts/context/noserver.cjs scripts/powerbi/run-pilot-local.ts --list-reports
+   ```
+
+3. Pick **five** `pbi_report_id` values (CII / QHSE pilot).
+
+4. Run the pilot (replace UUIDs), or use the preset CII five from offline inventory:
+
+   ```bash
+   npx tsx --require ./scripts/context/noserver.cjs scripts/powerbi/run-pilot-local.ts --use-cii-pilot-five
+   ```
+
+   Manual IDs: see [`eval/powerbi/cii-pilot-five-reports.json`](../eval/powerbi/cii-pilot-five-reports.json).
+
+   ```bash
+   npx tsx --require ./scripts/context/noserver.cjs scripts/powerbi/run-pilot-local.ts ^
+     --source-id <powerbi-context-source-uuid> ^
+     --report-ids <id1>,<id2>,<id3>,<id4>,<id5>
+   ```
+
+   Add `--skip-inventory` if inventory already ran for that source. After a VPN/RDS drop mid-run:
+
+   ```bash
+   npx tsx --require ./scripts/context/noserver.cjs scripts/powerbi/run-pilot-local.ts --use-cii-pilot-five --skip-inventory --from-kind pbi_definitions
+   ```
+
+   One-time source bootstrap (dev): `scripts/powerbi/ensure-powerbi-source.ts`.
+
+5. Watch stdout; each job is enqueued then executed via `orchestrator.ts --child-job <id>`.
+
+6. Confirm rows in Estate → Power BI and (if Phase 3 completed) `kb_verified_queries`.
+
+For **UI launch** without the script: set `HARVEST_RUNTIME=local` in `.env`, enqueue jobs manually with scope JSON `report_ids` + `model_ids` (Jobs API does not expose those fields in the modal yet).
 
 ### 4.2 After snapshot (post Phase 1 exit gate)
 

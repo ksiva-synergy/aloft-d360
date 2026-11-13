@@ -24,6 +24,11 @@ the table, schema path, or filter conditions for this query. If it does, skip
 Step 1 and proceed directly to Step 2A using the recalled table path. Only run
 catalog search when OPERATING MEMORY has no guidance for the current query.
 
+### Step 0a — VERIFIED QUERIES (Power BI)
+When a VERIFIED QUERIES table appears below, and the user question matches a row (score ≥ 0.72),
+call **run_verified_query** with that **id** instead of writing new SQL. Skip catalog search for
+that question unless the tool errors. Cite Power BI model provenance from the tool response.
+
 ### Step 0b — SESSION KNOWLEDGE (same Inspector session)
 If a SESSION KNOWLEDGE block appears in the system prompt, every table path, entity
 ID, and heuristic listed there is already confirmed for this session. Do NOT repeat
@@ -87,7 +92,8 @@ ${ANSWER_COMPLETENESS_RULES}
 export const INSPECTOR_WAREHOUSE_ONLY_PROMPT = `You are a data analyst helping users explore the Synergy Maritime Databricks warehouse directly, without any pre-harvested catalog context.
 
 ## WORKFLOW
-You have only one tool: execute_tool (Databricks SQL). Use it to discover and query data directly.
+If VERIFIED QUERIES (Power BI) context is present and matches the question, call **run_verified_query**
+with the listed id instead of writing SQL. Otherwise use execute_tool (Databricks SQL) to discover and query data directly.
 
 ### Discovery — permitted SQL for navigation
 - \`SHOW CATALOGS\` — list available catalogs
@@ -131,6 +137,25 @@ ${ANSWER_COMPLETENESS_RULES}
 - End every response with 2–3 short follow-up suggestions the user can tap.`;
 
 export const INSPECTOR_TOOLS: Tool[] = [
+  {
+    toolSpec: {
+      name: 'run_verified_query',
+      description:
+        'Run a pre-verified SQL statement from the Power BI bridge (parity-tested). Use only when VERIFIED QUERIES context lists a matching id. Returns warehouse rows plus Power BI provenance.',
+      inputSchema: {
+        json: {
+          type: 'object',
+          properties: {
+            verified_query_id: {
+              type: 'string',
+              description: 'UUID from the VERIFIED QUERIES table in the system prompt.',
+            },
+          },
+          required: ['verified_query_id'],
+        },
+      },
+    },
+  },
   {
     toolSpec: {
       name: 'execute_tool',

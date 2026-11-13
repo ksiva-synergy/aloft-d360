@@ -34,6 +34,7 @@ import {
 import { recordInjection, attributeRunOutcome, type InjectedBullet } from '@/lib/memory/attribution';
 import { getCurrentTopicMap } from '@/lib/foer/topics';
 import { buildSemanticContext, type SemanticContext } from '@/lib/semantic/context-builder';
+import { buildVerifiedQueryContext } from '@/lib/inspector/verified-query-context';
 import { guardInspectorChat, resolveInspectorPrincipal } from '@/lib/inspector/session-auth';
 import { principalForUser } from '@/lib/access/principal';
 import { chatModelKeyForRole, isPlatformAdminRole } from '@/lib/inspector/model-access';
@@ -230,17 +231,25 @@ export async function POST(request: NextRequest) {
     return new Response('No messages provided', { status: 400 });
   }
 
-  // ── S4: Semantic context (governed entities) ──────────────────────────────────
-  // Resolve once at session init — passed to tool context and system prompt.
+  const firstUserMessageText = ((body.messages ?? []).find((m) => m.role === 'user' && m.content?.trim())?.content ?? '')
+    .trim()
+    .slice(0, 500);
+
+  // ── S4: Semantic + verified-query context (session init) ────────────────────
   let semanticCtx: SemanticContext | undefined;
   let resolvedConnectionId: string | null = null;
+  let inspectorOrgId: string | null = null;
+  let verifiedQueryContext = '';
   try {
     const org = await getDefaultOrgAsync();
+    inspectorOrgId = org.id;
     const catalogEntry = await resolveToolCatalogEntry('');
     resolvedConnectionId = (catalogEntry?.config as Record<string, string> | null)?.connection_id ?? null;
     if (resolvedConnectionId) {
       semanticCtx = await buildSemanticContext(org.id, resolvedConnectionId);
     }
+    const vq = await buildVerifiedQueryContext(org.id, firstUserMessageText);
+    verifiedQueryContext = vq.text;
   } catch { /* non-fatal — fall back to no semantic context */ }
 
   const toolConfig = buildToolConfig(contextMode, !!(semanticCtx && semanticCtx.entities.length > 0));
@@ -248,11 +257,9 @@ export async function POST(request: NextRequest) {
   const insightsContext = contextMode === 'harvested' ? await buildInsightsContext(body.sessionId) : '';
   const sessionKnowledgeContext =
     body.sessionId && isUUID(body.sessionId) ? await buildSessionKnowledgeContext(body.sessionId) : '';
-  const systemPrompt = [basePrompt, insightsContext, sessionKnowledgeContext].filter(Boolean).join('\n\n');
-
-  const firstUserMessageText = ((body.messages ?? []).find((m) => m.role === 'user' && m.content?.trim())?.content ?? '')
-    .trim()
-    .slice(0, 500);
+  const systemPrompt = [basePrompt, verifiedQueryContext, insightsContext, sessionKnowledgeContext]
+    .filter(Boolean)
+    .join('\n\n');
 
   // ── AM2.1: Operating Memory injection (feature-flagged) ─────────────────────
   // Mirrors the workbench injection block. Inspector class = 'inspector'.
@@ -456,6 +463,7 @@ export async function POST(request: NextRequest) {
                 sessionId: body.sessionId ?? '',
                 connectionId: resolvedConnectionId,
                 dataPrincipal,
+                orgId: inspectorOrgId,
               }),
             ),
           maxLoops: maxInspectorLoops,

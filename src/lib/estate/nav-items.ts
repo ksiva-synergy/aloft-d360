@@ -1,5 +1,5 @@
 import {
-  Layers, BookOpen, Boxes, GitBranch, Zap, Route, Server,
+  Layers, BookOpen, Boxes, GitBranch, Zap, Route, Server, BarChart3,
 } from 'lucide-react';
 import type { ElementType } from 'react';
 
@@ -35,6 +35,13 @@ export const ESTATE_NAV_ITEMS: EstateNavItem[] = [
   { label: 'Entities', href: '/agent-lab/estate/entities', icon: Boxes, match: 'prefix' },
   { label: 'Lineage', href: '/agent-lab/estate/lineage', icon: GitBranch, match: 'prefix' },
   { label: 'Jobs', href: '/agent-lab/estate/jobs', icon: Zap,   match: 'prefix', title: 'Jobs' },
+  {
+    label: 'Power BI',
+    href: '/agent-lab/estate/powerbi',
+    icon: BarChart3,
+    match: 'prefix',
+    title: 'Power BI',
+  },
   { label: 'Mapper', href: '/agent-lab/estate/mapper', icon: Route, match: 'prefix' },
   { label: 'Silo Finder', href: '/agent-lab/estate/silo', icon: Server, match: 'prefix' },
 ];

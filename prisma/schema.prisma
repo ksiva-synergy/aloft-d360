@@ -2097,7 +2097,8 @@ model PlatformContextSource {
   created_at      DateTime                @default(now()) @db.Timestamptz(6)
   updated_at      DateTime                @default(now()) @updatedAt @db.Timestamptz(6)
   jobs            PlatformContextJob[]
-  objects         PlatformContextObject[]
+  objects            PlatformContextObject[]
+  pbiWarehouseLinks  PbiSourceBinding[]
 
   @@index([org_id], map: "idx_pcs_org")
   @@map("platform_context_sources")
@@ -2136,6 +2137,7 @@ model PlatformContextObject {
   objectLinksRight       PlatformContextObjectLink[] @relation("right_object")
   source                 PlatformContextSource       @relation(fields: [source_id], references: [id])
   profiles               PlatformContextProfile[]
+  pbiSourceBindings      PbiSourceBinding[]
 
   @@unique([source_id, full_path], map: "platform_context_objects_source_path_key")
   @@index([org_id, full_path], map: "idx_pco_org_path")
@@ -3536,7 +3538,8 @@ model PbiModel {
   ols_enabled    Boolean              @default(false)
   endorsement    String?
   last_refresh_at DateTime?           @db.Timestamptz(6)
-  domain_id      String?
+  domain_id      String?             @db.Uuid
+  family_id      String?             @db.Uuid
   content_hash   String?
   lifecycle      String               @default("active")
   first_seen_run String?
@@ -3547,6 +3550,17 @@ model PbiModel {
   workspace      PbiWorkspace         @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
   datasources    PbiModelDatasource[]
   reports        PbiReport[]
+  tables         PbiTable[]
+  columns        PbiColumn[]
+  measures       PbiMeasure[]
+  relationships  PbiRelationship[]
+  roles          PbiRole[]
+  sourceBindings PbiSourceBinding[]
+  embeddedTables PbiEmbeddedTable[]
+  domain          PbiDomain?           @relation(fields: [domain_id], references: [id], onDelete: SetNull)
+  family          PbiFamily?           @relation(fields: [family_id], references: [id], onDelete: SetNull)
+  oracleResults   PbiOracleResult[]
+  translations    PbiTranslation[]
 
   @@unique([org_id, pbi_model_id], map: "uq_pbi_model_org")
   @@index([org_id], map: "idx_pbi_models_org")
@@ -3617,4 +3631,305 @@ model PbiUsage {
 
   @@index([org_id, pbi_report_id], map: "idx_pbi_usage_org_report")
   @@map("pbi_usage")
+}
+
+// ── Power BI semantic bridge (Phase 1b: parsed structure) ─────────────────────
+
+model PbiTable {
+  id             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id         String
+  model_id       String               @db.Uuid
+  name           String
+  lineage_tag    String?
+  partition_kind String?
+  storage_mode   String?
+  hidden         Boolean              @default(false)
+  source_m       String?
+  is_auto_date   Boolean              @default(false)
+  content_hash   String?
+  lifecycle      String               @default("active")
+  first_seen_run String?
+  last_seen_run  String?
+  props          Json                 @default("{}")
+  created_at     DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime             @default(now()) @updatedAt @db.Timestamptz(6)
+  model          PbiModel             @relation(fields: [model_id], references: [id], onDelete: Cascade)
+  columns        PbiColumn[]
+  measures       PbiMeasure[]
+  sourceBinding  PbiSourceBinding?
+  embeddedTable  PbiEmbeddedTable?
+
+  @@unique([org_id, model_id, name], map: "uq_pbi_table_org_model_name")
+  @@index([org_id], map: "idx_pbi_tables_org")
+  @@index([model_id], map: "idx_pbi_tables_model")
+  @@map("pbi_tables")
+}
+
+model PbiColumn {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id          String
+  model_id        String   @db.Uuid
+  table_id        String   @db.Uuid
+  name            String
+  data_type       String?
+  source_column   String?
+  lineage_tag     String?
+  display_folder  String?
+  format_string   String?
+  summarize_by    String?
+  calculated_dax  String?
+  content_hash    String?
+  lifecycle       String   @default("active")
+  props           Json     @default("{}")
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  model           PbiModel @relation(fields: [model_id], references: [id], onDelete: Cascade)
+  table           PbiTable @relation(fields: [table_id], references: [id], onDelete: Cascade)
+
+  @@unique([table_id, name], map: "uq_pbi_column_table_name")
+  @@index([model_id], map: "idx_pbi_columns_model")
+  @@index([table_id], map: "idx_pbi_columns_table")
+  @@map("pbi_columns")
+}
+
+model PbiMeasure {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id          String
+  model_id        String   @db.Uuid
+  table_id        String   @db.Uuid
+  name            String
+  dax             String
+  dax_hash        String?
+  lineage_tag     String?
+  format_string   String?
+  display_folder  String?
+  content_hash    String?
+  lifecycle       String   @default("active")
+  props           Json     @default("{}")
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  model           PbiModel @relation(fields: [model_id], references: [id], onDelete: Cascade)
+  table           PbiTable @relation(fields: [table_id], references: [id], onDelete: Cascade)
+  translations    PbiTranslation[]
+
+  @@unique([table_id, name], map: "uq_pbi_measure_table_name")
+  @@index([model_id], map: "idx_pbi_measures_model")
+  @@index([table_id], map: "idx_pbi_measures_table")
+  @@map("pbi_measures")
+}
+
+model PbiRelationship {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id              String
+  model_id            String   @db.Uuid
+  pbi_relationship_id String
+  from_column         String?
+  to_column           String?
+  cardinality         String?
+  cross_filtering     String?
+  is_active           Boolean?
+  content_hash        String?
+  lifecycle           String   @default("active")
+  props               Json     @default("{}")
+  created_at          DateTime @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  model               PbiModel @relation(fields: [model_id], references: [id], onDelete: Cascade)
+
+  @@unique([org_id, model_id, pbi_relationship_id], map: "uq_pbi_rel_org_model")
+  @@index([model_id], map: "idx_pbi_rel_model")
+  @@map("pbi_relationships")
+}
+
+model PbiRole {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id       String
+  model_id     String   @db.Uuid
+  name         String
+  filter_dax   String?
+  content_hash String?
+  lifecycle    String   @default("active")
+  props        Json     @default("{}")
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  model        PbiModel @relation(fields: [model_id], references: [id], onDelete: Cascade)
+
+  @@unique([org_id, model_id, name], map: "uq_pbi_role_model_name")
+  @@index([model_id], map: "idx_pbi_roles_model")
+  @@map("pbi_roles")
+}
+
+model PbiSourceBinding {
+  id                   String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id               String
+  model_id             String                   @db.Uuid
+  table_id             String                   @unique @db.Uuid
+  partition_kind       String
+  connector            String?
+  connection_host      String?
+  native_sql           String?
+  uc_full_path         String?
+  bind_status          String                   @default("pending")
+  context_object_id    String?                  @db.Uuid
+  databricks_source_id String?                  @db.Uuid
+  source_m_hash        String?
+  props                Json                     @default("{}")
+  created_at           DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime                 @default(now()) @updatedAt @db.Timestamptz(6)
+  model                PbiModel                 @relation(fields: [model_id], references: [id], onDelete: Cascade)
+  table                PbiTable                 @relation(fields: [table_id], references: [id], onDelete: Cascade)
+  contextObject        PlatformContextObject?   @relation(fields: [context_object_id], references: [id], onDelete: SetNull)
+  databricksSource     PlatformContextSource?   @relation(fields: [databricks_source_id], references: [id], onDelete: SetNull)
+
+  @@index([model_id], map: "idx_pbi_bindings_model")
+  @@index([context_object_id], map: "idx_pbi_bindings_context_object")
+  @@map("pbi_source_bindings")
+}
+
+model PbiEmbeddedTable {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id          String
+  model_id        String   @db.Uuid
+  table_id        String   @unique @db.Uuid
+  row_count       Int?
+  content_sha256  String?
+  pii_checked     Boolean  @default(false)
+  props           Json     @default("{}")
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  model           PbiModel @relation(fields: [model_id], references: [id], onDelete: Cascade)
+  table           PbiTable @relation(fields: [table_id], references: [id], onDelete: Cascade)
+
+  @@index([model_id], map: "idx_pbi_embedded_model")
+  @@map("pbi_embedded_tables")
+}
+
+model PbiDomain {
+  id             String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id         String
+  domain_key     String
+  name           String
+  steward_group  String?
+  sensitivity    String?
+  rollout_wave   Int        @default(99)
+  lexicon        Json       @default("[]")
+  props          Json       @default("{}")
+  created_at     DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime   @default(now()) @updatedAt @db.Timestamptz(6)
+  models         PbiModel[]
+
+  @@unique([org_id, domain_key], map: "uq_pbi_domain_org_key")
+  @@index([org_id], map: "idx_pbi_domains_org")
+  @@map("pbi_domains")
+}
+
+model PbiConflict {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id         String
+  metric_name    String
+  metric_key     String
+  status         String   @default("proposed")
+  model_ids      Json     @default("[]")
+  domain_keys    Json     @default("[]")
+  dax_hashes     Json     @default("[]")
+  summary        String?
+  first_seen_run String?
+  last_seen_run  String?
+  props          Json     @default("{}")
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@unique([org_id, metric_key], map: "uq_pbi_conflict_org_metric")
+  @@index([org_id], map: "idx_pbi_conflicts_org")
+  @@map("pbi_conflicts")
+}
+
+model PbiFamily {
+  id                String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id            String
+  family_key        String
+  name              String
+  varying_parameter String?
+  member_constants  Json       @default("{}")
+  props             Json       @default("{}")
+  created_at        DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime   @default(now()) @updatedAt @db.Timestamptz(6)
+  models            PbiModel[]
+
+  @@unique([org_id, family_key], map: "uq_pbi_family_org_key")
+  @@index([org_id], map: "idx_pbi_families_org")
+  @@map("pbi_families")
+}
+
+model PbiOracleResult {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id           String
+  model_id         String    @db.Uuid
+  measure_id       String?   @db.Uuid
+  measure_name     String
+  dax_query        String
+  result_hash      String?
+  row_count        Int       @default(0)
+  result_preview   Json      @default("[]")
+  identity_kind    String    @default("service_principal")
+  model_refresh_at DateTime? @db.Timestamptz(6)
+  run_id           String?
+  props            Json      @default("{}")
+  created_at       DateTime  @default(now()) @db.Timestamptz(6)
+  model            PbiModel  @relation(fields: [model_id], references: [id], onDelete: Cascade)
+
+  @@index([org_id], map: "idx_pbi_oracle_org")
+  @@index([model_id], map: "idx_pbi_oracle_model")
+  @@index([org_id, measure_name], map: "idx_pbi_oracle_measure")
+  @@map("pbi_oracle_results")
+}
+
+model PbiTranslation {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id         String
+  model_id       String    @db.Uuid
+  measure_id     String?   @db.Uuid
+  measure_name   String
+  dax_hash       String?
+  sql_text       String?
+  tier           String    @default("rule")
+  status         String    @default("draft")
+  parity_verdict String?
+  run_id         String?
+  props          Json      @default("{}")
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  model          PbiModel  @relation(fields: [model_id], references: [id], onDelete: Cascade)
+  measure        PbiMeasure? @relation(fields: [measure_id], references: [id], onDelete: Cascade)
+
+  @@unique([org_id, measure_id], map: "uq_pbi_translation_org_measure")
+  @@index([org_id], map: "idx_pbi_translations_org")
+  @@index([model_id], map: "idx_pbi_translations_model")
+  @@map("pbi_translations")
+}
+
+model KbVerifiedQuery {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id             String
+  question           String
+  alt_phrasings      String[]  @default([])
+  sql                String
+  params             Json?
+  tables_used        String[]  @default([])
+  schema_hash        String
+  status             String    @default("candidate")
+  origin             String
+  pbi_translation_id String?   @unique(map: "uq_kb_vq_translation") @db.Uuid
+  pbi_measure_id     String?   @db.Uuid
+  props              Json      @default("{}")
+  verified_by        String?
+  verified_at        DateTime? @db.Timestamptz(6)
+  last_validated_at  DateTime? @db.Timestamptz(6)
+  embedding          Unsupported("vector(1024)")?
+  created_at         DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@unique([org_id, pbi_measure_id], map: "uq_kb_vq_org_measure")
+  @@index([org_id, status], map: "idx_kb_vq_org_status")
+  @@index([org_id, origin], map: "idx_kb_vq_org_origin")
+  @@map("kb_verified_queries")
 }

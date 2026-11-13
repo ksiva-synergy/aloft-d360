@@ -87,6 +87,7 @@ export const SECTIONS: SectionDef[] = [
   estate('entities', 'Entities', ['/agent-lab/estate/entities'], 'Entity models', 'Promote entity models'),
   estate('lineage', 'Lineage', ['/agent-lab/estate/lineage'], 'Lineage graph', 'Change relationships'),
   estate('jobs', 'Jobs', ['/agent-lab/estate/jobs'], 'Jobs, runs, and logs', 'Start, continue, retry, cancel, and schedule harvest jobs'),
+  estate('powerbi', 'Power BI', ['/agent-lab/estate/powerbi'], 'Harvested workspaces, semantic models, measures, and catalog bindings', 'Launch Power BI harvest jobs'),
   estate('mapper', 'Mapper', ['/agent-lab/estate/mapper'], 'Mappings', 'Run and edit mappings'),
   estate('silo', 'Silo Finder', ['/agent-lab/estate/silo'], 'Silo links', 'Run scans, confirm or reject links'),
 

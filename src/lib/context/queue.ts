@@ -38,6 +38,7 @@ export type JobKind =
   | 'pbi_parse'
   | 'pbi_catalog_link'
   | 'pbi_domains'
+  | 'pbi_families'
   | 'pbi_oracle'
   | 'pbi_translate'
   | 'pbi_parity'

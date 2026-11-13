@@ -1,0 +1,19 @@
+{
+  "workspace_id": "0e5a1b9d-30ec-48e3-8639-1dc6e6fa81bd",
+  "workspace_name": "Embedded PBI Portal",
+  "report_ids": [
+    "820023a2-fb91-48b9-9b5b-403721e27421",
+    "cf0ce134-44e5-448d-84d2-08504235119a",
+    "3e63b615-2e91-46d6-a271-71364a4e2338",
+    "211a9910-079d-4ab4-bfe0-a9deb8048c72",
+    "d66d0aba-d41a-4edb-a9d1-6aaa9e0dee60"
+  ],
+  "report_labels": [
+    "CII SDK-2026",
+    "CII SDK-2025",
+    "CII - Vessel-2026",
+    "CII",
+    "CII SDK"
+  ],
+  "source": "powerbi-estate/20261110T122619Z/report_semantic_links.csv"
+}

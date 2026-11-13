@@ -43,6 +43,7 @@ const estateRoutes: RouteObject[] = [
   { path: 'objects/:id', Component: EstateObjectLegacyRedirect },
   { path: 'object/:id', lazy: page(() => import('@/views/agent-lab/estate/object')) },
   { path: 'silo', lazy: page(() => import('@/views/agent-lab/estate/silo')) },
+  { path: 'powerbi', lazy: page(() => import('@/views/agent-lab/estate/powerbi')) },
 ];
 
 export const routes: RouteObject[] = [

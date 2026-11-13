@@ -28,6 +28,7 @@ import EntityModelCard, { type ModelDimension, type ModelMeasure, type ModelJoin
 import ColumnsTable from './ColumnsTable';
 import ProfileTimeline from './ProfileTimeline';
 import JobsMiniTable from './JobsMiniTable';
+import { PowerBiObjectUsage, type PowerBiUsageRow } from './PowerBiObjectUsage';
 import UsagePanel, { type UsageSnapshot, usageWindowLabel } from './UsagePanel';
 import type { FreshnessBlock } from './FreshnessCard';
 import HarvestTimeline from './HarvestTimeline';
@@ -99,6 +100,7 @@ export interface ObjectKnowledgePayload {
     audit?: ModelAudit[];
   } | null;
   dataScore: DataScoreShape;
+  powerbiUsage?: PowerBiUsageRow[];
 }
 
 interface ObjectKnowledgePageProps {
@@ -148,6 +150,7 @@ export default function ObjectKnowledgePage({ data, onRefresh }: ObjectKnowledge
     objectLinks,
     confirmedMappings = [],
     agentKnowledge = [],
+    powerbiUsage = [],
   } = data;
 
   const [columnFocus, setColumnFocus] = useState<string | null>(null);
@@ -185,7 +188,8 @@ export default function ObjectKnowledgePage({ data, onRefresh }: ObjectKnowledge
       : [];
   const relationshipCount =
     entityGroupObjects.length + fkCandidates.length + objectLinks.length
-    + proposedMappings.length + confirmedMappings.length + coObjects.length;
+    + proposedMappings.length + confirmedMappings.length + coObjects.length
+    + powerbiUsage.length;
   const pendingReviewCount =
     proposedMappings.length
     + objectLinks.filter((l: { status?: string }) => l.status === 'proposed').length;
@@ -374,6 +378,7 @@ export default function ObjectKnowledgePage({ data, onRefresh }: ObjectKnowledge
               confirmedMappings={confirmedMappings as any}
               coObjects={coObjects}
             />
+            <PowerBiObjectUsage items={powerbiUsage} />
           </div>
         </section>
 

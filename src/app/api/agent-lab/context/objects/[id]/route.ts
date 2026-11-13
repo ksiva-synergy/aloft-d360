@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import { getObjectAggregate } from '@/lib/context/reads';
+import { getPowerBiUsageForObject } from '@/lib/powerbi/catalog-read';
 import { isPrismaUnreachable, withPrismaReadRetry } from '@/lib/db/with-prisma-read-retry';
 import { denyUnlessSection } from '@/lib/sections/server';
 
@@ -24,10 +25,8 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
   }
 
   try {
-    const result = await withPrismaReadRetry(async () => {
-      const org = await getDefaultOrg();
-      return getObjectAggregate(org.id, id);
-    });
+    const org = await getDefaultOrg();
+    const result = await withPrismaReadRetry(async () => getObjectAggregate(org.id, id));
     if (!result) {
       return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
     }
@@ -39,7 +38,8 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
       )
     );
 
-    return NextResponse.json({ data: serialized });
+    const powerbiUsage = await getPowerBiUsageForObject(org.id, id);
+    return NextResponse.json({ data: { ...serialized, powerbiUsage } });
   } catch (err) {
     console.error('[context/objects/:id GET]', err);
     if (isPrismaUnreachable(err)) {

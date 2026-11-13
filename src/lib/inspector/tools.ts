@@ -25,6 +25,8 @@ export interface InspectorToolContext {
   connectionId: string | null;
   /** Required when ACCESS_MODE is observe or enforce. */
   dataPrincipal?: AccessPrincipal | null;
+  /** Org scope for verified-query lookup (Power BI bridge). */
+  orgId?: string | null;
 }
 
 function resolveWarehousePrincipal(context?: InspectorToolContext): AccessPrincipal | null {
@@ -149,7 +151,63 @@ export async function executeInspectorTool(
     });
   }
 
-  // ── emit_semantic_chart ─────────────────────────────────────────────────────
+  // ── run_verified_query ───────────────────────────────────────────────────────
+  if (toolName === 'run_verified_query') {
+    const verifiedQueryId =
+      typeof toolInput.verified_query_id === 'string' ? toolInput.verified_query_id.trim() : '';
+    const orgId = context?.orgId?.trim();
+    const connectionId = context?.connectionId ?? null;
+    if (!orgId) {
+      const errMsg = 'Verified queries require org context — retry the chat turn.';
+      emit({ type: 'tool_call_error', callId, error: errMsg, retryable: true });
+      return JSON.stringify({ error: errMsg });
+    }
+    if (!connectionId) {
+      const errMsg = 'No active Databricks connection — cannot run verified query.';
+      emit({ type: 'tool_call_error', callId, error: errMsg, retryable: false });
+      return JSON.stringify({ error: errMsg });
+    }
+    const warehousePrincipal = resolveWarehousePrincipal(context);
+    if (!warehousePrincipal) {
+      const errMsg = 'Data access principal is required for warehouse queries.';
+      emit({ type: 'tool_call_error', callId, error: errMsg, retryable: false });
+      return JSON.stringify({ error: errMsg });
+    }
+    try {
+      const { runVerifiedQueryForPrincipal } = await import('@/lib/powerbi/run-verified-query');
+      const result = await runVerifiedQueryForPrincipal({
+        orgId,
+        verifiedQueryId,
+        connectionId,
+        principal: warehousePrincipal,
+        sessionId: context?.sessionId ?? null,
+      });
+      const cappedRows = result.rows.slice(0, 1000);
+      emit({
+        type: 'query_result',
+        columns: result.columns,
+        rows: cappedRows,
+        sql: result.sql,
+        rowCount: result.row_count,
+        truncated: result.truncated || result.rows.length > 1000,
+        verifiedQueryId: result.verified_query_id,
+        verifiedQueryProvenance: result.provenance,
+        answerSource: 'powerbi_verified',
+      });
+      return JSON.stringify({
+        ok: true,
+        question: result.question,
+        provenance: result.provenance,
+        rowCount: result.row_count,
+        note: 'Results match the published Power BI translation at parity-check time; cite model_name in your answer.',
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Verified query failed';
+      emit({ type: 'tool_call_error', callId, error: msg, retryable: true });
+      return JSON.stringify({ error: msg });
+    }
+  }
+
   if (toolName === 'emit_semantic_chart') {
     const query = toolInput as unknown as SemanticQuery;
     const connectionId = context?.connectionId ?? null;
