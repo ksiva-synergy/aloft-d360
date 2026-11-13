@@ -1,3 +1,18 @@
+## 2026-11-12 — Inspector Ask Data: pill-style chat composer
+
+- **What:** `InputComposer` inline variant (Inspector + empty inline paths) now matches Agents chat: `rounded-[26px]` capsule, elevated shadow, focus-within ring, 40px control row, round send/stop buttons.
+- **Paths:** `src/components/workbench/InputComposer.tsx`.
+- **Why:** User asked for Inspector chat input to use the same pill design as Agents.
+- **Verified:** Code review only.
+
+## 2026-11-12 — Login companion (Captain) no longer renders blurred
+
+- **What:** (1) The eye group no longer gets a constant white `drop-shadow` halo (was `1.2 + amp·1.8` px at 40% opacity, every frame). At rest the filter is `none`. The glow (`amp·2.4` px) shows only while Captain speaks. (2) Dropped `perspective(520px)` from the head's per-frame transform, which is now 2D only (`translateY`, `rotateZ`, `scale`).
+- **Paths:** `src/components/login/AgentScene.tsx`.
+- **Why:** The user said the bot's eyes looked blurry. The real cause was the halo: a 1.2px glow on 12px-wide eyes reads as out of focus at 1× DPR. The perspective change came first and on its own did not fix it (the user confirmed "still looks same"). It stays because a 3D transform needlessly promotes the head to a compositor layer, which the earlier `will-change` fix also avoided. Nothing rotates on X or Y, so it had no visual effect.
+- **Verified:** Headless Chrome (playwright-core) screenshots of `/login` in the dark theme at 1× and 2× before and after. Before, the eyes had a soft white fringe. After, the edges are crisp and the computed `filter` is `none`.
+- **Not done:** The speaking-state glow and the light theme were not screenshotted.
+
 ## 2026-11-12 — T3 usage: query history source switched to `system_tables.query.query_history`
 
 - **What:** Every reference to the T3 query-history source now reads `system_tables.query.query_history` instead of `system.query.history`. This covers the `pullQueryHistoryWindow` and `countQueryHistoryWindow` SQL, the SQL filter comment, the harvest execute comments, the diagnostic and probe scripts, and the grant docs (`GRANT USE SCHEMA ON SCHEMA system_tables.query`, `GRANT SELECT ON TABLE system_tables.query.query_history`).
