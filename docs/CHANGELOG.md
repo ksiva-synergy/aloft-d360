@@ -1,3 +1,10 @@
+## 2026-11-13 — Account menu: compact layout
+
+- **What:** User menu panel is denser — narrower width, merged preferences block (theme, developer mode, colors), smaller swatches, role badge beside name, tighter nav rows and footer.
+- **Paths:** `src/components/shell/UserMenu.tsx`, `AppearanceControls.tsx`, `DeveloperModeToggle.tsx`.
+- **Why:** User asked to compact the account popover.
+- **Verified:** Code review only.
+
 ## 2026-11-12 — Inspector Ask Data: pill-style chat composer
 
 - **What:** `InputComposer` inline variant (Inspector + empty inline paths) now matches Agents chat: `rounded-[26px]` capsule, elevated shadow, focus-within ring, 40px control row, round send/stop buttons.
