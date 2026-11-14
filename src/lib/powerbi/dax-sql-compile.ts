@@ -33,7 +33,7 @@ import { normalizePbiTableName } from '@/lib/powerbi/translate-dax-refs';
  * Bump whenever compiled SQL can change for the same DAX + model (semantics, plan shape, rules).
  * Translate checkpoints are keyed on it, so a bump recompiles every measure once.
  */
-export const COMPILER_VERSION = '2026-11-14.decorrelate-join';
+export const COMPILER_VERSION = '2026-11-14.blank-row-antijoin';
 
 export type DaxCompileOptions = {
   /** tableKey → warehouse leaf column (lower) → replacement column (from warehouse errors). */
@@ -1035,12 +1035,17 @@ class Compiler {
       throw e;
     }
     const key = pairJoin ? 'pk.k' : `coalesce(CAST(${keySql} AS STRING), '${BLANK_KEY}')`;
-    const body =
+    let body =
       `SELECT ${key} AS k, ${selectSql} AS v FROM ${this.table(sel.table).latest} ${alias}` +
       (pairJoin ? `\n    ${pairJoin}` : '') +
       (joins.length ? `\n    ${joins.join('\n    ')}` : '') +
       (where.length ? `\n    WHERE ${where.join(' AND ')}` : '') +
       `\n    GROUP BY 1`;
+    // Filters built in the outer context can still read the iterator's current key (e.g.
+    // FILTER(ALL(T), T[k] IN VALUES(T[k])) inside a per-key iteration). Every row aggregated into
+    // group k had outer key = k, so the outer key is the row's own key: substitute it. Only with
+    // unique-side joins (one key per row); pair mode keeps the correlated fallback.
+    if (!pairJoin && keySql && body.includes(outerRef)) body = body.split(outerRef).join(`(${keySql})`);
     if (!isUncorrelatedSql(body)) return null; // still reads another outer row
     let name = this.groupedCtes.get(body);
     if (!name) {
@@ -1115,9 +1120,9 @@ class Compiler {
     let rel = `SELECT DISTINCT ${proj.join(', ')} FROM ${this.table(sel.table).latest} ${x}${xWhere.length ? ` WHERE ${xWhere.join(' AND ')}` : ''}`;
     // The blank row is visible while no filter is placed on this table.
     const filtered = !sel.all && sel.ctx.filters.some((p) => p.table === sel.table);
-    const orphans = sel.blankRow && !filtered ? this.blankRowExists(sel.table) : null;
+    const orphans = sel.blankRow && !filtered ? this.blankRowSource(sel.table) : null;
     if (orphans) {
-      rel += `\n  UNION SELECT ${cols.map((c) => `NULL AS ${q(c)}`).join(', ')} FROM (SELECT 1) one WHERE ${orphans}`;
+      rel += `\n  UNION SELECT ${cols.map((c) => `NULL AS ${q(c)}`).join(', ')} FROM ${orphans}`;
     }
     const from = `(${rel})`;
     const joins = this.takeIteratorJoins(g);
@@ -1126,10 +1131,14 @@ class Compiler {
 
   /**
    * DAX adds a blank row to the one side of a relationship when many-side rows have no match.
-   * Returns an EXISTS condition for that, or null when no relationship points at the table.
+   * Returns a relation with one row when such orphans exist (none otherwise), or null when no
+   * relationship points at the table.
    */
-  private blankRowExists(table: string): string | null {
-    const conds: string[] = [];
+  private blankRowSource(table: string): string | null {
+    // A row-producing anti-join, not an EXISTS predicate: Spark's optimizer fails
+    // (INTERNAL_ERROR) on `FROM (SELECT 1) one WHERE EXISTS (… NOT EXISTS …)` once it sits inside
+    // an iterator (Vessel VIA_Check_Count, Audit>90_Count, Nex_Audit_Status_Count).
+    const parts: string[] = [];
     for (const r of this.rels) {
       if (tkey(r.toTable) !== table || tkey(r.fromTable) === table) continue;
       const many = tkey(r.fromTable);
@@ -1139,15 +1148,15 @@ class Compiler {
         const o = this.alias('o');
         const fk = this.colRef(many, r.fromColumn, m).sql;
         const pk = this.colRef(table, r.toColumn, o).sql;
-        conds.push(
-          `EXISTS (SELECT 1 FROM ${this.table(many).latest} ${m} WHERE NOT EXISTS (SELECT 1 FROM ${this.table(table).latest} ${o} WHERE CAST(${pk} AS STRING) = CAST(${fk} AS STRING)))`,
+        parts.push(
+          `SELECT 1 AS one FROM ${this.table(many).latest} ${m} LEFT ANTI JOIN ${this.table(table).latest} ${o} ON CAST(${pk} AS STRING) = CAST(${fk} AS STRING)`,
         );
       } catch (e) {
         if (!(e instanceof CompileError)) throw e;
         // many side not compilable (e.g. unbound) — cannot tell; assume no blank row
       }
     }
-    return conds.length ? conds.join(' OR ') : null;
+    return parts.length ? `(SELECT 1 AS one FROM (${parts.join(' UNION ALL ')}) orphan LIMIT 1) blank_row` : null;
   }
 
   /**

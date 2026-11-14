@@ -233,7 +233,10 @@ describe('DAX BLANK semantics', () => {
 
   it('VALUES adds the relationship blank row when many-side keys are unmatched; DISTINCT does not', () => {
     const v = compileMeasureToSql({ measureDax: 'COUNTROWS(VALUES(Ships[IMO_NO]))', catalog: catalog() });
-    expect(v.ok && v.sql).toContain('UNION SELECT NULL AS `IMO_NO` FROM (SELECT 1) one WHERE EXISTS');
+    // the blank row comes from a row-producing anti-join (an EXISTS predicate over a one-row dummy
+    // crashes Spark's optimizer inside iterators)
+    expect(v.ok && v.sql).toMatch(/UNION SELECT NULL AS `IMO_NO` FROM \(SELECT 1 AS one FROM \(SELECT 1 AS one FROM \S+ m\d+ LEFT ANTI JOIN \S+ o\d+ ON .+\) orphan LIMIT 1\) blank_row/);
+    expect(v.ok && v.sql).not.toContain('EXISTS');
     const d = compileMeasureToSql({ measureDax: 'COUNTROWS(DISTINCT(Ships[IMO_NO]))', catalog: catalog() });
     expect(d.ok && d.sql).not.toContain('UNION SELECT NULL');
   });
