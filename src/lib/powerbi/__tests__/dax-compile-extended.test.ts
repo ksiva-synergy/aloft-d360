@@ -75,7 +75,9 @@ describe('compiler: measures, calculated tables, iterators', () => {
 
   it('compiles DATATABLE and SUMMARIZE calculated tables', () => {
     const dt = compileMeasureToSql({ measureDax: 'COUNTROWS(Status_Table)', catalog: catalog() });
-    expect(dt.ok && dt.sql).toContain("FROM VALUES ('VIA Done'), ('No VIA') AS v(`Status`)");
+    expect(dt.ok && dt.sql).toContain(
+      "FROM VALUES (TRY_CAST('VIA Done' AS STRING)), (TRY_CAST('No VIA' AS STRING)) AS v(`Status`)",
+    );
     const sm = compileMeasureToSql({ measureDax: 'MAX(Snapshot[Takeover_Date])', catalog: catalog() });
     expect(sm.ok).toBe(true);
     if (sm.ok) expect(sm.sql).toMatch(/SELECT DISTINCT x\d+\.`IMO_NO` AS `IMO_NO`/);
@@ -332,5 +334,38 @@ describe('step-2 capabilities', () => {
     expect(l.unsupported).toEqual([]);
     expect((l.column('Flag') as { sql: string }).sql).toBe("(CASE WHEN (`x` > 10) THEN 'big' ELSE 'small' END)");
     expect((l.column('y') as { sql: string }).sql).toBe('bround(`y`, 2)');
+  });
+});
+
+describe('root cause: warehouse outcomes (Architecture v2 Phase 1)', () => {
+  it('separates budget timeouts and unavailability from engine limits', () => {
+    const base = { stage: 'no_sql', dax: 'SUM(T[x])', tier: 'logic_gate', catalog: null };
+    expect(
+      classifyRootCause({ ...base, props: { expand_failure: { stage: 'warehouse', warehouse_outcome: 'timeout', reason: 'Async query timed out after 120s' } } })?.category,
+    ).toBe('warehouse_timeout');
+    expect(
+      classifyRootCause({ ...base, props: { expand_failure: { stage: 'warehouse', warehouse_outcome: 'transient', reason: '503 TEMPORARILY_UNAVAILABLE' } } })?.category,
+    ).toBe('warehouse_unavailable');
+    expect(
+      classifyRootCause({ ...base, props: { expand_failure: { stage: 'warehouse', warehouse_outcome: 'sql_error', reason: 'Query CANCELED: CANCELED' } } })?.category,
+    ).not.toBe('engine_limit');
+    expect(
+      classifyRootCause({ stage: 'parity_error', dax: 'X', tier: 'expand', catalog: null, props: { parity: { exec_outcome: 'timeout', summary: 'SQL error: timeout' } } })?.category,
+    ).toBe('warehouse_timeout');
+  });
+});
+
+describe('shared CTEs never capture an outer row', () => {
+  it('a measure filtered by the current VALUES() value stays inline (correlated)', () => {
+    const out = compileMeasureToSql({
+      measureDax: 'SUMX(VALUES(Ships[IMO_NO]), IF([Audit_Status] = SELECTEDVALUE(Status_Table[Status]), 1, 0))',
+      catalog: catalog(),
+    });
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    // every shared CTE body must be free of outer iteration aliases (g<N>.)
+    for (const m of out.sql.matchAll(/\bm\d+ AS \(\n([\s\S]*?)\n\)/g)) {
+      expect(m[1]).not.toMatch(/\bg\d+\.`/);
+    }
   });
 });

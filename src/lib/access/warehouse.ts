@@ -22,6 +22,11 @@ export interface RunWarehouseQueryInput {
   surface: import('./types').AccessSurface;
   sessionId?: string | null;
   waitTimeoutSecs?: number;
+  /** Submit with on_wait_timeout=CONTINUE and poll (long-running background queries). */
+  asyncPolling?: boolean;
+  /** Async polling budget; on expiry the statement is cancelled server-side. */
+  pollTimeoutMs?: number;
+  rowLimit?: number;
 }
 
 export async function runWarehouseQuery(input: RunWarehouseQueryInput): Promise<DatabricksExecuteResult> {
@@ -41,7 +46,13 @@ export async function runWarehouseQuery(input: RunWarehouseQueryInput): Promise<
     session.workspaceHost,
     session.warehouseId,
     session.token,
-    { statement: input.statement, waitTimeoutSecs: input.waitTimeoutSecs },
+    {
+      statement: input.statement,
+      waitTimeoutSecs: input.waitTimeoutSecs,
+      asyncPolling: input.asyncPolling,
+      pollTimeoutMs: input.pollTimeoutMs,
+      rowLimit: input.rowLimit,
+    },
   );
 }
 

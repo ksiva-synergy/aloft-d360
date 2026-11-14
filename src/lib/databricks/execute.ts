@@ -368,7 +368,10 @@ async function executeDatabricksSQLAsync(
 
   // Submit with wait_timeout=50s + CONTINUE so we get a statement_id back
   // immediately when the query doesn't finish in 50s (rather than CANCEL).
+  // Per-request timeout: a stalled connection must not hang past the polling deadline
+  // (observed: one 91-minute stall on 2026-11-14 with a 10-minute budget).
   const submitResp = await fetch(url, {
+    signal: AbortSignal.timeout(120_000),
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -418,6 +421,7 @@ async function executeDatabricksSQLAsync(
 
     const pollResp = await fetch(pollUrl, {
       headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(60_000),
     });
 
     if (!pollResp.ok) {

@@ -6,6 +6,7 @@ import type {
   MeasureLogicAnalysis,
   MeasureLogicCatalog,
 } from '@/lib/powerbi/measure-logic-analyze';
+import type { CapabilityGap } from '@/lib/powerbi/rule-registry';
 
 export type MeasureSqlExpandResult = {
   sql: string;
@@ -15,7 +16,7 @@ export type MeasureSqlExpandResult = {
 
 export type MeasureSqlExpandOutcome =
   | ({ ok: true } & MeasureSqlExpandResult)
-  | { ok: false; reason: string; notes: string[] };
+  | { ok: false; reason: string; notes: string[]; gap?: CapabilityGap };
 
 /**
  * Expand a measure blocked by the logic gate (calc columns / multi-table / PQ filters)

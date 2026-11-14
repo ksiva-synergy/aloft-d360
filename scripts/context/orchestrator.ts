@@ -44,6 +44,7 @@ import { runPbiOracle } from '@/lib/powerbi/oracle';
 import { runPbiTranslate } from '@/lib/powerbi/translate';
 import { runPbiParity } from '@/lib/powerbi/parity';
 import { runPbiPublish } from '@/lib/powerbi/publish';
+import { reapStaleJobs } from '@/lib/powerbi/job-health';
 import {
   copyPipelineChainMetadata,
   shouldAdvanceChainAfterT3,
@@ -764,16 +765,18 @@ async function dispatchSingleJob(
           : undefined;
         const maxLlmMeasures =
           typeof scope.max_llm_measures === 'number' ? scope.max_llm_measures : undefined;
+        await reapStaleJobs().catch(() => 0);
         const stats = await runPbiTranslate(orgId, job.source_id, {
           runId: job.id,
           modelIds,
           maxLlmMeasures,
           llmEnabled: scope.llm_translate !== false,
           pilot: scope.pilot === true,
+          force: scope.force_translate === true,
         });
         await finalize(job.id, 'succeeded', stats as unknown as Record<string, unknown>);
         console.log(
-          `[pbi_translate] rule=${stats.rule_translated} expand=${stats.pattern_expanded ?? 0} expand_fail=${stats.expand_compile_failed ?? 0}c/${stats.expand_warehouse_failed ?? 0}w orphans_removed=${stats.orphan_translations_removed ?? 0} llm=${stats.llm_translated}/${stats.measures_scanned} dax_uc=${stats.uc_via_dax_refs ?? 0} no_bind=${stats.skipped_no_binding} logic_gate=${stats.skipped_logic_gate ?? 0} unsupported=${stats.skipped_unsupported_dax} cost_usd=${stats.cost_usd.toFixed(4)}`,
+          `[pbi_translate] rule=${stats.rule_translated} expand=${stats.pattern_expanded ?? 0} expand_fail=${stats.expand_compile_failed ?? 0}c/${stats.expand_warehouse_failed ?? 0}w skipped_unchanged=${stats.skipped_unchanged ?? 0} fidelity_blocked=${stats.skipped_fidelity ?? 0} errored=${stats.measures_errored ?? 0} ${Math.round((stats.duration_ms ?? 0) / 1000)}s orphans_removed=${stats.orphan_translations_removed ?? 0} llm=${stats.llm_translated}/${stats.measures_scanned} dax_uc=${stats.uc_via_dax_refs ?? 0} no_bind=${stats.skipped_no_binding} logic_gate=${stats.skipped_logic_gate ?? 0} unsupported=${stats.skipped_unsupported_dax} cost_usd=${stats.cost_usd.toFixed(4)}`,
         );
         return { status: 'succeeded' };
       } catch (err) {
@@ -793,6 +796,7 @@ async function dispatchSingleJob(
         const modelIds = Array.isArray(scope.model_ids)
           ? scope.model_ids.filter((x): x is string => typeof x === 'string')
           : undefined;
+        await reapStaleJobs().catch(() => 0);
         const stats = await runPbiParity(orgId, job.source_id, { runId: job.id, modelIds });
         await finalize(job.id, 'succeeded', stats as unknown as Record<string, unknown>);
         console.log(

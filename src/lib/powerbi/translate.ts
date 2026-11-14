@@ -27,7 +27,18 @@ import {
   type MeasureLogicAnalysis,
 } from '@/lib/powerbi/measure-logic-analyze';
 import { validateSqlAgainstAllowlist } from '@/lib/powerbi/translate-llm-validate';
-import { expandAndTestMeasure } from '@/lib/powerbi/expand-validate';
+import { createHash } from 'node:crypto';
+
+import { COMPILER_VERSION } from '@/lib/powerbi/dax-sql-compile';
+import { blockingIssuesFor, buildFidelityReport, type FidelityReport } from '@/lib/powerbi/fidelity-gate';
+import { buildModelGraph, measureNodeId, type ModelGraph } from '@/lib/powerbi/model-graph';
+import {
+  expandAndTestMeasure,
+  expandTestMode,
+  resolveModelConnectionId,
+  testSqlOnWarehouse,
+} from '@/lib/powerbi/expand-validate';
+import { createHeartbeat, withDbRetry } from '@/lib/powerbi/job-health';
 import { validateLlmSql } from '@/lib/powerbi/translate-llm-validate';
 import { tryRuleTierSql } from '@/lib/powerbi/translate-rule';
 
@@ -44,8 +55,22 @@ type LlmCandidate = {
   compileFailure: Record<string, unknown> | null;
 };
 
+/** Run `fn` over items with at most `n` in flight. */
+async function runPool<T>(items: T[], n: number, fn: (item: T) => Promise<void>): Promise<void> {
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      await fn(items[i]!);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(n, items.length) }, worker));
+}
+
 async function loadMeasures(orgId: string, modelIds?: string[]) {
   return prisma.pbiMeasure.findMany({
+    // deterministic order: runs are reproducible and checkpoints resume predictably
+    orderBy: [{ model_id: 'asc' }, { name: 'asc' }],
     where: {
       org_id: orgId,
       model: {
@@ -179,6 +204,11 @@ export interface PbiTranslateResult {
   expand_compile_failed: number;
   expand_warehouse_failed: number;
   orphan_translations_removed: number;
+  skipped_unchanged: number;
+  measures_errored: number;
+  /** Measures not compiled because the fidelity gate found a blocking input defect. */
+  skipped_fidelity: number;
+  duration_ms: number;
   uc_via_dax_refs: number;
   llm_input_tokens: number;
   llm_output_tokens: number;
@@ -195,6 +225,8 @@ export async function runPbiTranslate(
     maxLlmMeasures?: number;
     llmEnabled?: boolean;
     pilot?: boolean;
+    /** Recompile every measure, ignoring checkpoints. */
+    force?: boolean;
   },
 ): Promise<PbiTranslateResult> {
   const source = await prisma.platformContextSource.findFirst({
@@ -224,8 +256,28 @@ export async function runPbiTranslate(
   const modelTableUc = await loadModelTableUcMaps(orgId, internalModelIds);
   const catalogByModel = await loadCatalogByModel(orgId, internalModelIds);
   const logicCatalogByModel = new Map<string, Awaited<ReturnType<typeof loadMeasureLogicCatalog>>>();
+  // L1 model graph + L0 fidelity gate per model (Architecture v2, Phase 2).
+  const graphByModel = new Map<string, ModelGraph>();
+  const fidelityByModel = new Map<string, FidelityReport>();
   for (const modelId of internalModelIds) {
-    logicCatalogByModel.set(modelId, await loadMeasureLogicCatalog(orgId, modelId));
+    const catalog = await loadMeasureLogicCatalog(orgId, modelId);
+    logicCatalogByModel.set(modelId, catalog);
+    const graph = buildModelGraph(catalog);
+    const report = buildFidelityReport(catalog, { graph });
+    graphByModel.set(modelId, graph);
+    fidelityByModel.set(modelId, report);
+    const stored = { ...report, checked_at: new Date().toISOString() };
+    await withDbRetry(
+      () =>
+        prisma.$executeRaw`UPDATE pbi_models SET props = COALESCE(props, '{}'::jsonb) || jsonb_build_object('fidelity', ${JSON.stringify(stored)}::jsonb)
+          WHERE id = ${modelId}::uuid`,
+      'fidelity',
+    );
+    if (report.issues.length) {
+      console.log(
+        `[pbi_translate] fidelity model=${modelId} issues=${JSON.stringify(report.counts)} blocked_measures=${report.blocked.length}`,
+      );
+    }
   }
 
   const llmRouting = isPbiTranslateLlmAvailable() ? getPbiTranslateLlmRouting() : null;
@@ -243,7 +295,81 @@ export async function runPbiTranslate(
   let expandCompileFailed = 0;
   let expandWarehouseFailed = 0;
   let ucViaDaxRefs = 0;
+  let skippedUnchanged = 0;
+  let measuresErrored = 0;
+  let skippedFidelity = 0;
   const llmCandidates: LlmCandidate[] = [];
+
+  // Model fingerprint: compiler version + model definition + UC bindings + verified rules.
+  const modelRows = await prisma.pbiModel.findMany({
+    where: { id: { in: internalModelIds } },
+    select: { id: true, props: true },
+  });
+  const modelFingerprint = new Map<string, string>();
+  for (const m of modelRows) {
+    const parse = ((m.props as Record<string, unknown>)?.parse ?? {}) as Record<string, unknown>;
+    const bindings = [...(modelTableUc.get(m.id) ?? new Map()).entries()]
+      .map(([t, r]) => `${t}=${r.uc}`)
+      .sort()
+      .join('|');
+    const rules = [...(logicCatalogByModel.get(m.id)?.rules?.values() ?? [])]
+      .map((r) => `${r.kind}:${r.name}/${r.arity}=${r.sqlTemplate}`)
+      .sort()
+      .join('|');
+    modelFingerprint.set(
+      m.id,
+      createHash('sha256')
+        .update(`${COMPILER_VERSION}\\0${String(parse.definition_hash ?? '')}\\0${bindings}\\0${rules}`)
+        .digest('hex')
+        .slice(0, 16),
+    );
+  }
+  // Dependency-level fingerprint (Phase 2): compiler version + verified rules + the hash of the
+  // measure's own closure in the model graph (its DAX, the measures / calc columns / tables /
+  // bindings / warehouse schemas it reads, relationships) + its fidelity blocks. Editing one
+  // measure reprocesses only it and the measures that use it. Measures absent from the graph
+  // fall back to the model-level fingerprint.
+  const rulesHashByModel = new Map<string, string>();
+  for (const [modelId, cat] of logicCatalogByModel) {
+    rulesHashByModel.set(
+      modelId,
+      [...(cat?.rules?.values() ?? [])]
+        .map((r) => `${r.kind}:${r.name}/${r.arity}=${r.sqlTemplate}`)
+        .sort()
+        .join('|'),
+    );
+  }
+  const measureFingerprint = (measure: MeasureRow) => {
+    const graph = graphByModel.get(measure.model_id);
+    const node = graph?.nodes.get(measureNodeId(measure.name));
+    const blocks = blockingIssuesFor(fidelityByModel.get(measure.model_id)!, measure.name)
+      .map((i) => `${i.kind}@${i.node}`)
+      .sort()
+      .join('|');
+    const basis =
+      graph && node
+        ? `v2\\0${COMPILER_VERSION}\\0${rulesHashByModel.get(measure.model_id) ?? ''}\\0${graph.dependencyHash(node.id)}\\0${blocks}`
+        : `${modelFingerprint.get(measure.model_id) ?? ''}\\0${measure.dax_hash ?? measure.dax}`;
+    return createHash('sha256').update(basis).digest('hex').slice(0, 16);
+  };
+  const previous = new Map<string, { fingerprint?: string; outcome_final?: boolean }>();
+  for (const t of await prisma.pbiTranslation.findMany({
+    where: { org_id: orgId, model_id: { in: internalModelIds }, measure_id: { not: null } },
+    select: { measure_id: true, props: true },
+  })) {
+    const pr = (t.props ?? {}) as Record<string, unknown>;
+    previous.set(t.measure_id!, {
+      fingerprint: typeof pr.fingerprint === 'string' ? pr.fingerprint : undefined,
+      outcome_final: pr.outcome_final === true,
+    });
+  }
+  const stampCheckpoint = (measureId: string, patchProps: Record<string, unknown>) =>
+    withDbRetry(
+      () =>
+        prisma.$executeRaw`UPDATE pbi_translations SET props = props || ${JSON.stringify(patchProps)}::jsonb
+          WHERE org_id = ${orgId} AND measure_id = ${measureId}::uuid`,
+      'checkpoint',
+    );
 
   /** Record why a measure has no SQL (shown by recreation summary / Estate). */
   async function persistNoSql(
@@ -261,18 +387,40 @@ export async function runPbiTranslate(
       run_id: opts.runId,
       props: props as object,
     };
-    await prisma.pbiTranslation.upsert({
-      where: { org_id_measure_id: { org_id: orgId, measure_id: measure.id } },
-      create: { org_id: orgId, model_id: measure.model_id, measure_id: measure.id, ...data },
-      update: { ...data, updated_at: new Date() },
-    });
+    await withDbRetry(
+      () =>
+        prisma.pbiTranslation.upsert({
+          where: { org_id_measure_id: { org_id: orgId, measure_id: measure.id } },
+          create: { org_id: orgId, model_id: measure.model_id, measure_id: measure.id, ...data },
+          update: { ...data, updated_at: new Date() },
+        }),
+      'persist',
+    );
   }
 
-  for (const measure of measures) {
+  type MeasureTaskResult = { final: boolean; telemetry: Record<string, unknown> | null };
+  const processMeasure = async (measure: MeasureRow): Promise<MeasureTaskResult> => {
+    const result: MeasureTaskResult = { final: true, telemetry: null };
     const binding = measure.table.sourceBinding;
     const logicCatalogForCompile = logicCatalogByModel.get(measure.model_id);
     const tableMapForCompile =
       modelTableUc.get(measure.model_id) ?? new Map<string, TableUcRow>();
+
+    // 0) Fidelity gate: a measure whose dependencies have a blocking input defect (replica drift,
+    //    unparseable DAX, leaked TMDL) is not compiled — the defect is recorded as its cause.
+    const fidelity = fidelityByModel.get(measure.model_id);
+    const blocking = fidelity ? blockingIssuesFor(fidelity, measure.name) : [];
+    if (blocking.length) {
+      skippedFidelity += 1;
+      await persistNoSql(measure, 'fidelity_gate', {
+        fidelity_block: {
+          gate_version: fidelity!.version,
+          reason: `${blocking[0]!.object}: ${blocking[0]!.detail}`,
+          issues: blocking,
+        },
+      });
+      return result;
+    }
 
     // 1) Compile-first: DAX → SQL from the harvested model (calc columns, PQ lineage,
     //    calculated tables, relationships, measure refs), tested on the warehouse.
@@ -283,6 +431,7 @@ export async function runPbiTranslate(
         catalog: logicCatalogForCompile,
         hasUc: true,
       });
+      const t0 = Date.now();
       const outcome = await expandAndTestMeasure({
         orgId,
         modelId: measure.model_id,
@@ -291,6 +440,26 @@ export async function runPbiTranslate(
         catalog: logicCatalogForCompile,
         anyStrategy: true,
       });
+      const totalMs = Date.now() - t0;
+      const testMs = outcome.attempts.reduce((n, a) => n + (a.ms ?? 0), 0);
+      const sqlText = outcome.ok ? outcome.expanded.sql : (outcome.sql ?? '');
+      result.telemetry = {
+        dax_chars: measure.dax.length,
+        sql_chars: sqlText.length,
+        growth: sqlText.length && measure.dax.length ? Math.round((sqlText.length / measure.dax.length) * 10) / 10 : null,
+        ctes: (sqlText.match(/\bAS \(\n/g) ?? []).length,
+        compile_ms: Math.max(0, totalMs - testMs),
+        test_ms: testMs,
+        test_attempts: outcome.attempts.length,
+        outcome: outcome.ok
+          ? outcome.test.mode === 'deferred'
+            ? 'deferred'
+            : 'ok'
+          : outcome.stage === 'compile'
+            ? 'compile_failed'
+            : (outcome.warehouseOutcome ?? 'sql_error'),
+      };
+      if (!outcome.ok && outcome.warehouseOutcome === 'transient') result.final = false;
       const compiledSql = outcome.ok ? validateLlmSql(outcome.expanded.sql) : null;
       if (outcome.ok && compiledSql) {
         const tablesUsed = (outcome.expanded.expand_spec.tables ?? []) as string[];
@@ -322,16 +491,18 @@ export async function runPbiTranslate(
           update: { ...data, updated_at: new Date() },
         });
         patternExpanded += 1;
-        continue;
+        return result;
       }
       if (!outcome.ok) {
         if (outcome.stage === 'compile') expandCompileFailed += 1;
         else expandWarehouseFailed += 1;
         compileFailure = {
           stage: outcome.stage,
+          warehouse_outcome: outcome.warehouseOutcome ?? null,
           reason: outcome.reason,
           sql: outcome.sql ?? null,
           notes: outcome.notes,
+          gap: outcome.gap ?? null,
           attempts: outcome.attempts,
         };
       }
@@ -357,7 +528,7 @@ export async function runPbiTranslate(
         uc_resolution: 'none',
         expand_failure: compileFailure,
       });
-      continue;
+      return result;
     }
     if (resolved.via === 'dax_ref') ucViaDaxRefs += 1;
 
@@ -434,7 +605,7 @@ export async function runPbiTranslate(
 
     if (measureLogic.block_automated_sql) {
       await persistLogicGateOnly(compileFailure ? { expand_failure: compileFailure } : undefined);
-      continue;
+      return result;
     }
 
     const attempt = tryRuleTierSql({
@@ -456,11 +627,12 @@ export async function runPbiTranslate(
         measureLogic,
         compileFailure,
       });
+      result.final = false; // stamped final after the LLM phase
     };
 
     if (!attempt) {
       passRuleToLlm();
-      continue;
+      return result;
     }
 
     const ruleCheck = validateSqlAgainstAllowlist(
@@ -469,7 +641,7 @@ export async function runPbiTranslate(
     );
     if (!ruleCheck.ok) {
       passRuleToLlm();
-      continue;
+      return result;
     }
 
     await prisma.pbiTranslation.upsert({
@@ -509,8 +681,56 @@ export async function runPbiTranslate(
         updated_at: new Date(),
       },
     });
-    ruleTranslated += 1;
-  }
+    ruleTranslated += 1;    return result;
+  };
+
+  // Stable order + checkpoints: a measure whose fingerprint (compiler version + model content +
+  // DAX) is unchanged and already reached a final outcome is skipped, so a retried or resumed
+  // run continues where it stopped. Measures run through a bounded worker pool so one slow
+  // measure cannot stall the run; a failing measure is recorded and never kills the job.
+  const concurrency = Math.max(1, Number(process.env.PBI_TRANSLATE_CONCURRENCY ?? '4') || 4);
+  const heartbeat = createHeartbeat(opts.runId);
+  const startedAt = Date.now();
+  let processed = 0;
+  await runPool(measures, concurrency, async (measure) => {
+    const fp = measureFingerprint(measure);
+    const prev = previous.get(measure.id);
+    if (!opts.force && prev?.fingerprint === fp && prev?.outcome_final === true) {
+      skippedUnchanged += 1;
+    } else {
+      try {
+        const r = await withDbRetry(() => processMeasure(measure), `measure ${measure.name}`);
+        await stampCheckpoint(measure.id, {
+          fingerprint: fp,
+          outcome_final: r.final,
+          ...(r.telemetry ? { telemetry: r.telemetry } : {}),
+        });
+      } catch (err) {
+        measuresErrored += 1;
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`[pbi_translate] measure ${measure.name} failed:`, msg.slice(0, 300));
+        await persistNoSql(measure, 'error', {
+          translate_error: msg.slice(0, 1000),
+          fingerprint: fp,
+          outcome_final: false,
+        }).catch(() => undefined);
+      }
+    }
+    processed += 1;
+    const progress = {
+      processed,
+      total: measures.length,
+      expanded: patternExpanded,
+      skipped_unchanged: skippedUnchanged,
+      skipped_fidelity: skippedFidelity,
+      errored: measuresErrored,
+      elapsed_s: Math.round((Date.now() - startedAt) / 1000),
+    };
+    if (processed % 10 === 0 || processed === measures.length) {
+      console.log(`[pbi_translate] progress ${JSON.stringify(progress)}`);
+    }
+    await heartbeat(progress, processed === measures.length);
+  });
 
   const llmEnabled = opts.llmEnabled !== false && isPbiTranslateLlmAvailable();
   const maxLlm = opts.maxLlmMeasures ?? defaultMaxLlmMeasures(opts.pilot);
@@ -519,6 +739,7 @@ export async function runPbiTranslate(
   let llmFailed = 0;
   let llmSkippedCap = 0;
   let llmSkippedUnavailable = 0;
+  const llmCapped = new Set<string>();
   let llmInputTokens = 0;
   let llmOutputTokens = 0;
 
@@ -541,6 +762,7 @@ export async function runPbiTranslate(
     for (const cand of llmCandidates) {
       if (maxLlm > 0 && llmTranslated >= maxLlm) {
         llmSkippedCap += 1;
+        llmCapped.add(cand.measure.id);
         await persistLlmFailure(cand, `LLM cap reached (${maxLlm} measures per run)`);
         continue;
       }
@@ -586,6 +808,21 @@ export async function runPbiTranslate(
         llmInputTokens += result.inputTokens;
         llmOutputTokens += result.outputTokens;
 
+        // Same warehouse check as compiler SQL (CII run 2026-11-14: 9 of 12 LLM queries passed the
+        // allowlist but failed on Databricks with UNRESOLVED_COLUMN — Power Query-only column names).
+        // A timeout defers validation to parity, as for compiler SQL; a SQL error rejects it.
+        let llmValidation: 'explain_ok' | 'deferred' | 'not_checked' = 'not_checked';
+        const llmConn = await resolveModelConnectionId(orgId, cand.measure.model_id);
+        if (llmConn && expandTestMode() !== 'off') {
+          const check = await testSqlOnWarehouse({ orgId, connectionId: llmConn, sql: result.sql, mode: 'explain' });
+          if (check.ok) llmValidation = 'explain_ok';
+          else if (check.kind === 'sql_error') {
+            llmFailed += 1;
+            await persistLlmFailure(cand, `LLM SQL failed the Databricks check: ${check.error.slice(0, 400)}`);
+            continue;
+          } else llmValidation = 'deferred';
+        }
+
         await prisma.pbiTranslation.upsert({
           where: {
             org_id_measure_id: { org_id: orgId, measure_id: cand.measure.id },
@@ -607,6 +844,7 @@ export async function runPbiTranslate(
               explanation: result.explanation,
               llm_model_id: result.modelId,
               prompt_version: result.promptVersion,
+              llm_validation: llmValidation,
               ...colProps,
             }),
           },
@@ -624,6 +862,7 @@ export async function runPbiTranslate(
               explanation: result.explanation,
               llm_model_id: result.modelId,
               prompt_version: result.promptVersion,
+              llm_validation: llmValidation,
               ...colProps,
             }),
             updated_at: new Date(),
@@ -644,6 +883,15 @@ export async function runPbiTranslate(
     }
   }
 
+  // LLM-phase checkpoints: a candidate the LLM processed (success or recorded failure) is final;
+  // capped / LLM-unavailable candidates stay non-final so a later run retries them.
+  for (const cand of llmCandidates) {
+    await stampCheckpoint(cand.measure.id, {
+      fingerprint: measureFingerprint(cand.measure),
+      outcome_final: llmEnabled && !llmCapped.has(cand.measure.id),
+    }).catch(() => undefined);
+  }
+
   const costUsd = estimateHarvestLlmCostUsd(llmInputTokens, llmOutputTokens);
 
   return {
@@ -660,6 +908,10 @@ export async function runPbiTranslate(
     expand_compile_failed: expandCompileFailed,
     expand_warehouse_failed: expandWarehouseFailed,
     orphan_translations_removed: orphanCleanup.count,
+    skipped_unchanged: skippedUnchanged,
+    measures_errored: measuresErrored,
+    skipped_fidelity: skippedFidelity,
+    duration_ms: Date.now() - startedAt,
     uc_via_dax_refs: ucViaDaxRefs,
     llm_input_tokens: llmInputTokens,
     llm_output_tokens: llmOutputTokens,

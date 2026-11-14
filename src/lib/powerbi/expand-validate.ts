@@ -1,13 +1,12 @@
 import 'server-only';
 
 import prisma from '@/lib/db';
-import { systemPrincipal } from '@/lib/access/principal';
-import type { AccessSurface, Level } from '@/lib/access/types';
-import { runWarehouseQuery } from '@/lib/access/warehouse';
+import { runPbiSql } from '@/lib/powerbi/warehouse-exec';
 import type { DaxCompileOptions } from '@/lib/powerbi/dax-sql-compile';
 import type { MeasureLogicAnalysis, MeasureLogicCatalog } from '@/lib/powerbi/measure-logic-analyze';
 import { expandMeasureSql, type MeasureSqlExpandResult } from '@/lib/powerbi/measure-sql-expand';
 import { planRepair } from '@/lib/powerbi/expand-validate-plan';
+import type { CapabilityGap } from '@/lib/powerbi/rule-registry';
 import { extractSqlScalar } from '@/lib/powerbi/parity-compare';
 
 /**
@@ -22,9 +21,11 @@ import { extractSqlScalar } from '@/lib/powerbi/parity-compare';
 export type ExpandTestMode = 'execute' | 'explain' | 'off';
 
 export function expandTestMode(): ExpandTestMode {
+  // Default: plan check only — parity executes every query against Power BI anyway, and
+  // executing in translate doubled warehouse time (Architecture v2, Phase 1).
   const v = process.env.PBI_EXPAND_TEST?.trim().toLowerCase();
-  if (v === 'explain' || v === 'off') return v;
-  return 'execute';
+  if (v === 'execute' || v === 'off') return v;
+  return 'explain';
 }
 
 const MAX_ATTEMPTS = 4;
@@ -42,15 +43,22 @@ export type ExpandAndTestOutcome =
   | {
       ok: true;
       expanded: MeasureSqlExpandResult;
-      test: { mode: ExpandTestMode | 'no_connection'; value: number | null };
+      /**
+       * `deferred`: the explain check ran out of time (Databricks planning is slow on large SQL),
+       * so validation moves to parity execution, which has its own, larger budget.
+       */
+      test: { mode: ExpandTestMode | 'no_connection' | 'deferred'; value: number | null };
       attempts: ExpandAttempt[];
     }
   | {
       ok: false;
       stage: 'compile' | 'warehouse';
+      /** Warehouse outcome class: a timeout / transient failure is not a SQL defect. */
+      warehouseOutcome?: 'sql_error' | 'timeout' | 'transient';
       reason: string;
       sql?: string;
       notes: string[];
+      gap?: CapabilityGap;
       attempts: ExpandAttempt[];
     };
 
@@ -84,34 +92,29 @@ export async function resolveModelConnectionId(orgId: string, modelId: string): 
 const PLAN_ERROR_RE =
   /(Error occurred during query planning|AnalysisException|\[(?:UNRESOLVED_|DATATYPE_MISMATCH|PARSE_SYNTAX|UNSUPPORTED_)[A-Z_.]*\])/;
 
+/** Explain timeouts defer validation to parity (default on; PBI_DEFER_ON_EXPLAIN_TIMEOUT=0 disables). */
+export function deferOnExplainTimeout(): boolean {
+  return process.env.PBI_DEFER_ON_EXPLAIN_TIMEOUT !== '0';
+}
+
 export async function testSqlOnWarehouse(input: {
   orgId: string;
   connectionId: string;
   sql: string;
   mode: 'execute' | 'explain';
-}): Promise<{ ok: true; value: number | null; ms: number } | { ok: false; error: string; ms: number }> {
-  const started = Date.now();
-  try {
-    const result = await runWarehouseQuery({
-      connectionId: input.connectionId,
-      principal: systemPrincipal('harvest', input.orgId),
-      statement: input.mode === 'explain' ? `EXPLAIN ${input.sql}` : input.sql,
-      purpose: 'pbi_translate_expand_test',
-      // Same runtime values as pbi_parity (runPbiParity), which these types do not list yet.
-      level: 'read' as unknown as Level,
-      surface: 'harvest' as unknown as AccessSurface,
-    });
-    const ms = Date.now() - started;
-    if (input.mode === 'explain') {
-      const plan = result.rows.map((r) => Object.values(r).join(' ')).join('\n');
-      const m = plan.match(PLAN_ERROR_RE);
-      if (m) return { ok: false, error: plan.slice(Math.max(0, (m.index ?? 0) - 40), (m.index ?? 0) + 600), ms };
-      return { ok: true, value: null, ms };
-    }
-    return { ok: true, value: extractSqlScalar(result.rows), ms };
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err), ms: Date.now() - started };
-  }
+}): Promise<
+  | { ok: true; value: number | null; ms: number }
+  | { ok: false; error: string; ms: number; kind: 'sql_error' | 'timeout' | 'transient' }
+> {
+  const out = await runPbiSql({
+    orgId: input.orgId,
+    connectionId: input.connectionId,
+    sql: input.sql,
+    mode: input.mode,
+    purpose: 'pbi_translate_expand_test',
+  });
+  if (out.status !== 'ok') return { ok: false, error: out.error, ms: out.ms, kind: out.status };
+  return { ok: true, value: input.mode === 'execute' ? extractSqlScalar(out.rows) : null, ms: out.ms };
 }
 
 export async function expandAndTestMeasure(input: {
@@ -138,7 +141,7 @@ export async function expandAndTestMeasure(input: {
       anyStrategy: input.anyStrategy,
     });
     if (!out.ok) {
-      return { ok: false, stage: 'compile', reason: out.reason, notes: out.notes, attempts };
+      return { ok: false, stage: 'compile', reason: out.reason, notes: out.notes, gap: out.gap, attempts };
     }
     const expanded: MeasureSqlExpandResult = {
       sql: out.sql,
@@ -169,12 +172,33 @@ export async function expandAndTestMeasure(input: {
     });
     if (test.ok) return { ok: true, expanded, test: { mode, value: test.value }, attempts };
 
+    if (test.kind === 'timeout' && mode === 'explain' && deferOnExplainTimeout()) {
+      // The SQL compiled and Databricks did not reject it — it only ran out of planning time.
+      // Paying that planning cost twice wastes the run; parity execution is the real test.
+      return { ok: true, expanded, test: { mode: 'deferred', value: null }, attempts };
+    }
+    if (test.kind !== 'sql_error') {
+      // budget exhausted or warehouse/network unavailable: not something a SQL repair can fix
+      return {
+        ok: false,
+        stage: 'warehouse',
+        warehouseOutcome: test.kind,
+        reason:
+          test.kind === 'timeout'
+            ? `Warehouse ${mode} exceeded its time budget (${Math.round(test.ms / 1000)} s): ${test.error.slice(0, 300)}`
+            : `Warehouse unavailable after retries: ${test.error.slice(0, 300)}`,
+        sql: out.sql,
+        notes: (out.expand_spec.notes ?? []) as string[],
+        attempts,
+      };
+    }
     const aliases = (out.expand_spec.source_aliases ?? {}) as Record<string, string>;
     const fix = planRepair(test.error, aliases, options);
     if (!fix) {
       return {
         ok: false,
         stage: 'warehouse',
+        warehouseOutcome: 'sql_error',
         reason: test.error.slice(0, 600),
         sql: out.sql,
         notes: (out.expand_spec.notes ?? []) as string[],

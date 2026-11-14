@@ -71,7 +71,11 @@ const SQL_SKIP_WORDS = new Set(
 /** Identifiers in backticks from generated SQL (warehouse column candidates). */
 export function extractSqlBacktickIdentifiers(sql: string): string[] {
   const ids: string[] = [];
-  for (const m of sql.matchAll(/`([^`]+)`/g)) {
+  // `catalog`.`schema`.`table` and `alias`.`col` are one dotted name, not separate columns.
+  const joined = sql.replace(/`[^`]+`(?:\s*\.\s*`[^`]+`)+/g, (chain) =>
+    `\`${chain.split(/`\s*\.\s*`/).map((p) => p.replace(/`/g, '')).join('.')}\``,
+  );
+  for (const m of joined.matchAll(/`([^`]+)`/g)) {
     const name = m[1].trim();
     if (name && !ids.includes(name)) ids.push(name);
   }
