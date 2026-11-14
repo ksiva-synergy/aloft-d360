@@ -95,6 +95,10 @@ dates). Never add rows or text values from data.
 - **Stale scratch scripts:** use a new, unique file name for every helper script.
 - **Before stopping a run**, check what it already rewrote: parity verdicts reset on rewrite
   until the next run.
+- **Never filter type-check output down to "my files" only.** Compare the full error list before
+  and after a change. A `continue` outside a loop in the jobs launch route sat in the build for two
+  days: the dev server compiles routes lazily, so it only surfaced when the route was first
+  called, and then it broke every API route including auth (`/api/auth/error`).
 
 ## Key files
 `dax-parse.ts`, `dax-sql-compile.ts` (compiler), `m-lineage.ts` (Power Query),
