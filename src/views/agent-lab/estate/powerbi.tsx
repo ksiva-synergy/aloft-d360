@@ -121,6 +121,7 @@ const PATTERN_LABEL: Record<string, string> = {
   blank_mismatch: 'Power BI BLANK',
   boundary_rows: 'few rows differ',
   type_mismatch: 'text vs number',
+  cast_error: 'bad value in numeric column',
 };
 
 const ROOT_CAUSE_LABEL: Record<string, string> = {

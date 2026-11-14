@@ -793,6 +793,7 @@ class Compiler {
       if (s.table === target) {
         throw new CompileError(
           `CALCULATE context transition on the current row of '${tgtName}' without a FILTER/ALL override (not modeled)`,
+          { kind: 'semantic', name: 'calculate_row_transition' },
         );
       }
       const path = this.flowPath(s.table, target);

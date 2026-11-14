@@ -16,7 +16,8 @@ export type DetectorName =
   | 'empty_sql_result'
   | 'blank_mismatch'
   | 'boundary_rows'
-  | 'type_mismatch';
+  | 'type_mismatch'
+  | 'cast_error';
 
 export type DetectorFinding = {
   detector: DetectorName;
@@ -74,18 +75,44 @@ export function runDetectors(props: Props): DetectorFinding[] {
   }
 
   // ── capability gaps (structured, so they can be counted across the estate) ──
-  const gap = (ef?.gap ?? null) as { kind?: string; name?: string } | null;
+  let gap = (ef?.gap ?? null) as { kind?: string; name?: string } | null;
+  // Rows stored before the compiler tagged this gap carry only the message.
+  if (!gap && typeof ef?.reason === 'string' && /CALCULATE context transition on the current row/.test(ef.reason)) {
+    gap = { kind: 'semantic', name: 'calculate_row_transition' };
+  }
   if (gap?.kind === 'm_step' || gap?.kind === 'm_fn') {
     out.push({
       detector: 'pq_capability_gap',
       evidence: `Power Query ${gap.kind === 'm_step' ? 'step' : 'function'} ${gap.name} is not modeled`,
       action: `Model ${gap.name} in m-lineage.ts (or a registry rule) — it unblocks every measure that reads this table.`,
     });
+  } else if (gap?.kind === 'semantic') {
+    out.push({
+      detector: 'dax_capability_gap',
+      evidence: `DAX semantics "${gap.name}" are not modeled by the compiler`,
+      action:
+        gap.name === 'calculate_row_transition'
+          ? 'CALCULATE inside a calculated column (or iterator) filters by the current row — compiler work item: row-level context transition (v2 Phase 5).'
+          : `Model "${gap.name}" in dax-sql-compile.ts.`,
+    });
   } else if (gap?.kind) {
     out.push({
       detector: 'dax_capability_gap',
       evidence: `DAX ${gap.kind} ${gap.name} is not modeled`,
       action: `Add ${gap.name} to the compiler or synthesize a registry rule (rule-synthesize).`,
+    });
+  }
+
+  // ── data type defects surfaced by Databricks ──────────────────────────────
+  const errText = [ef?.reason, (props?.parity as Record<string, unknown> | undefined)?.summary]
+    .filter((x): x is string => typeof x === 'string')
+    .join(' ');
+  const cast = errText.match(/The value '([^']{0,60})'[^"]*of the type "(\w+)" cannot be cast to "(\w+)"/i);
+  if (cast) {
+    out.push({
+      detector: 'cast_error',
+      evidence: `Source data holds ${cast[2]} value '${cast[1]}' that cannot be converted to ${cast[3]}`,
+      action: 'A text value sits in a numeric column (Power BI turns it into an error or BLANK) — clean the source or add a TRY_CAST rule for this column.',
     });
   }
 

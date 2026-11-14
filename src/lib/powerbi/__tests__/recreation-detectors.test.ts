@@ -37,6 +37,32 @@ describe('detectors (L5)', () => {
   });
 });
 
+describe('semantic gaps and data defects', () => {
+  it('names the row-level context transition gap, from the structured gap or the stored message', () => {
+    expect(names({ expand_failure: { gap: { kind: 'semantic', name: 'calculate_row_transition' } } })).toEqual([
+      'dax_capability_gap',
+    ]);
+    expect(
+      names({
+        expand_failure: {
+          reason: "CALCULATE context transition on the current row of 'CII_Enerva' without a FILTER/ALL override (not modeled)",
+        },
+      }),
+    ).toEqual(['dax_capability_gap']);
+  });
+
+  it('names a text value that cannot be cast to a number', () => {
+    const f = runDetectors({
+      parity: {
+        verdict: 'error',
+        summary: `SQL error: sql_error: Async query FAILED: [CAST_INVALID_INPUT] The value 'N/A' of the type "STRING" cannot be cast to "DOUBLE" because it is malformed.`,
+      },
+    });
+    expect(f.map((x) => x.detector)).toEqual(['cast_error']);
+    expect(f[0]!.evidence).toContain("'N/A'");
+  });
+});
+
 describe('root-cause precision', () => {
   const classify = (stage: string, props: Record<string, unknown>) =>
     classifyRootCause({ stage, dax: 'SUM(T[x])', tier: 'expand', props, catalog: null })!;
