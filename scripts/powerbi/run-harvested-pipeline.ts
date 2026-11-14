@@ -107,7 +107,7 @@ async function main() {
     const { summary } = await buildModelRecreationSummary(orgId, m.id);
     all[m.name] = summary;
     console.log(
-      `\n[summary] ${m.name}: ${summary.parity_pass}/${summary.measures_total} match (${summary.recreation_pct}%), published ${summary.published}, precise causes ${summary.causes_precise}/${summary.causes_total} (${summary.cause_precision_pct}%)`,
+      `\n[summary] ${m.name}: ${summary.parity_pass}/${summary.measures_total} match (${summary.recreation_pct}%), published ${summary.published}${summary.regressions ? `, ⚠ REGRESSIONS ${summary.regressions}` : ''}, precise causes ${summary.causes_precise}/${summary.causes_total} (${summary.cause_precision_pct}%)`,
       JSON.stringify(summary.root_causes),
       JSON.stringify(summary.patterns),
     );

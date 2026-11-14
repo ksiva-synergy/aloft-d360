@@ -26,7 +26,9 @@ export type MeasureRecreationStage =
   | 'parity_error'
   | 'parity_fail'
   | 'recreated'
-  | 'published';
+  | 'published'
+  /** Was verified/published, but its SQL no longer matches Power BI (guardrail: never hidden). */
+  | 'regressed';
 
 export type ModelRecreationSummary = {
   measures_total: number;
@@ -42,6 +44,8 @@ export type ModelRecreationSummary = {
   by_stage: Record<MeasureRecreationStage, number>;
   /** Not-recreated measures grouped by root cause. */
   root_causes: Partial<Record<RootCauseCategory, number>>;
+  /** Measures that matched Power BI before and no longer do (guardrail alert). */
+  regressions: number;
   /** Not-recreated measures whose cause is precise (Phase 3 exit metric). */
   causes_precise: number;
   causes_total: number;
@@ -108,7 +112,7 @@ function parityPropsSummary(props: unknown): string | null {
   return typeof summary === 'string' ? summary : null;
 }
 
-function stageFromTranslation(
+export function stageFromTranslation(
   tr: {
     sql_text: string | null;
     parity_verdict: string | null;
@@ -131,13 +135,17 @@ function stageFromTranslation(
       (props?.llm_failure as { reason?: string } | undefined)?.reason;
     return { stage: 'no_sql', reason: failure ?? (tr ? 'Translation row without SQL' : null) };
   }
+  const verdict = tr.parity_verdict;
+  const regressedAt = (tr.props as Record<string, unknown> | null)?.regressed_at;
+  if ((verdict === 'fail' || verdict === 'error') && (verifiedStatus === 'verified' || typeof regressedAt === 'string')) {
+    return { stage: 'regressed', reason: `Matched Power BI before, now: ${parityPropsSummary(tr.props) ?? verdict}` };
+  }
   if (verifiedStatus === 'verified') {
     return {
       stage: 'published',
       reason: parityPropsSummary(tr.props),
     };
   }
-  const verdict = tr.parity_verdict;
   if (verdict === 'pass') {
     return { stage: 'recreated', reason: parityPropsSummary(tr.props) };
   }
@@ -221,6 +229,7 @@ export async function buildModelRecreationSummary(
     parity_fail: 0,
     recreated: 0,
     published: 0,
+    regressed: 0,
   };
 
   const rows: MeasureRecreationRow[] = [];
@@ -304,7 +313,8 @@ export async function buildModelRecreationSummary(
     }
 
     const rootCause = classifyRootCause({
-      stage,
+      // a regression is classified like any mismatch / SQL error
+      stage: stage === 'regressed' ? (tr?.parity_verdict === 'error' ? 'parity_error' : 'parity_fail') : stage,
       dax: m.dax ?? '',
       tier: tr?.tier ?? null,
       props: (props ?? null) as Record<string, unknown> | null,
@@ -323,7 +333,8 @@ export async function buildModelRecreationSummary(
       stage === 'no_sql' ||
       stage === 'parity_error' ||
       stage === 'parity_fail' ||
-      stage === 'parity_skip'
+      stage === 'parity_skip' ||
+      stage === 'regressed'
     ) {
       failures.push({
         measure_name: m.name,
@@ -358,6 +369,7 @@ export async function buildModelRecreationSummary(
     parity_error: byStage.parity_error,
     parity_skip: byStage.parity_skip,
     published: byStage.published,
+    regressions: byStage.regressed,
     recreation_pct:
       measures.length > 0
         ? Math.round(((byStage.recreated + byStage.published) / measures.length) * 1000) / 10

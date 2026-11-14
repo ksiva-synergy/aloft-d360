@@ -1,6 +1,7 @@
 import 'server-only';
 
 import prisma from '@/lib/db';
+import { isFreshnessGap } from '@/lib/powerbi/recreation-root-cause';
 import { PowerBiApiError } from '@/lib/powerbi/client';
 import {
   buildAltPhrasings,
@@ -73,6 +74,71 @@ export async function retireStaleVerifiedQueries(
     }
   }
   return retired;
+}
+
+/**
+ * Guardrail: a verified (published) query whose measure no longer matches Power BI must not keep
+ * answering silently. If the mismatch is explained by a stale dataset (the warehouse is newer), the
+ * SQL is right and stays published with a warning; otherwise it is demoted (reversible: status
+ * `candidate`, demoted_reason `parity_regression`) and the translation is marked `regressed_at`,
+ * which the recreation summary reports as a regression until it matches again.
+ */
+export async function handleRegressions(
+  orgId: string,
+  pbiModelIds: string[] | undefined,
+  runId: string,
+): Promise<{ demoted: number; flagged: number; measures: string[] }> {
+  const failing = await prisma.pbiTranslation.findMany({
+    where: {
+      org_id: orgId,
+      parity_verdict: { in: ['fail', 'error'] },
+      ...(pbiModelIds?.length ? { model: { pbi_model_id: { in: pbiModelIds } } } : {}),
+    },
+    select: { id: true, measure_id: true, measure_name: true, parity_verdict: true, props: true },
+  });
+  let demoted = 0;
+  let flagged = 0;
+  const measures: string[] = [];
+  const now = new Date();
+  for (const tr of failing) {
+    if (!tr.measure_id) continue;
+    const vq = await prisma.kbVerifiedQuery.findFirst({
+      where: { org_id: orgId, pbi_measure_id: tr.measure_id, status: 'verified' },
+      select: { id: true, props: true },
+    });
+    if (!vq) continue;
+    const props = (tr.props ?? {}) as Record<string, unknown>;
+    const parity = (props.parity ?? null) as Record<string, unknown> | null;
+    const detail = {
+      verdict: tr.parity_verdict,
+      summary: typeof parity?.summary === 'string' ? parity.summary : null,
+      at: now.toISOString(),
+      run_id: runId,
+    };
+    measures.push(tr.measure_name);
+    if (tr.parity_verdict === 'fail' && isFreshnessGap(parity)) {
+      await prisma.kbVerifiedQuery.update({
+        where: { id: vq.id },
+        data: { props: { ...(vq.props as object), stale_dataset_warning: detail }, updated_at: now },
+      });
+      flagged += 1;
+    } else {
+      await prisma.kbVerifiedQuery.update({
+        where: { id: vq.id },
+        data: {
+          status: 'candidate',
+          props: { ...(vq.props as object), demoted_reason: 'parity_regression', demoted_at: now.toISOString(), regression: detail },
+          updated_at: now,
+        },
+      });
+      demoted += 1;
+    }
+    await prisma.pbiTranslation.update({
+      where: { id: tr.id },
+      data: { props: { ...props, regressed_at: now.toISOString(), regression: detail }, updated_at: now },
+    });
+  }
+  return { demoted, flagged, measures };
 }
 
 export async function runPbiPublish(
@@ -187,12 +253,14 @@ export async function runPbiPublish(
     });
     await upsertVerifiedQueryEmbedding(row.id, embedText);
 
+    // matches again: drop any earlier regression mark
+    const { regressed_at: _r, regression: _g, ...cleanProps } = (tr.props ?? {}) as Record<string, unknown>;
     await prisma.pbiTranslation.update({
       where: { id: tr.id },
       data: {
         status: 'published',
         props: {
-          ...(tr.props as object),
+          ...cleanProps,
           verified_query_id: row.id,
           published_at: now.toISOString(),
           publish_run_id: opts.runId,
@@ -205,6 +273,13 @@ export async function runPbiPublish(
   }
 
   demoted += await retireStaleVerifiedQueries(orgId, opts.modelIds);
+  const reg = await handleRegressions(orgId, opts.modelIds, opts.runId);
+  demoted += reg.demoted;
+  if (reg.demoted || reg.flagged) {
+    console.warn(
+      `[pbi_publish] REGRESSION: ${reg.demoted} verified queries demoted, ${reg.flagged} kept but flagged (stale dataset): ${reg.measures.slice(0, 10).join(', ')}`,
+    );
+  }
 
   if (translations.length === 0) {
     throw new PowerBiApiError(
