@@ -403,7 +403,9 @@ export async function POST(req: NextRequest) {
 
       const kindSources = filterSourcesForJobKind(sources, kind);
       if (kindSources.length === 0) {
-        continue;
+        // launchOne is a function, not a loop body: skip this kind (was `continue` — a syntax
+        // error that broke the dev build, and with it every API route including auth)
+        return;
       }
 
       for (const src of kindSources) {
