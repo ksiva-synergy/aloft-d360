@@ -3,6 +3,13 @@ import 'server-only';
 import prisma from '@/lib/db';
 import { PowerBiApiError } from '@/lib/powerbi/client';
 import { pickDatabricksSourceId, resolveCatalogBind } from '@/lib/powerbi/native-sql';
+import {
+  buildQueryMap,
+  describeOrigin,
+  describeSourceOrigins,
+  isOutsideWarehouse,
+  readModelExpressions,
+} from '@/lib/powerbi/source-origin';
 
 export interface PbiCatalogLinkResult {
   bindings_total: number;
@@ -10,6 +17,10 @@ export interface PbiCatalogLinkResult {
   unscanned: number;
   ambiguous: number;
   non_uc: number;
+  /** Tables whose data is not in any warehouse (files, sites, feeds, dataflows) — nothing to bind. */
+  not_in_warehouse: number;
+  /** `Table: origin` for the first of them (diagnostics in the job stats). */
+  not_in_warehouse_tables: string[];
   skipped: number;
   run_id: string;
 }
@@ -102,7 +113,11 @@ export async function runPbiCatalogLink(
     }
   }
 
+  const outside = await tablesOutsideWarehouse(orgId, opts.modelIds);
+
   return {
+    not_in_warehouse: outside.length,
+    not_in_warehouse_tables: outside.slice(0, 20),
     bindings_total: bindings.length,
     matched,
     unscanned,
@@ -111,4 +126,29 @@ export async function runPbiCatalogLink(
     skipped: 0,
     run_id: opts.runId,
   };
+}
+
+/** Tables without a warehouse binding whose Power Query reads only files / sites / feeds / dataflows. */
+async function tablesOutsideWarehouse(orgId: string, modelIds?: string[]): Promise<string[]> {
+  const models = await prisma.pbiModel.findMany({
+    where: { org_id: orgId, lifecycle: 'active', ...(modelIds?.length ? { pbi_model_id: { in: modelIds } } : {}) },
+    select: {
+      props: true,
+      tables: {
+        where: { lifecycle: 'active', is_auto_date: false, sourceBinding: { is: null } },
+        select: { name: true, source_m: true, partition_kind: true, sourceBinding: { select: { id: true } } },
+      },
+    },
+  });
+  const out: string[] = [];
+  for (const m of models) {
+    const queries = buildQueryMap(readModelExpressions(m.props), m.tables);
+    for (const t of m.tables) {
+      if (t.sourceBinding || !t.source_m) continue;
+      const origins = describeSourceOrigins(t.source_m, queries, { partitionKind: t.partition_kind, selfName: t.name });
+      const files = origins.filter(isOutsideWarehouse);
+      if (files.length && files.length === origins.length) out.push(`${t.name}: ${files.map(describeOrigin).join('; ')}`);
+    }
+  }
+  return out;
 }

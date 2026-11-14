@@ -72,6 +72,7 @@ dates). Never add rows or text values from data.
 | Symptom / detector | Cause | Fix |
 |---|---|---|
 | `replica_drift` (fidelity gate) | Replica column missing, renamed or split (e.g. `X_OR_Y` → `X`, `Y`) | Steward confirms the mapping; never guess in SQL |
+| `source_not_in_warehouse` (fidelity gate) | Table is loaded from a file / site / feed / dataflow (Excel or CSV on SharePoint, OneDrive, web, folder), traced through helper queries by `source-origin.ts` | Not a compiler gap: the data must be loaded into Databricks first. Model → Tables → Data sources shows the file, sheet and site. Never fake it with SQL. New connectors: add them to `source-origin.ts` (generic, with a test) |
 | `rls_required`, oracle `skipped_rls` | Model enforces RLS; JSON executeQueries returns 401 for a service principal | Oracle uses `executeDaxQueries` (Arrow, `execute-dax.ts`) with a workspace-Admin service principal (unfiltered). Do not publish RLS models without RLS-aware publishing. |
 | `data_freshness`; decomposition "rows differ" with SQL > Power BI | Dataset older than the warehouse | Check the ownership card (refresh status / failure); refresh the dataset |
 | `pq_capability_gap` (`Table.X` not modeled) | Power Query step not in `m-lineage.ts` | Model it generically (see split / merge / embedded tables). Do not let the LLM write around it: it cannot see Power Query. |

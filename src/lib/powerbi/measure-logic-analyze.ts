@@ -10,6 +10,7 @@ import {
 } from '@/lib/powerbi/rule-registry';
 import { stripTrailingTmdlProperties } from '@/lib/powerbi/tmdl-parse';
 import { extractPqRowFilters } from '@/lib/powerbi/pq-filter-parse';
+import { buildQueryMap, readModelExpressions } from '@/lib/powerbi/source-origin';
 import {
   extractDaxColumnRefs,
   normalizePbiTableName,
@@ -92,6 +93,8 @@ export type MeasureLogicCatalog = {
   relationships?: MeasureLogicRelationship[];
   /** Verified translation rules (registry) the compiler may apply for non-built-in functions. */
   rules?: RuleSet;
+  /** Power Query name → M (shared expressions + table partitions), to trace a table's real source. */
+  sourceQueries?: Map<string, string>;
 };
 
 const DAX_AGG_RE =
@@ -400,7 +403,7 @@ export async function loadMeasureLogicCatalog(
   orgId: string,
   internalModelId: string,
 ): Promise<MeasureLogicCatalog> {
-  const [tables, columns, measures, relationships, ruleRows] = await Promise.all([
+  const [tables, columns, measures, relationships, ruleRows, modelRow] = await Promise.all([
     prisma.pbiTable.findMany({
       where: { org_id: orgId, model_id: internalModelId, lifecycle: 'active' },
       select: {
@@ -430,6 +433,7 @@ export async function loadMeasureLogicCatalog(
       select: { from_column: true, to_column: true, cross_filtering: true, is_active: true },
     }),
     loadRuleRows(orgId),
+    prisma.pbiModel.findFirst({ where: { id: internalModelId, org_id: orgId }, select: { props: true } }),
   ]);
 
   const columnsByTable = new Map<string, Map<string, MeasureLogicColumnMeta>>();
@@ -523,7 +527,9 @@ export async function loadMeasureLogicCatalog(
     })),
   );
 
-  return { columnsByTable, tableMeta, measures: measureMap, relationships: rels, rules };
+  const sourceQueries = buildQueryMap(readModelExpressions(modelRow?.props), tables);
+
+  return { columnsByTable, tableMeta, measures: measureMap, relationships: rels, rules, sourceQueries };
 }
 
 type RuleRow = {

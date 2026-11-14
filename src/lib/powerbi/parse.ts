@@ -15,6 +15,7 @@ import {
 import { extractTablePathsFromSql } from '@/lib/powerbi/native-sql';
 import { getPbiRawStoreRoot } from '@/lib/powerbi/raw-store';
 import { parseLegacyReportJson } from '@/lib/powerbi/report-parse-legacy';
+import { describeSourceOrigins, parseTmdlExpressions } from '@/lib/powerbi/source-origin';
 import {
   parseTmdlRelationshipsFile,
   parseTmdlRoleFile,
@@ -28,7 +29,19 @@ type DefinitionMeta = {
   inventory_hash: string | null;
 };
 
+/**
+ * Bump when parsing changes what is stored for an unchanged definition, so existing models are
+ * re-parsed once on the next parse run. 2026-11-15: shared expressions stored, file sources
+ * classified before joins.
+ */
+export const PBI_PARSER_VERSION = '2026-11-15.source-origin';
+
+/** Shared expressions kept on the model (helper queries tables call); capped. */
+const MAX_EXPRESSIONS = 500;
+const MAX_EXPRESSION_CHARS = 50_000;
+
 type ParseMeta = {
+  parser_version?: string;
   parsed_at: string;
   parse_run_id: string;
   definition_hash: string;
@@ -56,6 +69,7 @@ function needsModelParse(definitionHash: string | null, props: unknown): boolean
   if (!definitionHash) return false;
   const meta = (props as Record<string, unknown>)?.parse as ParseMeta | undefined;
   if (!meta?.definition_hash) return true;
+  if (meta.parser_version !== PBI_PARSER_VERSION) return true;
   return meta.definition_hash !== definitionHash;
 }
 
@@ -140,6 +154,7 @@ export async function runPbiParse(
       const partitionKinds: PartitionKind[] = [];
       let tableCount = 0;
       let measureCount = 0;
+      let expressions: { name: string; m: string }[] = [];
 
       await prisma.$transaction(async (tx) => {
         // Reconcile instead of wipe-and-rebuild: tables and measures keep their ids across
@@ -183,6 +198,13 @@ export async function runPbiParse(
         for (const file of tmdlFiles) {
           const rel = path.relative(absDir, file).replace(/\\/g, '/');
           const text = fs.readFileSync(file, 'utf8');
+
+          if (rel === 'expressions.tmdl' || rel.endsWith('/expressions.tmdl')) {
+            expressions = parseTmdlExpressions(text)
+              .slice(0, MAX_EXPRESSIONS)
+              .map((e) => ({ name: e.name, m: e.m.slice(0, MAX_EXPRESSION_CHARS) }));
+            continue;
+          }
 
           if (rel === 'relationships.tmdl' || rel.endsWith('/relationships.tmdl')) {
             for (const relRow of parseTmdlRelationshipsFile(text)) {
@@ -270,7 +292,7 @@ export async function runPbiParse(
             const sourceHash = sha256Short(parsed.partitionSourceM);
             const bindingData = {
               partition_kind: kind,
-              connector: 'databricks',
+              connector: describeSourceOrigins(parsed.partitionSourceM)[0]?.system ?? 'unknown',
               connection_host: host,
               native_sql: nativeSql,
               source_m_hash: sourceHash,
@@ -382,6 +404,7 @@ export async function runPbiParse(
       });
 
       const parseMeta: ParseMeta = {
+        parser_version: PBI_PARSER_VERSION,
         parsed_at: new Date().toISOString(),
         parse_run_id: opts.runId,
         definition_hash: defMeta.content_hash,
@@ -394,6 +417,7 @@ export async function runPbiParse(
         ...(model.props as Record<string, unknown>),
         parse: parseMeta,
         classification: { answerability, partition_kinds: partitionKinds },
+        expressions,
       };
 
       await prisma.pbiModel.update({

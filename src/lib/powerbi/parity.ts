@@ -5,7 +5,6 @@ import { systemPrincipal } from '@/lib/access/principal';
 import { createHeartbeat } from '@/lib/powerbi/job-health';
 import { runPbiSql } from '@/lib/powerbi/warehouse-exec';
 import { type SliceContext, loadSliceContext, runSlicedParity } from '@/lib/powerbi/sliced-parity';
-import { PowerBiApiError } from '@/lib/powerbi/client';
 import { normalizePbiTableName } from '@/lib/powerbi/translate-dax-refs';
 import {
   decideTypedParity,
@@ -64,6 +63,7 @@ export interface PbiParityResult {
   skipped: number;
   errors: number;
   run_id: string;
+  note?: string;
 }
 
 export async function runPbiParity(
@@ -254,11 +254,10 @@ export async function runPbiParity(
     else skipped += 1;
   }
 
-  if (translations.length === 0) {
-    throw new PowerBiApiError('No rule-tier translations to check — run PBI Translate first');
-  }
-
+  // Nothing compiled to SQL (e.g. every measure reads a source outside the warehouse): a
+  // successful no-op, so a chained run still finishes — the reasons live on each translation.
   return {
+    ...(translations.length === 0 ? { note: 'No measures with SQL to compare — see each measure’s root cause' } : {}),
     translations_checked: translations.length,
     passed,
     failed,

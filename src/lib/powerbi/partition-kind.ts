@@ -10,6 +10,10 @@ export type PartitionKind =
   | 'auto_date_table'
   | 'unknown';
 
+const WAREHOUSE_SOURCE_RE = /Databricks\.Catalogs|Value\.NativeQuery|Sql\.Databases?\b|Snowflake\.Databases/i;
+const FILE_SOURCE_RE =
+  /SharePoint\.(Files|Contents|Tables)|Excel\.Workbook|Csv\.Document|File\.Contents|Folder\.(Files|Contents)|Web\.Contents|OData\.Feed/i;
+
 export function isAutoDateTableName(tableName: string): boolean {
   return (
     /^LocalDateTable_/i.test(tableName) ||
@@ -35,19 +39,18 @@ export function classifyPartitionSource(
   if (/Table\.FromRows\s*\(/i.test(m) && /Binary\.FromText/i.test(m)) {
     return 'embedded_table';
   }
-  if (/PowerBI\.Dataflows/i.test(m)) return 'dataflow';
+  if (/PowerBI\.Dataflows|PowerPlatform\.Dataflows/i.test(m)) return 'dataflow';
+  const warehouse = WAREHOUSE_SOURCE_RE.test(m);
+  const file = FILE_SOURCE_RE.test(m);
+  // Files first: a SharePoint / Excel query that expands helper tables ("Transform File") is a
+  // file source, not a join of model queries (found 2026-11-15: such tables were `query_join`).
+  if (/-my\.sharepoint\.com\/personal\//i.test(m) && !warehouse) return 'personal_file';
+  if (file && !warehouse) return 'other_file';
   if (/Table\.NestedJoin|Table\.ExpandTableColumn/i.test(m) && !/Databricks\.Catalogs|Value\.NativeQuery/i.test(m)) {
     return 'query_join';
   }
-  if (/-my\.sharepoint\.com\/personal\//i.test(m)) return 'personal_file';
-  if (
-    /Databricks\.Catalogs|Value\.NativeQuery|Sql\.Database|Snowflake\.Databases/i.test(m)
-  ) {
-    return 'warehouse_query';
-  }
-  if (/Excel\.Workbook|Web\.Contents|SharePoint\.Tables/i.test(m)) {
-    return 'other_file';
-  }
+  if (warehouse) return 'warehouse_query';
+  if (file) return 'other_file';
   return 'unknown';
 }
 

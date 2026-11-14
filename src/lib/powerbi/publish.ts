@@ -2,7 +2,6 @@ import 'server-only';
 
 import prisma from '@/lib/db';
 import { isFreshnessGap } from '@/lib/powerbi/recreation-root-cause';
-import { PowerBiApiError } from '@/lib/powerbi/client';
 import {
   buildAltPhrasings,
   buildVerifiedQueryQuestion,
@@ -19,6 +18,7 @@ export interface PbiPublishResult {
   skipped: number;
   demoted: number;
   run_id: string;
+  note?: string;
 }
 
 function tablesFromTranslationProps(props: unknown, fallbackUc?: string | null): string[] {
@@ -281,13 +281,9 @@ export async function runPbiPublish(
     );
   }
 
-  if (translations.length === 0) {
-    throw new PowerBiApiError(
-      'No translations with parity pass — run PBI Translate then PBI Parity first',
-    );
-  }
-
+  // Nothing passed parity: a successful no-op (demotions above still ran), not a failure.
   return {
+    ...(translations.length === 0 ? { note: 'No measures matched Power BI in this run — nothing new to publish' } : {}),
     candidates: translations.length,
     published,
     skipped,

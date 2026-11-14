@@ -10,15 +10,18 @@
  *     bound warehouse object (replica drift such as a column split or rename in the replica),
  *     with the closest warehouse columns as suggestions
  *   - Power Query steps lineage does not model (warn; the compiler reports it precisely)
+ *   - tables whose data is not in any warehouse (Excel / CSV on SharePoint, web, folders,
+ *     dataflows …), traced through helper queries — nothing on Databricks to compile against
  * Pure — no DB or warehouse access.
  */
 
 import type { MeasureLogicCatalog } from '@/lib/powerbi/measure-logic-analyze';
 import { parseMLineage } from '@/lib/powerbi/m-lineage';
 import { buildModelGraph, type ModelGraph, measureNodeId } from '@/lib/powerbi/model-graph';
+import { describeOrigin, describeSourceOrigins, isOutsideWarehouse, originTitle } from '@/lib/powerbi/source-origin';
 import { normalizePbiTableName } from '@/lib/powerbi/translate-dax-refs';
 
-export const FIDELITY_GATE_VERSION = '2026-11-14.1';
+export const FIDELITY_GATE_VERSION = '2026-11-15.source-origin';
 
 export type FidelityIssueKind =
   | 'dax_parse_error'
@@ -26,7 +29,8 @@ export type FidelityIssueKind =
   | 'tmdl_leak'
   | 'unresolved_reference'
   | 'replica_drift'
-  | 'pq_unsupported';
+  | 'pq_unsupported'
+  | 'source_not_in_warehouse';
 
 export type FidelityIssue = {
   kind: FidelityIssueKind;
@@ -208,6 +212,21 @@ export function buildFidelityReport(
   // Table-level checks: source system + replica schema
   for (const [tk, meta] of catalog.tableMeta) {
     sources[meta.displayName] = classifySource(meta.source_m, Boolean(meta.uc_full_path));
+    if (!meta.uc_full_path && meta.source_m) {
+      const origins = describeSourceOrigins(meta.source_m, catalog.sourceQueries, { selfName: meta.displayName });
+      const outside = origins.filter(isOutsideWarehouse);
+      if (outside.length && outside.length === origins.length) {
+        issues.push({
+          kind: 'source_not_in_warehouse',
+          severity: 'block',
+          node: `t:${tk}`,
+          table: meta.displayName,
+          object: meta.displayName,
+          detail: `${meta.displayName} is loaded from ${outside.map(describeOrigin).join('; ')} — not in the warehouse`,
+          suggestion: `Load this ${originTitle(outside[0]!).toLowerCase()} into Databricks (a Unity Catalog table), then point the Power BI query at it or bind the table in Catalog link`,
+        });
+      }
+    }
     if (!meta.uc_full_path || !meta.source_m) continue;
     const warehouse = meta.warehouse_columns ?? [];
     if (!warehouse.length) continue; // warehouse schema unknown — nothing to compare against

@@ -6,6 +6,7 @@
 
 import type { MeasureLogicCatalog } from '@/lib/powerbi/measure-logic-analyze';
 import { type DetectorFinding, runDetectors } from '@/lib/powerbi/recreation-detectors';
+import { describeOrigin, describeSourceOrigins, isOutsideWarehouse } from '@/lib/powerbi/source-origin';
 import { normalizePbiTableName } from '@/lib/powerbi/translate-dax-refs';
 
 export type RootCauseCategory =
@@ -16,6 +17,7 @@ export type RootCauseCategory =
   | 'unsupported_dax'
   | 'harvest_gap'
   | 'replica_drift'
+  | 'source_not_in_warehouse'
   | 'rls_required'
   | 'unbound_table'
   | 'pq_unsupported'
@@ -78,6 +80,8 @@ const FIX: Record<RootCauseCategory, string> = {
     'The Power BI model enforces row-level security, so the oracle cannot read a value with the service principal. Configure an RLS test identity (effective identity) for the oracle, then re-run pbi_oracle + pbi_parity.',
   replica_drift:
     'The warehouse replica schema differs from the source Power BI reads (column missing, renamed or split). Caught by the fidelity gate before compile — confirm the mapping with the data steward or fix the replica, then re-run pbi_translate.',
+  source_not_in_warehouse:
+    'The measure reads a table whose data is not in any warehouse (an Excel / CSV file on SharePoint or a file path, a web page, a dataflow …). There is nothing on Databricks to compute it from. Load that data into a Unity Catalog table, point the Power BI query at it (or bind the table in Catalog link), then re-run the pipeline.',
   unbound_table: 'A referenced table has no warehouse binding — bind it in pbi_catalog_link (steward) or model it.',
   pq_unsupported: 'Power Query step not modeled in m-lineage.ts — extend lineage for it.',
   warehouse_error: 'Compiled SQL failed on Databricks with no grounded auto-repair — see attempts in expand_failure.',
@@ -157,6 +161,21 @@ function readsStaticSlicer(dax: string, catalog: MeasureLogicCatalog | null): bo
   return false;
 }
 
+/**
+ * Compile said "Table 'X' has no Unity Catalog binding": if X's data comes from outside any
+ * warehouse (traced through its Power Query), name that source instead of a missing binding.
+ */
+function outsideWarehouseDetail(reason: string, catalog: MeasureLogicCatalog | null): string | null {
+  const table = reason.match(/Table '([^']+)' has no Unity Catalog binding/i)?.[1];
+  if (!table || !catalog) return null;
+  const meta = catalog.tableMeta.get(normalizePbiTableName(table).toLowerCase());
+  if (!meta?.source_m || meta.uc_full_path) return null;
+  const origins = describeSourceOrigins(meta.source_m, catalog.sourceQueries, { selfName: meta.displayName });
+  const outside = origins.filter(isOutsideWarehouse);
+  if (!outside.length || outside.length !== origins.length) return null;
+  return `${meta.displayName} is loaded from ${outside.map(describeOrigin).join('; ')} — not in the warehouse`;
+}
+
 export function classifyRootCause(input: {
   stage: string;
   dax: string;
@@ -216,6 +235,7 @@ function classifyBase(input: {
   if (fb) {
     const kinds = new Set((fb.issues ?? []).map((i) => i.kind));
     const detail = String(fb.reason ?? '').slice(0, 300);
+    if (kinds.has('source_not_in_warehouse')) return rc('source_not_in_warehouse', detail);
     if (kinds.has('replica_drift')) return rc('replica_drift', detail);
     if (kinds.has('empty_measure')) return rc('empty_dax', detail);
     return rc('harvest_gap', detail);
@@ -235,7 +255,10 @@ function classifyBase(input: {
   const reason = typeof ef?.reason === 'string' ? ef.reason : '';
   if (ef) {
     if (ef.stage === 'warehouse') return rc('warehouse_error', reason);
-    if (/no Unity Catalog binding/i.test(reason)) return rc('unbound_table', reason);
+    if (/no Unity Catalog binding/i.test(reason)) {
+      const outside = outsideWarehouseDetail(reason, input.catalog);
+      return outside ? rc('source_not_in_warehouse', outside) : rc('unbound_table', reason);
+    }
     if (/Power Query steps? .*not modeled|Power Query (column|transform)/i.test(reason)) {
       return rc('pq_unsupported', reason);
     }
