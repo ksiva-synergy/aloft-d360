@@ -112,7 +112,7 @@ export function explainColumn(
   if (tm && !tm.uc_full_path && tm.source_m && !/^let\b/i.test(tm.source_m.trim())) {
     return { ref, kind: 'calc_table_column', note: `column of DAX calculated table`, children: [] };
   }
-  const lineage = parseMLineage(tm?.source_m ?? null, catalog.rules);
+  const lineage = parseMLineage(tm?.source_m ?? null, catalog.rules, { culture: catalog.queryCulture });
   const relation = lineage.nativeSql
     ? `native query: ${lineage.nativeSql.replace(/\s+/g, ' ').slice(0, 140)}`
     : (tm?.uc_full_path ?? 'unbound (no warehouse source)');

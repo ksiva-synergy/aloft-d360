@@ -51,7 +51,9 @@ function isDaxCalculatedTable(meta: { uc_full_path: string | null; source_m: str
 
 export function buildModelGraph(catalog: MeasureLogicCatalog): ModelGraph {
   const nodes = new Map<string, GraphNode>();
+  // relationships + query culture: both change generated SQL without changing any DAX / M text
   const relSig = h(
+    `culture=${catalog.queryCulture ?? ''}|` +
     (catalog.relationships ?? [])
       .map((r) => `${tkey(r.fromTable)}.${r.fromColumn}>${tkey(r.toTable)}.${r.toColumn}:${r.both}:${r.active}${r.cardinality ? `:${r.cardinality}` : ''}`)
       .sort()

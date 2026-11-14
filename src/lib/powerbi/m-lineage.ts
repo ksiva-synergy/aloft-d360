@@ -372,6 +372,59 @@ type MExprSql = { sql: string; leaves: string[]; isNull?: boolean };
 
 /** Verified registry rules for the duration of one (synchronous) parseMLineage call. */
 let activeRules: RuleSet | null = null;
+/** Culture Power Query uses to read text as dates / numbers (model `sourceQueryCulture`). */
+let activeCulture: string | null = null;
+
+/** Date order of a culture's short date (`d/M/y`, `M/d/y`); ISO-style cultures need nothing extra. */
+export function cultureDateOrder(culture: string | null | undefined): 'dmy' | 'mdy' | 'ymd' | null {
+  const c = (culture ?? '').toLowerCase();
+  if (!c) return null;
+  if (/^(en-us|en-ph|en-ca|es-us|en-bz|en-zw|fil-ph|en-029)$/.test(c)) return 'mdy';
+  if (/^(ja|zh|ko|hu|lt|mn|sv|eu|fr-ca|en-za|si|bo|ii)(-|$)/.test(c)) return 'ymd';
+  return 'dmy';
+}
+
+/** Decimal separator of a culture. */
+export function cultureDecimalComma(culture: string | null | undefined): boolean {
+  const c = (culture ?? '').toLowerCase();
+  if (!c) return false;
+  if (/^(en|ja|zh|ko|th|he|hi|ta|te|ms|fil|ga|cy|sw|mt)(-|$)/.test(c)) return false;
+  if (/^(de-ch|it-ch|fr-ch|es-mx|es-us|es-pr|es-do|es-gt|es-hn|es-ni|es-pa|es-sv|ar|fa|ur)(-|$)/.test(c)) return false;
+  return /^(de|fr|es|it|nl|pt|ru|pl|cs|sk|sl|hr|sr|bs|da|nb|nn|no|sv|fi|tr|el|ro|bg|uk|be|hu|lt|lv|et|id|vi|ca|gl|eu|is|kk|az|uz|ka|hy|mk|sq)(-|$)/.test(c);
+}
+
+/**
+ * SQL that converts `sql` to `target` the way Power Query does with the active culture: Spark's
+ * cast first (keeps typed and ISO values), then the culture's text form — `15/03/2025` under
+ * en-IN, `03/15/2025` under en-US, `1,234.5` / `1.234,5` for numbers. Without a known culture
+ * the plain cast is kept.
+ */
+export function cultureCastSql(sql: string, target: string, culture: string | null = activeCulture): string {
+  const plain = `TRY_CAST(${sql} AS ${target})`;
+  if (!culture) return plain;
+  const text = `CAST(${sql} AS STRING)`;
+  if (target === 'DATE' || target === 'TIMESTAMP') {
+    const order = cultureDateOrder(culture);
+    if (!order || order === 'ymd') return plain;
+    const fmt = order === 'dmy' ? 'd/M/yyyy[ H:m[:s]]' : 'M/d/yyyy[ H:m[:s]]';
+    const parsed = `try_to_timestamp(regexp_replace(${text}, '[.-]', '/'), '${fmt}')`;
+    return `coalesce(${plain}, ${target === 'DATE' ? `CAST(${parsed} AS DATE)` : parsed})`;
+  }
+  if (/^(BIGINT|INT|SMALLINT|TINYINT|DOUBLE|DECIMAL)/.test(target)) {
+    const cleaned = cultureDecimalComma(culture)
+      ? `replace(replace(${text}, '.', ''), ',', '.')`
+      : `replace(${text}, ',', '')`;
+    return `coalesce(${plain}, TRY_CAST(${cleaned} AS ${target}))`;
+  }
+  return plain;
+}
+
+/** Culture literal of an M argument: `"en-GB"` or `[Culture="en-GB"]`. */
+function mCultureArg(arg: string | undefined): string | null {
+  const m = (arg ?? '').match(/^\s*(?:\[\s*Culture\s*=\s*)?"([A-Za-z]{2,3}(?:-[A-Za-z0-9]+)*)"/);
+  return m ? m[1]! : null;
+}
+
 
 class MExprCompiler {
   private pos = 0;
@@ -550,6 +603,12 @@ class MExprCompiler {
   }
 }
 
+/** A culture passed to a conversion function, as compiled SQL (`'en-GB'`). */
+function sqlCultureArg(sql: string | undefined): string | null {
+  const m = (sql ?? '').match(/^'([A-Za-z]{2,3}(?:-[A-Za-z0-9]+)*)'$/);
+  return m ? m[1]! : null;
+}
+
 function mFunctionSql(fn: string, args: MExprSql[]): MExprSql {
   const leaves = args.flatMap((a) => a.leaves);
   const a = args.map((x) => x.sql);
@@ -583,11 +642,14 @@ function mFunctionSql(fn: string, args: MExprSql[]): MExprSql {
     case 'text.end':
       return one(`right(${a[0]}, ${a[1]})`);
     case 'number.from':
-      return one(`TRY_CAST(${a[0]} AS DOUBLE)`);
+    case 'number.fromtext':
+      return one(cultureCastSql(a[0]!, 'DOUBLE', sqlCultureArg(a[1]) ?? activeCulture));
     case 'date.from':
-      return one(`TRY_CAST(${a[0]} AS DATE)`);
+    case 'date.fromtext':
+      return one(cultureCastSql(a[0]!, 'DATE', sqlCultureArg(a[1]) ?? activeCulture));
     case 'datetime.from':
-      return one(`TRY_CAST(${a[0]} AS TIMESTAMP)`);
+    case 'datetime.fromtext':
+      return one(cultureCastSql(a[0]!, 'TIMESTAMP', sqlCultureArg(a[1]) ?? activeCulture));
     case 'date.year':
       return one(`year(${a[0]})`);
     case 'date.month':
@@ -678,13 +740,20 @@ const ROW_NEUTRAL_FNS = new Set([
 // Lineage
 // ---------------------------------------------------------------------------
 
-export function parseMLineage(sourceM: string | null | undefined, rules?: RuleSet | null): MLineage {
+export function parseMLineage(
+  sourceM: string | null | undefined,
+  rules?: RuleSet | null,
+  opts: { culture?: string | null } = {},
+): MLineage {
   const previous = activeRules;
+  const previousCulture = activeCulture;
   activeRules = rules ?? null;
+  activeCulture = opts.culture ?? null;
   try {
     return parseMLineageInner(sourceM);
   } finally {
     activeRules = previous;
+    activeCulture = previousCulture;
   }
 }
 
@@ -811,6 +880,8 @@ function parseMLineageInner(sourceM: string | null | undefined): MLineage {
           break;
         }
         case 'table.transformcolumntypes': {
+          // optional 3rd argument: culture for this step; else the model's query culture
+          const stepCulture = mCultureArg(args[2]) ?? activeCulture;
           for (const pair of parseListOfLists(args[1] ?? '')) {
             if (pair.length < 2) continue;
             const col = decodeMString(pair[0]!);
@@ -822,7 +893,7 @@ function parseMLineageInner(sourceM: string | null | undefined): MLineage {
               notes.push(`${step.name}: type ${pair[1]} on [${col}] not mapped (kept as-is)`);
               continue;
             }
-            set(col, { sql: `TRY_CAST(${cur.sql} AS ${target})`, leaves: cur.leaves });
+            set(col, { sql: cultureCastSql(cur.sql, target, stepCulture), leaves: cur.leaves });
           }
           break;
         }
@@ -862,7 +933,7 @@ function parseMLineageInner(sourceM: string | null | undefined): MLineage {
             const compiled = compileMExpr(args[2] ?? '', field);
             let sql = compiled.sql;
             const type = (args[3] ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
-            if (M_TYPE_SQL[type]) sql = `TRY_CAST(${sql} AS ${M_TYPE_SQL[type]})`;
+            if (M_TYPE_SQL[type]) sql = cultureCastSql(sql, M_TYPE_SQL[type]);
             set(name, { sql, leaves: compiled.leaves });
           } catch (e) {
             set(name, {

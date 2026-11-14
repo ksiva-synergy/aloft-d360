@@ -230,7 +230,7 @@ export function buildFidelityReport(
     if (!meta.uc_full_path || !meta.source_m) continue;
     const warehouse = meta.warehouse_columns ?? [];
     if (!warehouse.length) continue; // warehouse schema unknown — nothing to compare against
-    const lineage = parseMLineage(meta.source_m, catalog.rules);
+    const lineage = parseMLineage(meta.source_m, catalog.rules, { culture: catalog.queryCulture });
     // A native query defines its own columns; only a plain passthrough (SELECT * FROM one table)
     // exposes exactly the bound object's columns and can be checked against it.
     if (lineage.nativeSql && !isPassthroughQuery(lineage.nativeSql)) continue;

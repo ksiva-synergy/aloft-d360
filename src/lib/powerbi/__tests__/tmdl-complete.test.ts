@@ -273,3 +273,58 @@ describe('publishing uses the definition', () => {
     expect(text.split('\n')).toEqual(['What is total revenue?', 'Total Revenue', 'Invoiced revenue in USD', 'sales', 'turnover']);
   });
 });
+
+describe('query culture (sourceQueryCulture) in Power Query conversions', () => {
+  const m = (culture?: string) =>
+    [
+      'let',
+      '    Source = Value.NativeQuery(Snowflake.Databases("h","w"){[Name="DB"]}[Data], "SELECT * FROM DB.S.T", null),',
+      `    #"Changed Type" = Table.TransformColumnTypes(Source,{{"DUE", type date}, {"QTY", Int64.Type}, {"NAME", type text}}${culture ? `, "${culture}"` : ''})`,
+      'in',
+      '    #"Changed Type"',
+    ].join('\n');
+  const sqlOf = (src: string, col: string, culture?: string | null) => {
+    const c = parseMLineage(src, null, { culture }).column(col);
+    if ('error' in c) throw new Error(c.error);
+    return c.sql;
+  };
+
+  it('without a known culture the plain cast is kept', () => {
+    expect(sqlOf(m(), 'DUE')).toBe('TRY_CAST(`DUE` AS DATE)');
+  });
+
+  it('day-first cultures (en-IN) read 15/03/2025 as 15 March; numbers drop the grouping comma', async () => {
+    const { cultureCastSql } = await import('@/lib/powerbi/m-lineage');
+    expect(sqlOf(m(), 'DUE', 'en-IN')).toBe(cultureCastSql('`DUE`', 'DATE', 'en-IN'));
+    expect(sqlOf(m(), 'DUE', 'en-IN')).toContain("'d/M/yyyy[ H:m[:s]]'");
+    expect(sqlOf(m(), 'QTY', 'en-IN')).toContain("TRY_CAST(replace(CAST(`QTY` AS STRING), ',', '') AS BIGINT)");
+    expect(sqlOf(m(), 'NAME', 'en-IN')).toBe('TRY_CAST(`NAME` AS STRING)');
+  });
+
+  it('a culture on the step overrides the model culture; month-first and decimal-comma cultures', () => {
+    expect(sqlOf(m('en-US'), 'DUE', 'en-IN')).toContain("'M/d/yyyy[ H:m[:s]]'");
+    expect(sqlOf(m('de-DE'), 'QTY', 'en-US')).toContain("replace(replace(CAST(`QTY` AS STRING), '.', ''), ',', '.')");
+    // ISO-ordered cultures need nothing beyond Spark's cast
+    expect(sqlOf(m('sv-SE'), 'DUE')).toBe('TRY_CAST(`DUE` AS DATE)');
+  });
+});
+
+describe('definition flags for list views', () => {
+  it('tables and measures', async () => {
+    const { measureDefinitionFlags, tableDefinitionFlags, synonymIndex } = await import('@/lib/powerbi/definition-flags');
+    expect(
+      tableDefinitionFlags(
+        { tmdl: { hidden: true, refreshPolicy: { rollingWindowGranularity: 'year', rollingWindowPeriods: 1, incrementalGranularity: 'year', incrementalPeriods: 1 } } },
+        'each [UPD] >= RangeStart and [UPD] < RangeEnd',
+      ),
+    ).toEqual({ hidden: true, incrementalRefresh: 'keeps 1 year(s) + refreshes 1 year(s) by UPD' });
+    const syn = synonymIndex({ synonyms: { entries: { 'Sales.Total Revenue': ['total revenue', 'turnover'] } } });
+    expect(
+      measureDefinitionFlags({ name: 'Total Revenue', dax: 'SUM(S[x])', tableName: 'Sales', props: { tmdl: { description: 'USD' } } }, syn),
+    ).toEqual({ description: 'USD', synonyms: ['turnover'] });
+    expect(measureDefinitionFlags({ name: 'F', dax: '0', props: { tmdl: { formatStringDefinition: 'X' } } })).toEqual({
+      dynamicFormat: 'X',
+      displayHelper: true,
+    });
+  });
+});

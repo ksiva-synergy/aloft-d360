@@ -70,7 +70,7 @@ export function measureSubgraph(input: {
   const lineageOf = (tk: string) => {
     if (!lineageByTable.has(tk)) {
       const meta = catalog.tableMeta.get(tk);
-      lineageByTable.set(tk, meta?.uc_full_path && meta.source_m ? parseMLineage(meta.source_m, catalog.rules) : null);
+      lineageByTable.set(tk, meta?.uc_full_path && meta.source_m ? parseMLineage(meta.source_m, catalog.rules, { culture: catalog.queryCulture }) : null);
     }
     return lineageByTable.get(tk)!;
   };

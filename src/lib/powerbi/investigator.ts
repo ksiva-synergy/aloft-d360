@@ -122,7 +122,7 @@ export async function investigateWithLlm(input: {
   }
   const tables = [...tableKeys].map((tk) => {
     const meta = catalog.tableMeta.get(tk);
-    const lin = meta?.source_m ? parseMLineage(meta.source_m, catalog.rules) : null;
+    const lin = meta?.source_m ? parseMLineage(meta.source_m, catalog.rules, { culture: catalog.queryCulture }) : null;
     return {
       name: meta?.displayName ?? tk,
       source: meta ? classifySource(meta.source_m, Boolean(meta.uc_full_path)) : null,

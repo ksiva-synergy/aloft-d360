@@ -33,7 +33,7 @@ import { normalizePbiTableName } from '@/lib/powerbi/translate-dax-refs';
  * Bump whenever compiled SQL can change for the same DAX + model (semantics, plan shape, rules).
  * Translate checkpoints are keyed on it, so a bump recompiles every measure once.
  */
-export const COMPILER_VERSION = '2026-11-15.relationship-cardinality';
+export const COMPILER_VERSION = '2026-11-15.query-culture';
 
 export type DaxCompileOptions = {
   /** tableKey → warehouse leaf column (lower) → replacement column (from warehouse errors). */
@@ -363,12 +363,12 @@ class Compiler {
       if (daxTable && !/^let\b/i.test(daxTable) && !/\bTable\.\w+\s*\(/.test(daxTable)) {
         return this.calculatedTable(key, meta.displayName, daxTable);
       }
-      const derived = parseMLineage(meta.source_m, this.catalog.rules);
+      const derived = parseMLineage(meta.source_m, this.catalog.rules, { culture: this.catalog.queryCulture });
       if (!derived.baseTable && !derived.embedded) {
         throw new CompileError(`Table '${meta.displayName}' has no Unity Catalog binding`);
       }
     }
-    const lineage = parseMLineage(meta.source_m, this.catalog.rules);
+    const lineage = parseMLineage(meta.source_m, this.catalog.rules, { culture: this.catalog.queryCulture });
     if (lineage.unsupported.length) {
       const first = lineage.unsupported[0]!;
       const fnMatch = first.match(/unsupported M function ([\w.#]+)/);

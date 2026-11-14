@@ -99,6 +99,8 @@ export type MeasureLogicCatalog = {
   rules?: RuleSet;
   /** Power Query name → M (shared expressions + table partitions), to trace a table's real source. */
   sourceQueries?: Map<string, string>;
+  /** Culture Power Query uses to read text as dates / numbers (model sourceQueryCulture). */
+  queryCulture?: string | null;
 };
 
 const DAX_AGG_RE =
@@ -545,7 +547,11 @@ export async function loadMeasureLogicCatalog(
 
   const sourceQueries = buildQueryMap(readModelExpressions(modelRow?.props), tables);
 
-  return { columnsByTable, tableMeta, measures: measureMap, relationships: rels, rules, sourceQueries };
+  const definition = ((modelRow?.props as { model_definition?: { sourceQueryCulture?: string | null; culture?: string | null } } | null)
+    ?.model_definition ?? null);
+  const queryCulture = definition?.sourceQueryCulture ?? definition?.culture ?? null;
+
+  return { columnsByTable, tableMeta, measures: measureMap, relationships: rels, rules, sourceQueries, queryCulture };
 }
 
 type RuleRow = {
