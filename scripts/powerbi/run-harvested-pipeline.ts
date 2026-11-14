@@ -14,6 +14,7 @@ import prisma from '@/lib/db';
 import { enqueue } from '@/lib/context/queue';
 import { getDefaultOrg } from '@/lib/org';
 import { investigateMeasure } from '@/lib/powerbi/decompose-run';
+import { investigateWithLlm } from '@/lib/powerbi/investigator';
 import { runDetectors } from '@/lib/powerbi/recreation-detectors';
 import { buildModelRecreationSummary } from '@/lib/powerbi/recreation-summary';
 
@@ -97,6 +98,36 @@ async function main() {
           console.log(`[investigate] ${m.name} / ${t.measure_name}: ${inv.conclusion}`);
         } catch (e) {
           console.log(`[investigate] ${m.name} / ${t.measure_name}: skipped — ${e instanceof Error ? e.message : String(e)}`);
+        }
+      }
+    }
+  }
+
+  // L5 v2: the LLM investigator works on causes nobody has named yet (not precise), at most
+  // PBI_INVESTIGATOR_MAX per model (default 5), once per fingerprint (no repeat cost).
+  if (investigate && process.env.PBI_INVESTIGATOR !== '0') {
+    const maxPerModel = Math.max(0, Number(process.env.PBI_INVESTIGATOR_MAX ?? '5') || 0);
+    for (const m of harvested) {
+      const { measures } = await buildModelRecreationSummary(orgId, m.id);
+      const trs = await prisma.pbiTranslation.findMany({
+        where: { org_id: orgId, model_id: m.id },
+        select: { measure_name: true, props: true },
+      });
+      const byName = new Map(trs.map((t) => [t.measure_name.toLowerCase(), (t.props ?? {}) as Record<string, unknown>]));
+      const todo = measures
+        .filter((r) => r.root_cause && !r.root_cause.precise)
+        .filter((r) => {
+          const p = byName.get(r.measure_name.toLowerCase()) ?? {};
+          const prev = p.investigation_llm as { fingerprint?: string | null } | undefined;
+          return !prev || prev.fingerprint !== p.fingerprint;
+        })
+        .slice(0, maxPerModel);
+      for (const r of todo) {
+        try {
+          const inv = await investigateWithLlm({ orgId, modelId: m.id, measure: r.measure_name });
+          console.log(`[investigator] ${m.name} / ${r.measure_name}: ${inv.reply?.category ?? 'no diagnosis'} → ${inv.outcome.action}`);
+        } catch (e) {
+          console.log(`[investigator] ${m.name} / ${r.measure_name}: skipped — ${e instanceof Error ? e.message : String(e)}`);
         }
       }
     }

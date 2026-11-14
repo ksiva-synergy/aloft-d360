@@ -44,6 +44,30 @@ changing the compiler.
      keep ≥ its previous match count;
    - only then commit.
 
+## Working a case file (for a scheduled coding agent)
+The pipeline's LLM investigator (`src/lib/powerbi/investigator.ts`) diagnoses failures nobody has
+named yet. When the fix is a compiler change, it opens a **case file** on the translation. The
+investigator never edits the compiler itself.
+1. `scripts/powerbi/export-cases.ts` writes open cases to `.cases/powerbi/` (index sorted by
+   confidence) and closes cases whose measure now matches.
+2. Pick one case. Read its `diagnosis`, `fix`, the decomposition probes and the matched
+   playbooks.
+3. Reproduce on that single measure: `compileMeasureToSql` + `runPbiSql` + its Power BI value.
+   Re-run `scripts/powerbi/investigate-llm.ts --model … --measure …` to refresh the case if
+   needed.
+4. Fix the **general mechanism**, never the measure. Add a unit test with a synthetic catalog.
+   Bump `COMPILER_VERSION` and refresh the lock.
+5. Gates: `npx vitest run src/lib/powerbi/__tests__/` and `scripts/powerbi/golden-check.ts` for
+   every model with matching measures (exit 0), then the measure matches Power BI.
+6. Open a PR on a branch (never `main`, never force-push). Describe the case, the root cause and
+   the gate results. **A human reviews and merges.**
+7. After merge, the next pipeline run recompiles only the affected measures (fingerprints). If the
+   pattern is new, add it to `BUILTIN_PLAYBOOKS` in `src/lib/powerbi/playbooks.ts` and to the
+   table below.
+
+Data policy: case files and the investigator carry metadata and aggregates only (counts, totals,
+dates). Never add rows or text values from data.
+
 ## Playbooks (symptom → cause → fix)
 | Symptom / detector | Cause | Fix |
 |---|---|---|

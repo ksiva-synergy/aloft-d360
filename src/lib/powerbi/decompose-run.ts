@@ -101,25 +101,27 @@ async function pool<T>(items: T[], n: number, fn: (x: T) => Promise<void>): Prom
   );
 }
 
-export async function investigateMeasure(input: {
+/**
+ * Evaluate DAX probes in Power BI (JSON or, for RLS models, Arrow API) and as compiled SQL on
+ * Databricks (through the SQL gate), and compare them. Shared by decomposition and the LLM
+ * investigator so every probe follows the same guarded path.
+ */
+export async function runProbesOnBothSides(input: {
   orgId: string;
   modelId: string;
-  measure: string;
-  persist?: boolean;
-  /** Per-probe SQL budget (default 180 s). */
+  probes: Probe[];
+  catalog?: Awaited<ReturnType<typeof loadMeasureLogicCatalog>>;
   budgetMs?: number;
-}): Promise<Investigation> {
-  const started = Date.now();
+  purpose?: string;
+}): Promise<ProbeResult[]> {
   const model = await prisma.pbiModel.findFirst({
     where: { id: input.modelId, org_id: input.orgId },
     select: { pbi_model_id: true, rls_required: true, workspace: { select: { pbi_workspace_id: true } } },
   });
   if (!model) throw new Error('Model not found');
-
-  const catalog = await loadMeasureLogicCatalog(input.orgId, input.modelId);
-  const graph = buildModelGraph(catalog);
-  const probes = planDecomposition({ measure: input.measure, catalog, graph });
+  const catalog = input.catalog ?? (await loadMeasureLogicCatalog(input.orgId, input.modelId));
   const connectionId = await resolveModelConnectionId(input.orgId, input.modelId);
+  const probes = input.probes;
 
   const pbi = await evaluateInPowerBi(
     daxRunner(model.workspace.pbi_workspace_id, model.pbi_model_id, model.rls_required === true),
@@ -141,19 +143,47 @@ export async function investigateMeasure(input: {
       connectionId,
       sql: compiled.sql,
       mode: 'execute',
-      purpose: 'pbi_investigate',
+      purpose: input.purpose ?? 'pbi_investigate',
       budgetMs: input.budgetMs ?? 180_000,
     });
     if (run.status !== 'ok') sql.set(p.id, { error: `${run.status}: ${run.error.slice(0, 300)}` });
     else sql.set(p.id, { value: extractSqlValue(run.rows).raw });
   });
 
-  const results: ProbeResult[] = probes.map((p) => {
+  return probes.map((p) => {
     const a = pbi.get(p.id) ?? { error: 'not evaluated' };
     const b = sql.get(p.id) ?? { error: 'not evaluated' };
     if (a.error !== undefined) return { ...p, pbi: null, sql: b.value ?? null, status: 'pbi_error', error: a.error };
     if (b.error !== undefined) return { ...p, pbi: a.value, sql: null, status: 'sql_error', error: b.error };
     return { ...p, pbi: a.value, sql: b.value, status: probeMatches(p, a.value, b.value) ? 'match' : 'differ' };
+  });
+}
+
+export async function investigateMeasure(input: {
+  orgId: string;
+  modelId: string;
+  measure: string;
+  persist?: boolean;
+  /** Per-probe SQL budget (default 180 s). */
+  budgetMs?: number;
+}): Promise<Investigation> {
+  const started = Date.now();
+  const model = await prisma.pbiModel.findFirst({
+    where: { id: input.modelId, org_id: input.orgId },
+    select: { pbi_model_id: true, rls_required: true, workspace: { select: { pbi_workspace_id: true } } },
+  });
+  if (!model) throw new Error('Model not found');
+
+  const catalog = await loadMeasureLogicCatalog(input.orgId, input.modelId);
+  const graph = buildModelGraph(catalog);
+  const probes = planDecomposition({ measure: input.measure, catalog, graph });
+  const results = await runProbesOnBothSides({
+    orgId: input.orgId,
+    modelId: input.modelId,
+    probes,
+    catalog,
+    budgetMs: input.budgetMs,
+    purpose: 'pbi_investigate',
   });
 
   const conclusion = concludeDecomposition(results);

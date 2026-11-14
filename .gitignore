@@ -64,3 +64,6 @@ migration_review.sql
 /powerbi-estate/
 powerbi_semantic_models.csv
 powerbi_semantic_models.json
+
+# Power BI investigator case files (exported for coding agents; metadata + aggregates only)
+.cases/
