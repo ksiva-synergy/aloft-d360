@@ -37,7 +37,9 @@ changing the compiler.
    `compiler-phase5.test.ts`), and run `npx vitest run src/lib/powerbi/__tests__/`. Vitest needs
    PowerShell, not Git Bash.
 5. **Regression gate:**
-   - compile-only: every stored passing SQL is either byte-identical or re-verified;
+   - `scripts/powerbi/golden-check.ts --models "<m>"`: every measure that matches Power BI must
+     compile to identical SQL, or to SQL with the same value on today's data (old vs new SQL run
+     on the same snapshot). Exit code 1 means regression. Read-only;
    - then a full Vessel run (`run-harvested-pipeline.ts --models "Vessel Internal Audit"`) must
      keep ≥ its previous match count;
    - only then commit.
