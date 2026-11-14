@@ -4,6 +4,7 @@ import prisma from '@/lib/db';
 import { systemPrincipal } from '@/lib/access/principal';
 import { createHeartbeat } from '@/lib/powerbi/job-health';
 import { runPbiSql } from '@/lib/powerbi/warehouse-exec';
+import { type SliceContext, loadSliceContext, runSlicedParity } from '@/lib/powerbi/sliced-parity';
 import { PowerBiApiError } from '@/lib/powerbi/client';
 import { normalizePbiTableName } from '@/lib/powerbi/translate-dax-refs';
 import {
@@ -41,7 +42,7 @@ async function resolveDatabricksSourceIdForTranslation(
     if (ucSource) return ucSource;
   }
 
-  const home = tr.measure?.table.sourceBinding?.databricks_source_id;
+  const home = tr.measure?.table?.sourceBinding?.databricks_source_id;
   if (home) return home;
 
   const anyBinding = await prisma.pbiSourceBinding.findFirst({
@@ -97,6 +98,8 @@ export async function runPbiParity(
   });
 
   const heartbeat = createHeartbeat(opts.runId);
+  let slicedBudget = Math.max(0, Number(process.env.PBI_SLICED_MAX ?? '40') || 0);
+  const sliceContexts = new Map<string, SliceContext>();
   let passed = 0;
   let failed = 0;
   let skipped = 0;
@@ -196,9 +199,31 @@ export async function runPbiParity(
     await heartbeat({ checked: passed + failed + skipped + errors + 1, total: translations.length });
 
     const decision = decideTypedParity({ oracle: oracleRaw, sql: sqlRaw });
-    const verdict = sqlError ? 'error' : decision.verdict;
-    const summary = sqlError ? `SQL error: ${sqlError.slice(0, 200)}` : decision.summary;
+    let verdict = sqlError ? 'error' : decision.verdict;
+    let summary = sqlError ? `SQL error: ${sqlError.slice(0, 200)}` : decision.summary;
     const asJson = (v: unknown) => (v instanceof Date ? v.toISOString() : v ?? null);
+
+    // Sliced parity: a matching total can hide member-level errors that cancel out. Compare per
+    // member of a related dimension (chosen from the model) — a member mismatch fails the measure.
+    let sliced: unknown = null;
+    if (verdict === 'pass' && tr.measure && slicedBudget > 0 && process.env.PBI_SLICED_PARITY !== '0') {
+      slicedBudget -= 1;
+      try {
+        let ctx = sliceContexts.get(tr.model_id);
+        if (!ctx) {
+          ctx = await loadSliceContext(orgId, tr.model_id);
+          sliceContexts.set(tr.model_id, ctx);
+        }
+        const cmp = await runSlicedParity(orgId, tr.measure_name, ctx);
+        sliced = cmp;
+        if ('mismatched' in cmp && cmp.mismatched > 0) {
+          verdict = 'fail';
+          summary = `Total matches but ${cmp.mismatched} of ${cmp.compared} ${cmp.dimension.table}[${cmp.dimension.column}] members differ`;
+        }
+      } catch (e) {
+        sliced = { skipped: (e as Error).message.slice(0, 300) };
+      }
+    }
 
     await prisma.pbiTranslation.update({
       where: { id: tr.id },
@@ -216,6 +241,7 @@ export async function runPbiParity(
             exec_outcome: exec.status,
             checked_at: new Date().toISOString(),
             run_id: opts.runId,
+            ...(sliced ? { sliced } : {}),
           },
         },
         updated_at: new Date(),

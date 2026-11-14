@@ -63,6 +63,26 @@ describe('semantic gaps and data defects', () => {
   });
 });
 
+describe('sliced parity detector', () => {
+  it('names member-level errors hidden by a matching total', () => {
+    const f = runDetectors({
+      parity: {
+        verdict: 'fail',
+        oracle_value: 100,
+        sql_value: 100,
+        sliced: {
+          compared: 4,
+          mismatched: 2,
+          dimension: { table: 'Ships', column: 'KEY' },
+          examples: [{ key: 'a', power_bi: 10, sql: 12 }],
+        },
+      },
+    });
+    expect(f.map((x) => x.detector)).toContain('slice_mismatch');
+    expect(f.find((x) => x.detector === 'slice_mismatch')!.evidence).toMatch(/2 of 4 Ships\[KEY\]/);
+  });
+});
+
 describe('root-cause precision', () => {
   const classify = (stage: string, props: Record<string, unknown>) =>
     classifyRootCause({ stage, dax: 'SUM(T[x])', tier: 'expand', props, catalog: null })!;

@@ -17,7 +17,8 @@ export type DetectorName =
   | 'blank_mismatch'
   | 'boundary_rows'
   | 'type_mismatch'
-  | 'cast_error';
+  | 'cast_error'
+  | 'slice_mismatch';
 
 export type DetectorFinding = {
   detector: DetectorName;
@@ -113,6 +114,22 @@ export function runDetectors(props: Props): DetectorFinding[] {
       detector: 'cast_error',
       evidence: `Source data holds ${cast[2]} value '${cast[1]}' that cannot be converted to ${cast[3]}`,
       action: 'A text value sits in a numeric column (Power BI turns it into an error or BLANK) — clean the source or add a TRY_CAST rule for this column.',
+    });
+  }
+
+  // ── sliced parity: total matches, members differ (errors cancel out) ──────
+  const sliced = (parity?.sliced ?? null) as {
+    mismatched?: number;
+    compared?: number;
+    dimension?: { table?: string; column?: string };
+    examples?: { key?: string; power_bi?: unknown; sql?: unknown }[];
+  } | null;
+  if (sliced && typeof sliced.mismatched === 'number' && sliced.mismatched > 0) {
+    const ex = sliced.examples?.[0];
+    out.push({
+      detector: 'slice_mismatch',
+      evidence: `Grand total matches, but ${sliced.mismatched} of ${sliced.compared} ${sliced.dimension?.table}[${sliced.dimension?.column}] members differ${ex ? ` (e.g. ${ex.key}: Power BI ${String(ex.power_bi)} vs SQL ${String(ex.sql)})` : ''}`,
+      action: 'Errors cancel out in the total — investigate one differing member (decomposition with that member filtered).',
     });
   }
 

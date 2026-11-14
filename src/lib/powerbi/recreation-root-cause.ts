@@ -61,6 +61,7 @@ const NAMING_DETECTORS = new Set([
   'type_mismatch',
   'compiler_blowup',
   'cast_error',
+  'slice_mismatch',
 ]);
 
 const FIX: Record<RootCauseCategory, string> = {
