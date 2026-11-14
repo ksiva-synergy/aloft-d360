@@ -44,7 +44,7 @@ import { runPbiOracle } from '@/lib/powerbi/oracle';
 import { runPbiTranslate } from '@/lib/powerbi/translate';
 import { runPbiParity } from '@/lib/powerbi/parity';
 import { runPbiPublish } from '@/lib/powerbi/publish';
-import { reapStaleJobs } from '@/lib/powerbi/job-health';
+import { assertModelsFree, reapStaleJobs } from '@/lib/powerbi/job-health';
 import {
   copyPipelineChainMetadata,
   shouldAdvanceChainAfterT3,
@@ -630,6 +630,7 @@ async function dispatchSingleJob(
         const modelIds = Array.isArray(scope.model_ids)
           ? scope.model_ids.filter((x): x is string => typeof x === 'string')
           : undefined;
+        await assertModelsFree(job, modelIds);
         const reportIds = Array.isArray(scope.report_ids)
           ? scope.report_ids.filter((x): x is string => typeof x === 'string')
           : undefined;
@@ -732,6 +733,7 @@ async function dispatchSingleJob(
         const modelIds = Array.isArray(scope.model_ids)
           ? scope.model_ids.filter((x): x is string => typeof x === 'string')
           : undefined;
+        await assertModelsFree(job, modelIds);
         const maxMeasuresPerModel =
           typeof scope.max_measures_per_model === 'number' ? scope.max_measures_per_model : undefined;
         const stats = await runPbiOracle(orgId, job.source_id, {
@@ -763,6 +765,7 @@ async function dispatchSingleJob(
         const modelIds = Array.isArray(scope.model_ids)
           ? scope.model_ids.filter((x): x is string => typeof x === 'string')
           : undefined;
+        await assertModelsFree(job, modelIds);
         const maxLlmMeasures =
           typeof scope.max_llm_measures === 'number' ? scope.max_llm_measures : undefined;
         await reapStaleJobs().catch(() => 0);
@@ -796,6 +799,7 @@ async function dispatchSingleJob(
         const modelIds = Array.isArray(scope.model_ids)
           ? scope.model_ids.filter((x): x is string => typeof x === 'string')
           : undefined;
+        await assertModelsFree(job, modelIds);
         await reapStaleJobs().catch(() => 0);
         const stats = await runPbiParity(orgId, job.source_id, { runId: job.id, modelIds });
         await finalize(job.id, 'succeeded', stats as unknown as Record<string, unknown>);
@@ -820,6 +824,7 @@ async function dispatchSingleJob(
         const modelIds = Array.isArray(scope.model_ids)
           ? scope.model_ids.filter((x): x is string => typeof x === 'string')
           : undefined;
+        await assertModelsFree(job, modelIds);
         const requireApproved = scope.require_approved === true;
         const stats = await runPbiPublish(orgId, job.source_id, {
           runId: job.id,

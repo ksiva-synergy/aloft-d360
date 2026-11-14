@@ -1,6 +1,7 @@
 import 'server-only';
 
 import prisma from '@/lib/db';
+import { scopeModelIds, scopesOverlap } from '@/lib/powerbi/model-scope';
 
 /**
  * Run survival for long Power BI bridge jobs (Architecture v2, L3):
@@ -76,4 +77,40 @@ export async function reapStaleJobs(opts: { silentMs?: number; kinds?: readonly 
   );
   if (res.count) console.warn(`[job-health] reaped ${res.count} stale job(s)`);
   return res.count;
+}
+
+// ---------------------------------------------------------------------------
+// One writer per model (guardrail): two runs writing the same translations / parity / published
+// queries conflict (observed 2026-11-14 when a probe and a pipeline ran on the same models).
+
+/** Job kinds that write per-model results. */
+export const MODEL_WRITER_KINDS = ['pbi_parse', 'pbi_translate', 'pbi_oracle', 'pbi_parity', 'pbi_publish'] as const;
+
+export class ModelBusyError extends Error {}
+
+/**
+ * Refuse to start when another live writer job (running and heartbeating within `silentMs`)
+ * covers any of the same models. Dead jobs are left to reapStaleJobs and never block.
+ */
+export async function assertModelsFree(
+  job: { id: string; org_id: string; job_kind: string },
+  modelIds: string[] | undefined,
+  silentMs = 20 * 60_000,
+): Promise<void> {
+  const others = await prisma.platformContextJob.findMany({
+    where: {
+      org_id: job.org_id,
+      status: 'running',
+      id: { not: job.id },
+      job_kind: { in: [...MODEL_WRITER_KINDS] },
+      updated_at: { gte: new Date(Date.now() - silentMs) },
+    },
+    select: { id: true, job_kind: true, scope: true },
+  });
+  const clash = others.find((o) => scopesOverlap(modelIds, scopeModelIds(o.scope)));
+  if (clash) {
+    throw new ModelBusyError(
+      `Models are busy: ${clash.job_kind} job ${clash.id} is running on the same models — wait for it or stop it first`,
+    );
+  }
 }
