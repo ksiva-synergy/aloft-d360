@@ -42,6 +42,13 @@ export type ModelRecreationSummary = {
   by_stage: Record<MeasureRecreationStage, number>;
   /** Not-recreated measures grouped by root cause. */
   root_causes: Partial<Record<RootCauseCategory, number>>;
+  /** Not-recreated measures whose cause is precise (Phase 3 exit metric). */
+  causes_precise: number;
+  causes_total: number;
+  /** causes_precise / causes_total, as a percentage (100 when nothing failed). */
+  cause_precision_pct: number;
+  /** Detector patterns across not-recreated measures. */
+  patterns: Record<string, number>;
   failures: {
     measure_name: string;
     stage: MeasureRecreationStage;
@@ -119,6 +126,7 @@ function stageFromTranslation(
       return { stage: 'no_sql', reason: expandReason ?? logic!.block_reason };
     }
     const failure =
+      (props?.fidelity_block as { reason?: string } | undefined)?.reason ??
       (props?.expand_failure as { reason?: string } | undefined)?.reason ??
       (props?.llm_failure as { reason?: string } | undefined)?.reason;
     return { stage: 'no_sql', reason: failure ?? (tr ? 'Translation row without SQL' : null) };
@@ -217,6 +225,9 @@ export async function buildModelRecreationSummary(
 
   const rows: MeasureRecreationRow[] = [];
   const rootCauses: Partial<Record<RootCauseCategory, number>> = {};
+  let causesTotal = 0;
+  let causesPrecise = 0;
+  const patterns: Record<string, number> = {};
   const failures: ModelRecreationSummary['failures'] = [];
   let ucResolved = 0;
 
@@ -299,7 +310,12 @@ export async function buildModelRecreationSummary(
       props: (props ?? null) as Record<string, unknown> | null,
       catalog: logicCatalog,
     });
-    if (rootCause) rootCauses[rootCause.category] = (rootCauses[rootCause.category] ?? 0) + 1;
+    if (rootCause) {
+      rootCauses[rootCause.category] = (rootCauses[rootCause.category] ?? 0) + 1;
+      causesTotal += 1;
+      if (rootCause.precise) causesPrecise += 1;
+      for (const f of rootCause.evidence ?? []) patterns[f.detector] = (patterns[f.detector] ?? 0) + 1;
+    }
 
     byStage[stage] += 1;
     if (
@@ -350,6 +366,10 @@ export async function buildModelRecreationSummary(
       measures.length > 0 ? Math.round((byStage.published / measures.length) * 1000) / 10 : 0,
     by_stage: byStage,
     root_causes: rootCauses,
+    causes_precise: causesPrecise,
+    causes_total: causesTotal,
+    cause_precision_pct: causesTotal ? Math.round((causesPrecise / causesTotal) * 1000) / 10 : 100,
+    patterns,
     failures: failures.sort((a, b) => a.measure_name.localeCompare(b.measure_name)),
   };
 

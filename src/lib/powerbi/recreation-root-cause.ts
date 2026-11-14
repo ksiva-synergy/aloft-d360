@@ -5,6 +5,7 @@
  */
 
 import type { MeasureLogicCatalog } from '@/lib/powerbi/measure-logic-analyze';
+import { type DetectorFinding, runDetectors } from '@/lib/powerbi/recreation-detectors';
 import { normalizePbiTableName } from '@/lib/powerbi/translate-dax-refs';
 
 export type RootCauseCategory =
@@ -14,17 +15,52 @@ export type RootCauseCategory =
   | 'nondeterministic_source'
   | 'unsupported_dax'
   | 'harvest_gap'
+  | 'replica_drift'
+  | 'rls_required'
   | 'unbound_table'
   | 'pq_unsupported'
   | 'warehouse_error'
   | 'engine_limit'
+  | 'warehouse_timeout'
+  | 'warehouse_unavailable'
   | 'llm_failed'
   | 'data_freshness'
   | 'parity_mismatch'
   | 'parity_no_oracle'
   | 'not_translated';
 
-export type RootCause = { category: RootCauseCategory; detail: string; fix: string };
+export type RootCause = {
+  category: RootCauseCategory;
+  detail: string;
+  fix: string;
+  /** Detector findings with measured evidence (Phase 3). */
+  evidence?: DetectorFinding[];
+  /** The cause names a specific, actionable defect (not just a stage that failed). */
+  precise?: boolean;
+};
+
+/** Categories that only say which stage failed; precise only when a detector names the pattern. */
+const GENERIC: ReadonlySet<RootCauseCategory> = new Set([
+  'parity_mismatch',
+  'warehouse_error',
+  'unsupported_dax',
+  'pq_unsupported',
+  'llm_failed',
+  'not_translated',
+  'parity_no_oracle',
+]);
+const NAMING_DETECTORS = new Set([
+  'pq_capability_gap',
+  'dax_capability_gap',
+  'scale_mismatch',
+  'sign_flip',
+  'row_fanout',
+  'empty_sql_result',
+  'blank_mismatch',
+  'boundary_rows',
+  'type_mismatch',
+  'compiler_blowup',
+]);
 
 const FIX: Record<RootCauseCategory, string> = {
   empty_dax: 'Measure body is empty or fully commented out in Power BI — retire it or restore the DAX.',
@@ -36,9 +72,17 @@ const FIX: Record<RootCauseCategory, string> = {
     "Power BI's own value depends on source row order (keyed Table.Distinct). Add a sort before Table.Distinct in Power Query or agree a deterministic rule with the steward.",
   unsupported_dax: 'DAX construct not yet modeled by the compiler — extend dax-sql-compile.ts for it.',
   harvest_gap: 'Harvested model is incomplete for this measure — re-run pbi_definitions + pbi_parse (force_parse).',
+  rls_required:
+    'The Power BI model enforces row-level security, so the oracle cannot read a value with the service principal. Configure an RLS test identity (effective identity) for the oracle, then re-run pbi_oracle + pbi_parity.',
+  replica_drift:
+    'The warehouse replica schema differs from the source Power BI reads (column missing, renamed or split). Caught by the fidelity gate before compile — confirm the mapping with the data steward or fix the replica, then re-run pbi_translate.',
   unbound_table: 'A referenced table has no warehouse binding — bind it in pbi_catalog_link (steward) or model it.',
   pq_unsupported: 'Power Query step not modeled in m-lineage.ts — extend lineage for it.',
   warehouse_error: 'Compiled SQL failed on Databricks with no grounded auto-repair — see attempts in expand_failure.',
+  warehouse_timeout:
+    'Query is valid but exceeded its time budget (PBI_EXEC_EXPLAIN_BUDGET_MS / PBI_EXEC_EXECUTE_BUDGET_MS). Check telemetry for SQL size/growth; raise the budget or reduce the plan.',
+  warehouse_unavailable:
+    'Warehouse or network was unavailable after retries (503 / connection). Not a SQL defect — the next run retries it automatically.',
   engine_limit:
     'SQL is logically complete but Databricks cannot plan it: a per-value iterator (SUMX/FILTER over VALUES) calls a measure whose own CALCULATE/FILTER logic nests correlated subqueries 2+ levels deep (Spark INTERNAL_ERROR / timeout). Needs decorrelated SQL (evaluate the measure per value with GROUP BY / joins) in the compiler.',
   llm_failed: 'Compiler and LLM both failed — see expand_failure / llm_failure.',
@@ -92,8 +136,8 @@ function rc(category: RootCauseCategory, detail: string): RootCause {
   return { category, detail, fix: FIX[category] };
 }
 
-const ENGINE_LIMIT_RE =
-  /INTERNAL_ERROR|STAGE_MATERIALIZATION|outerScope\(|Query CANCELED|CANCELED|exceeded the maximum|timed out/i;
+/** Genuine Spark planner/executor failures (timeouts and cancellations are classified separately). */
+const ENGINE_LIMIT_RE = /INTERNAL_ERROR|STAGE_MATERIALIZATION|outerScope\(/i;
 
 /**
  * Visual-filter helper: returns 1/0 for whether the current row matches a slicer selection
@@ -112,6 +156,22 @@ function readsStaticSlicer(dax: string, catalog: MeasureLogicCatalog | null): bo
 }
 
 export function classifyRootCause(input: {
+  stage: string;
+  dax: string;
+  tier: string | null;
+  props: Record<string, unknown> | null;
+  catalog: MeasureLogicCatalog | null;
+}): RootCause | null {
+  const base = classifyBase(input);
+  if (!base) return null;
+  const evidence = runDetectors(input.props);
+  const investigated = Boolean((input.props?.investigation as { first_difference?: unknown } | undefined)?.first_difference);
+  const precise =
+    !GENERIC.has(base.category) || investigated || evidence.some((f) => NAMING_DETECTORS.has(f.detector));
+  return { ...base, ...(evidence.length ? { evidence } : {}), precise };
+}
+
+function classifyBase(input: {
   stage: string;
   dax: string;
   tier: string | null;
@@ -137,15 +197,32 @@ export function classifyRootCause(input: {
         `${paritySummary} — likely: warehouse has newer rows than the dataset refreshed ${String(parity?.model_refresh_at)}`,
       );
     }
+    const inv = (props?.investigation ?? null) as { first_difference?: unknown; conclusion?: string } | null;
+    if (inv?.first_difference && inv.conclusion) return rc('parity_mismatch', `${inv.conclusion} · ${paritySummary}`);
     return rc('parity_mismatch', paritySummary);
   }
   if (stage === 'parity_skip' || stage === 'parity_error' || stage === 'draft_sql') {
+    if (parity?.no_oracle_reason === 'rls') return rc('rls_required', paritySummary);
+    if (parity?.exec_outcome === 'timeout') return rc('warehouse_timeout', paritySummary);
+    if (parity?.exec_outcome === 'transient') return rc('warehouse_unavailable', paritySummary);
     if (spec?.result_kind === 'string') return rc('text_result', paritySummary || 'Measure returns text');
     return rc(stage === 'parity_error' ? 'warehouse_error' : 'parity_no_oracle', paritySummary || stage);
   }
 
   // no_sql / no_uc
+  const fb = (props?.fidelity_block ?? null) as { reason?: string; issues?: { kind?: string }[] } | null;
+  if (fb) {
+    const kinds = new Set((fb.issues ?? []).map((i) => i.kind));
+    const detail = String(fb.reason ?? '').slice(0, 300);
+    if (kinds.has('replica_drift')) return rc('replica_drift', detail);
+    if (kinds.has('empty_measure')) return rc('empty_dax', detail);
+    return rc('harvest_gap', detail);
+  }
   const efEarly = (props?.expand_failure ?? null) as Record<string, unknown> | null;
+  if (efEarly?.warehouse_outcome === 'timeout') return rc('warehouse_timeout', String(efEarly.reason ?? '').slice(0, 300));
+  if (efEarly?.warehouse_outcome === 'transient') {
+    return rc('warehouse_unavailable', String(efEarly.reason ?? '').slice(0, 300));
+  }
   if (efEarly?.stage === 'warehouse' && typeof efEarly.reason === 'string' && ENGINE_LIMIT_RE.test(efEarly.reason)) {
     return rc('engine_limit', efEarly.reason.slice(0, 300));
   }

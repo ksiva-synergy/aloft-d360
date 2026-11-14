@@ -2,7 +2,8 @@ import 'server-only';
 
 import prisma from '@/lib/db';
 import { systemPrincipal } from '@/lib/access/principal';
-import { runWarehouseQuery } from '@/lib/access/warehouse';
+import { createHeartbeat } from '@/lib/powerbi/job-health';
+import { runPbiSql } from '@/lib/powerbi/warehouse-exec';
 import { PowerBiApiError } from '@/lib/powerbi/client';
 import { normalizePbiTableName } from '@/lib/powerbi/translate-dax-refs';
 import {
@@ -78,6 +79,7 @@ export async function runPbiParity(
         : {}),
     },
     include: {
+      model: { select: { rls_required: true } },
       measure: {
         select: {
           id: true,
@@ -94,6 +96,7 @@ export async function runPbiParity(
     },
   });
 
+  const heartbeat = createHeartbeat(opts.runId);
   let passed = 0;
   let failed = 0;
   let skipped = 0;
@@ -114,6 +117,33 @@ export async function runPbiParity(
     const oracleRaw: ParityRaw = oracle
       ? extractOracleValue(oracle.result_preview)
       : { present: false, raw: null };
+
+    // Nothing to compare against: do not spend warehouse time executing the SQL.
+    // (CII run 2026-11-14: ~170 heavy queries ran for RLS models whose oracle was skipped.)
+    if (!oracleRaw.present) {
+      const rls = tr.model?.rls_required === true;
+      await prisma.pbiTranslation.update({
+        where: { id: tr.id },
+        data: {
+          parity_verdict: 'skipped',
+          props: {
+            ...(tr.props as object),
+            parity: {
+              verdict: 'skipped',
+              summary: rls
+                ? 'No Power BI value: the model requires row-level security, so the oracle needs an RLS identity'
+                : 'No Power BI value in the latest oracle snapshot',
+              no_oracle_reason: rls ? 'rls' : 'missing',
+              checked_at: new Date().toISOString(),
+              run_id: opts.runId,
+            },
+          },
+          updated_at: new Date(),
+        },
+      });
+      skipped += 1;
+      continue;
+    }
 
     const ctxSourceId = await resolveDatabricksSourceIdForTranslation(orgId, tr);
     if (!ctxSourceId) {
@@ -149,19 +179,21 @@ export async function runPbiParity(
     let sqlRaw: ParityRaw = { present: false, raw: null };
     let sqlError: string | null = null;
 
-    try {
-      const result = await runWarehouseQuery({
-        connectionId,
-        principal,
-        statement: tr.sql_text,
-        purpose: 'pbi_parity',
-        level: 'read',
-        surface: 'harvest',
-      });
-      sqlRaw = extractSqlValue(result.rows);
-    } catch (err) {
-      sqlError = err instanceof Error ? err.message : String(err);
+    // Architecture v2 L3: async polling + explicit budget; outcome classified, transient retried.
+    const exec = await runPbiSql({
+      orgId,
+      connectionId,
+      sql: tr.sql_text,
+      mode: 'execute',
+      purpose: 'pbi_parity',
+      useCache: false,
+    });
+    if (exec.status === 'ok') {
+      sqlRaw = extractSqlValue(exec.rows);
+    } else {
+      sqlError = `${exec.status}: ${exec.error}`;
     }
+    await heartbeat({ checked: passed + failed + skipped + errors + 1, total: translations.length });
 
     const decision = decideTypedParity({ oracle: oracleRaw, sql: sqlRaw });
     const verdict = sqlError ? 'error' : decision.verdict;
@@ -180,6 +212,8 @@ export async function runPbiParity(
             oracle_value: asJson(decision.oracleValue),
             sql_value: sqlError ? null : asJson(decision.sqlValue),
             model_refresh_at: oracle?.model_refresh_at?.toISOString() ?? null,
+            exec_ms: exec.ms,
+            exec_outcome: exec.status,
             checked_at: new Date().toISOString(),
             run_id: opts.runId,
           },
