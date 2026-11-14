@@ -5,6 +5,35 @@
 
 ---
 
+### 2026-11-14: Recreation Architecture v2 Phases 1–2 + model graph UI (Claude Code)
+
+- **What:**
+  - Hardened warehouse execution, checkpoints, heartbeat/reaper (Phase 1).
+  - Model graph + fidelity gate with replica schema check, wired into `pbi_translate` (Phase 2).
+  - Estate dependency graph per measure + Model health tab.
+- **Why:** User asked for reliable runs and an automatic "brain" instead of manual edge-case research, and to follow the v2 plan in order.
+- **Verified:**
+  - Vessel 67 / 73 with every step on the first attempt; checkpoint rerun 73 / 73 skipped;
+  - CII SDK drift flagged before compile (22 measures);
+  - 103 tests.
+- **Not done:** CII Phase 2 run in progress; Phase 3 next.
+
+### 2026-11-14: Measure recreation compiler + estate sweep (Claude Code)
+
+- **What:**
+  - Replaced the hardcoded expanders with a DAX compiler + Power Query lineage.
+  - Compile-first translate, typed parity, stable-id parse, publish republish.
+  - Root causes in Estate; harvest fidelity fixes; estate compile sweep.
+  - Documentation: `docs/powerbi-measure-recreation.md`.
+- **Why:** Recreation must generalize beyond Vessel and explain every failure. User asked for no hardcoding and for an LLM-assisted design that is reliable.
+- **Verified:**
+  - Vessel 63 / 73 published;
+  - estate compile 66.1%;
+  - ids stable across re-parse (73 / 73);
+  - 79 tests;
+  - WEEKNUM Power BI vs SQL differential 21 / 21.
+- **Not done:** rule registry (LLM-synthesized, differential-tested), fidelity gate, decorrelation, Power Query merges; CII pipeline run in progress.
+
 ### 2026-11-13: Audit-bridge pattern expander in translate (Cursor)
 
 - **What:** `expand-audit-bridge`, `measure-sql-expand`, translate tier `expand` for multi_table_calc DISTINCTCOUNT measures.

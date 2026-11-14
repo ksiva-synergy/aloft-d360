@@ -2,6 +2,100 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-11-14 — Power BI model graph: larger canvas + full view
+
+- **What:** Model overview graph uses `min(72vh, 880px)` instead of a fixed 560px pane; **Expand graph** opens a full-viewport overlay (Escape to close). Tables load collapsed by default (no auto-open of measure-heavy tables). Measure dependency graph pane uses `min(60vh, 640px)` instead of 440px. Files: `src/components/estate/ModelOverviewGraph.tsx`, `src/components/estate/ModelDependencyGraph.tsx`.
+- **Why:** Whole-model graphs were unreadable when `fitView` squeezed hundreds of nodes into a small box.
+- **Verified:** Not run in browser this session.
+- **Not done:** Table-level edge summary mode when collapsed.
+
+## 2026-11-14 — Power BI recreation Architecture v2: Phase 1 (reliable runs) + Phase 2 (trustworthy input) + graph UI
+
+- **What:**
+  - **Phase 1 (L3):**
+    - `warehouse-exec.ts` (async polling, per-mode budgets, hard wall-clock limit, classified outcomes, transient retry, cache);
+    - fetch timeouts in `databricks/execute.ts`;
+    - translate worker pool, stable order, fingerprint checkpoints, telemetry;
+    - heartbeat plus stale-job reaper (`job-health.ts`); database retry;
+    - root causes `warehouse_timeout` / `warehouse_unavailable`; narrowed `engine_limit`.
+  - **Rule registry:** `pbi_translation_rules`, differential harness against Power BI, LLM synthesis.
+  - **Phase 2:**
+    - `model-graph.ts` (L1: typed nodes, content hashes, DAX-resolved dependencies, closure, dependency hash);
+    - `fidelity-gate.ts` (L0: parse / empty / TMDL-leak checks, source-system classification, replica schema check incl. passthrough native queries and row filters, split-column suggestions);
+    - translate skips blocked measures (tier `fidelity_gate`) and fingerprints per measure from the dependency hash;
+    - report stored on `pbi_models.props.fidelity`; root cause `replica_drift`;
+    - CLI `scripts/powerbi/fidelity-report.ts`.
+  - **Estate UI:**
+    - per-measure **dependency graph** (warehouse column → Power Query column → calculated column → measure, drift outlined, status per measure, click for DAX / lineage / fix);
+    - new **Model health** tab (counts, sources, issues with the measures they block);
+    - **whole-model graph** at the top of Model health: one box per table with a recreation-health bar, double-click to open a table in place (measure tables open by default, laid out as a grid by dependency depth), click any box or object for **impact** (what uses it) or **sources** (what it reads) with the affected measures listed; each issue row has "Show on graph".
+    - Files: `components/estate/ModelDependencyGraph.tsx`, `components/estate/ModelOverviewGraph.tsx`, `lib/powerbi/model-graph-view.ts`, `lib/powerbi/graph-impact.ts`, `lib/powerbi/graph-layout.ts`, `api/agent-lab/powerbi/models/[id]/graph` (`?view=overview`, `?measure=`).
+- **Why:** Runs died or hung, and input defects (replica drift) surfaced as late, misleading failures that needed manual probing. Architecture v2: [powerbi-recreation-architecture.md](./powerbi-recreation-architecture.md).
+- **Verified:**
+  - Vessel **67 / 73** published on Phase 2 code, all four steps on the first attempt (translate 219 s, parity 205 s);
+  - translate rerun skipped 73 / 73 in 2 s;
+  - CII SDK: BOILER drift flagged before compile, 22 measures blocked, none of which had SQL before; the four BOILER columns diagnosed as split into `…_HEATING_…` + `…_DISCHARGING_…`;
+  - 103 vitest tests pass.
+- **Later the same day (Phase 3 and breadth):**
+  - **Detectors and precise causes:** every root cause carries evidence and a `precise` flag; CII reached 89.9% precise causes.
+  - **Deferred validation:** an explain timeout keeps the SQL and lets parity decide.
+  - **Differential decomposition** (`decompose-*.ts`, `scripts/powerbi/investigate.ts`), run automatically on unexplained mismatches.
+  - **RLS models:** the old executeQueries API returns 401 for a service principal on RLS models. The oracle now uses **executeDaxQueries** (Arrow IPC, LZ4) for those models, through `execute-dax.ts` and our own `lz4-frame.ts`, with the new dependency `apache-arrow@21.2.0`. The service principal is workspace Admin, sees unfiltered data, and wrote 97/97 values for CII SDK-2026 and CII - Vessel-2026.
+  - **Parity** no longer executes SQL when there is no Power BI value. New root cause `rls_required`.
+  - **Power Query:**
+    - nested table calls;
+    - `Table.SplitColumn` by delimiter;
+    - **merges** (`Table.NestedJoin` + `ExpandTableColumn`) and query references between model tables;
+    - **embedded "Enter data" tables** decoded into a VALUES relation;
+    - `Number.Power` / `Number.Sqrt`.
+
+    The CII model compiles **36/48, up from 0**, and the samples match Power BI exactly (Total_days 1,413; Co2 (Mt) YTD 8,684,893.45; Total_fuel_consumed 9,361,451.54). The model graph follows Power Query references.
+  - **LLM SQL** now passes the same Databricks check as compiler SQL (9 of 12 CII LLM queries had failed at parity). The allowlist no longer splits `` `catalog`.`schema`.`table` `` into three "columns".
+  - **Estate ownership & refresh card:**
+    - owner;
+    - who can edit;
+    - refresh status, schedule and failure message;
+    - data sources;
+    - a freshness badge.
+
+    It found that CII SDK has been stale since July 2025 (`ModelRefreshDisabled_CredentialNotSpecified`, schedule off) and that the 2026-11-14 refresh of CII SDK-2026 failed.
+  - **Regression check:** every stored compiler SQL is regenerated byte-identical (Vessel 68, CII models 169). 123 tests pass.
+- **Not done:**
+  - CII full rerun on the new code;
+  - Phase 4 (LLM investigator + learning loop);
+  - decorrelation for the 4 `engine_limit` measures (Phase 5);
+  - steward flow to register a confirmed drift mapping.
+
+## 2026-11-14 — Power BI recreation: compiler, harvest fidelity, root causes (estate)
+
+- **What:**
+  - Model-driven DAX→Spark SQL compiler (`dax-parse.ts`, `dax-sql-compile.ts`) plus Power Query lineage (`m-lineage.ts`). They replace the hardcoded audit-bridge / calc-aggregate expanders, which are deleted.
+  - Compile → warehouse test → grounded repair loop (`expand-validate*.ts`).
+  - Compile-first translate with every failure recorded; parity reset on rewrite.
+  - Parse reconciles by lineageTag, so ids, translations and bindings survive re-parse.
+  - TMDL fidelity fixes:
+    - property leaks;
+    - quoted measure names;
+    - fenced partition sources;
+    - measure-only tables.
+  - Typed parity; dataset refresh time on the oracle.
+  - Publish republishes re-verified SQL in place and retires queries for removed measures.
+  - Root-cause classifier shown in Estate.
+  - Runners: `run-vessel-fresh.ts`, `run-reparse-harvested.ts`, `run-harvested-pipeline.ts`.
+- **Why:** The expander only covered 3 measures that matched hardcoded names. Recreation has to generalize to every report and explain every failure.
+- **Verified:**
+  - Vessel Internal Audit: 7 → **63 / 73** published (SIRE_Fin 62 = 62).
+  - Estate compile-only sweep: 35.4% → **66.1%** (440 measures; 186 recovered by parser fixes).
+  - 79 vitest tests pass.
+  - WEEKNUM differential test against Power BI: 21 / 21 match.
+- **Docs:** [powerbi-measure-recreation.md](./powerbi-measure-recreation.md): what was wrong, fixes, semantics, learnings, architecture with the LLM rule registry revision, roadmap.
+- **Not done:**
+  - rule registry and differential harness (next);
+  - fidelity gate;
+  - decorrelated plans for `engine_limit`;
+  - Power Query merges;
+  - CII pipeline results pending.
+
 ## 2026-11-13 — Single-table calc agg expander (Avg_Audit_Duration)
 
 - **What:** `expand-calc-aggregate.ts` — pattern `single_table_calc_agg` for `AVERAGE|SUM|…(home[calc])` (incl. `FORMAT(…) & " days"`) when calc DAX is inline `DATEDIFF` duration ÷ 24; wired in `measure-sql-expand.ts`; `parity-compare.ts` parses `"N.NN days"` oracle text.

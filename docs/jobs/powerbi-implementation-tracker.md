@@ -3,6 +3,7 @@
 **Branch:** `feature/powerbi-bridge`  
 **Design:** [`docs/powerbi-harvest-build-plan.md`](../powerbi-harvest-build-plan.md)  
 **Inspector positioning:** [`docs/inspector/semantic-layer-and-powerbi.md`](../inspector/semantic-layer-and-powerbi.md)
+**Measure recreation (2026-11-14):** [`docs/powerbi-measure-recreation.md`](../powerbi-measure-recreation.md): compiler, fixes, learnings, architecture, roadmap
 
 ## Validation (before / after)
 

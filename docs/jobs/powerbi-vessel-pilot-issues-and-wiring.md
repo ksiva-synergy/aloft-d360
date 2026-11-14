@@ -6,6 +6,8 @@
 
 This document records **what broke**, **how we fixed it**, and **how Aloft pieces connect** for the CII Vessel translate → oracle → parity → publish path—not a full phase gate checklist.
 
+> **Superseded in part (2026-11-14):** the rule/LLM-first translate, the audit-bridge expander and the measure-logic gate described below were replaced by the compile-first DAX compiler. For the current design, the defects found since, learnings and the roadmap, see [../powerbi-measure-recreation.md](../powerbi-measure-recreation.md).
+
 ---
 
 ## 1. What we wired (end-to-end)
