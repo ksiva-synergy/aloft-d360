@@ -33,7 +33,7 @@ import { normalizePbiTableName } from '@/lib/powerbi/translate-dax-refs';
  * Bump whenever compiled SQL can change for the same DAX + model (semantics, plan shape, rules).
  * Translate checkpoints are keyed on it, so a bump recompiles every measure once.
  */
-export const COMPILER_VERSION = '2026-11-14.pq-merge';
+export const COMPILER_VERSION = '2026-11-14.decorrelate-join';
 
 export type DaxCompileOptions = {
   /** tableKey → warehouse leaf column (lower) → replacement column (from warehouse errors). */
@@ -89,7 +89,16 @@ type Kind = 'number' | 'string' | 'date' | 'bool' | 'unknown';
 type Sql = { sql: string; kind: Kind; literal?: boolean };
 /** Row context. `cols` set = iteration over VALUES/ALL(columns): only those columns exist. */
 type RowScope = { table: string; alias: string; cols?: string[] };
-type Pred = { table: string; cols: string[] | null; build: (alias: string) => string };
+type Pred = {
+  table: string;
+  cols: string[] | null;
+  build: (alias: string) => string;
+  /**
+   * Set when the predicate is the current value of a per-value iterator (`T[c] = g.c` from
+   * SUMX/FILTER over VALUES(T[c])): aggregates under it can be evaluated grouped by T[c].
+   */
+  group?: { alias: string; table: string; col: string; outerRef: string };
+};
 type Ctx = {
   scopes: RowScope[];
   filters: Pred[];
@@ -129,7 +138,60 @@ type TableState = {
   baseSt: TableState | null;
   /** Merged queries (Table.NestedJoin): join alias → joined table. */
   joinSts: Map<string, TableState>;
+  /**
+   * Row identity for context transition on the current row (CALCULATE in a row context of this
+   * table): lineage expressions of every column, hashed into ROW_HASH in the base CTE.
+   */
+  rowHash: MColumnExpr[] | null;
 };
+
+/** Key text for BLANK in grouped evaluation (NULL keys and the relationship blank row). */
+const BLANK_KEY = '__blank__';
+
+/** Operands shorter than this stay inline (sharing them saves nothing). */
+const SHARE_MIN_CHARS = 120;
+
+/**
+ * True when every table alias the SQL references is also introduced inside it
+ * (`FROM <relation> a12`), i.e. it reads no outer row. Aliases defined by the SQL's own
+ * subqueries (relationship hops `r62`, `(SELECT MAX(a1.x) FROM t1 a1)`) do not make it
+ * correlated; `cur` (a calculated column's row) always does.
+ */
+export function isUncorrelatedSql(sql: string): boolean {
+  const referenced = new Set([...sql.matchAll(/\b(cur|[agrxmo]\d+)\.`/g)].map((m) => m[1]!));
+  if (!referenced.size) return true;
+  const defined = new Set(
+    [...sql.matchAll(/\b(?:FROM|JOIN)\s+(?:\([^()]*\)|[\w`.]+)\s+([agrxmo]\d+)\b/gi)].map((m) => m[1]!),
+  );
+  for (const a of referenced) if (!defined.has(a)) return false;
+  return true;
+}
+
+/**
+ * The usual BLANK-aware form `CASE WHEN a IS NULL AND b IS NULL THEN NULL ELSE coalesce(a,0)+coalesce(b,0) END`
+ * repeats every operand, so nested arithmetic over correlated (unshareable) operands grows
+ * exponentially (CII CountA_Exclusion: 1.3 MB). Use the single-reference form when an operand is large.
+ */
+function needsLinearBlankSum(ops: Sql[]): boolean {
+  return ops.some(
+    (o) => !o.literal && (o.sql.length >= SHARE_MIN_CHARS || (/\bSELECT\b/i.test(o.sql) && !isUncorrelatedSql(o.sql))),
+  );
+}
+
+/**
+ * DAX `a + b - c …` with BLANK as 0 and BLANK only when every term is BLANK, referencing each
+ * term once: aggregate(array(terms), NULL, (acc, x) -> CASE WHEN x IS NULL THEN acc ELSE coalesce(acc, 0) + x END).
+ */
+function blankSum(terms: { sign: '+' | '-'; sql: Sql }[]): Sql {
+  const items = terms.map((t) => `CAST(${t.sign === '-' ? `-(${t.sql.sql})` : t.sql.sql} AS DOUBLE)`);
+  return {
+    sql: `aggregate(array(${items.join(', ')}), CAST(NULL AS DOUBLE), (acc, x) -> CASE WHEN x IS NULL THEN acc ELSE coalesce(acc, 0D) + x END)`,
+    kind: 'number',
+  };
+}
+
+/** Row identity column: DAX context transition keeps the rows identical to the current row. */
+const ROW_HASH = '__rowhash';
 
 /** Projected name of a Power Query column read from a referenced / merged table. */
 const pqCol = (name: string) => `__pq_${name}`;
@@ -248,6 +310,12 @@ function noLetters(s: Sql): boolean {
 
 class Compiler {
   private readonly ctes: { name: string; build: () => string }[] = [];
+  /** Grouped (decorrelated) aggregate CTEs by body text. */
+  private readonly groupedCtes = new Map<string, string>();
+  /** Iterator aliases whose SQL assembly attaches grouped joins (see takeIteratorJoins). */
+  private readonly joinCapable = new Set<string>();
+  /** Grouped CTEs joined into an iterator: outer alias → joins. */
+  private readonly iteratorJoins = new Map<string, { name: string; alias: string; outerRef: string }[]>();
   /** Tables whose Power Query references are being resolved (cycle guard). */
   private readonly resolving = new Set<string>();
   private readonly tables = new Map<string, TableState>();
@@ -343,6 +411,7 @@ class Compiler {
       calcTable: null,
       baseSt,
       joinSts,
+      rowHash: null,
     };
     this.tables.set(key, st);
     // Columns the row filters, de-dup keys and join keys read from referenced / merged tables.
@@ -384,6 +453,7 @@ class Compiler {
       calcTable: new Map(),
       baseSt: null,
       joinSts: new Map(),
+      rowHash: null,
     };
     this.tables.set(key, st);
     const sql = this.tableRelation(st, ast);
@@ -550,6 +620,43 @@ class Compiler {
     this.registerRefs(st, expr.sql);
   }
 
+  /** Row identity over every column of the table (see ROW_HASH); registered before CTEs are built. */
+  private enableRowHash(st: TableState) {
+    if (st.rowHash) return;
+    const cols = this.catalog.columnsByTable.get(st.key);
+    const exprs: MColumnExpr[] = [];
+    const skipped: string[] = [];
+    const seen = new Set<string>();
+    for (const [name, meta] of cols ?? []) {
+      const lk = name.toLowerCase();
+      if (seen.has(lk) || meta.calculated_dax?.trim()) continue; // calculated columns follow from the row
+      seen.add(lk);
+      const expr = st.lineage.column(meta.source_column?.trim() || name);
+      if ('error' in expr) {
+        skipped.push(name);
+        continue;
+      }
+      // A column whose source is missing from the warehouse (replica drift) cannot be compared.
+      if (st.known.size && expr.leaves.some((l) => !st.known.has(l.toLowerCase()) && !st.knownNorm.has(normCol(l)))) {
+        skipped.push(name);
+        continue;
+      }
+      exprs.push(expr);
+      this.registerRefs(st, expr.sql);
+    }
+    if (!exprs.length) {
+      throw new CompileError(`Context transition on '${st.name}': no comparable columns for row identity`, {
+        kind: 'semantic',
+        name: 'calculate_row_transition',
+      });
+    }
+    st.rowHash = exprs;
+    this.notes.push(
+      `${st.name}: context transition on the current row compares all ${exprs.length} columns (row hash)` +
+        (skipped.length ? `; ${skipped.length} column(s) without warehouse source left out: ${skipped.slice(0, 5).join(', ')}` : ''),
+    );
+  }
+
   /** A table read by this table's Power Query (query reference or merge), with context on failure. */
   private referencedTable(name: string, from: string): TableState {
     try {
@@ -622,6 +729,14 @@ class Compiler {
     const proj = [...st.baseCols.values()].map(
       (c) => `${this.qualifyLeaves(st, c.expr.sql)} AS ${q(c.name)}`,
     );
+    if (st.rowHash) {
+      // null flags keep (1, NULL) and (NULL, 1) apart — xxhash64 skips NULL inputs
+      const parts = st.rowHash.flatMap((e) => {
+        const v = this.qualifyLeaves(st, e.sql);
+        return [v, `${v} IS NULL`];
+      });
+      proj.push(`xxhash64(${parts.join(', ')}) AS ${q(ROW_HASH)}`);
+    }
     if (!proj.length) proj.push(`1 AS ${q('__row')}`);
     let from = st.lineage.embedded
       ? this.embeddedRelation(st.lineage.embedded)
@@ -791,10 +906,18 @@ class Compiler {
     for (const s of ctx.transitions) {
       const tgtName = this.catalog.tableMeta.get(target)?.displayName ?? target;
       if (s.table === target) {
-        throw new CompileError(
-          `CALCULATE context transition on the current row of '${tgtName}' without a FILTER/ALL override (not modeled)`,
-          { kind: 'semantic', name: 'calculate_row_transition' },
-        );
+        // DAX: the row context becomes a filter on every column — rows identical to the current
+        // row (duplicates included). Compared through a row hash computed once per table.
+        const st = this.table(target);
+        if (st.calcTable) {
+          throw new CompileError(
+            `CALCULATE context transition on the current row of calculated table '${tgtName}' (not modeled)`,
+            { kind: 'semantic', name: 'calculate_row_transition' },
+          );
+        }
+        this.enableRowHash(st);
+        out.push(`${alias}.${q(ROW_HASH)} = ${s.alias}.${q(ROW_HASH)}`);
+        continue;
       }
       const path = this.flowPath(s.table, target);
       if (path) out.push(this.propagate(path, alias, { row: s }));
@@ -809,7 +932,10 @@ class Compiler {
 
   private aggregate(sel: TableSel, select: (alias: string, inner: Ctx) => string): string {
     if (sel.distinctCols) return this.aggregateDistinct(sel, select);
+    const grouped = this.groupedAggregate(sel, select);
+    if (grouped) return grouped;
     const alias = this.alias();
+    this.joinCapable.add(alias);
     const inner: Ctx = { ...sel.ctx, scopes: [...sel.ctx.scopes, { table: sel.table, alias }] };
     const selectSql = select(alias, inner);
     const where = sel.preds.map((p) => p.build(alias));
@@ -822,7 +948,153 @@ class Compiler {
       where.push(`${this.scalar(order, inner).sql} = ${best}`);
     }
     const from = this.table(sel.table).latest;
-    return `(SELECT ${selectSql} FROM ${from} ${alias}${where.length ? ` WHERE ${where.join(' AND ')}` : ''})`;
+    const joins = this.takeIteratorJoins(alias);
+    return `(SELECT ${selectSql} FROM ${from} ${alias}${joins}${where.length ? ` WHERE ${where.join(' AND ')}` : ''})`;
+  }
+
+  /**
+   * Decorrelation (grouped evaluation). Inside a per-value iterator (SUMX / FILTER / COUNTX over
+   * VALUES(T[c])) an aggregate is filtered by `T[c] = current value`; emitted as a correlated
+   * subquery per value it nests inside the iterator, and Spark cannot plan deep nests
+   * (INTERNAL_ERROR on Vessel ReportStatus_Count & co., 200 KB+ CII statements). Instead the
+   * aggregate is computed once for every key value —
+   *   gN AS (SELECT key AS k, agg AS v FROM F LEFT JOIN … T GROUP BY k)
+   * — and the iterator looks its value up with a flat equality: (SELECT v FROM gN WHERE gN.k = g.c).
+   * The key reaches F along the relationship path only through unique ("one") sides, so the
+   * joins never duplicate F rows; LEFT JOIN keeps orphan rows, which form DAX's BLANK key.
+   * Returns null (caller keeps the correlated form) whenever any condition does not hold.
+   */
+  private groupedAggregate(sel: TableSel, select: (alias: string, inner: Ctx) => string): string | null {
+    if (sel.all || sel.top1 || sel.distinctCols) return null;
+    const groups = sel.ctx.filters.filter((p) => p.group);
+    if (groups.length !== 1 || sel.ctx.transitions.length) return null;
+    const gp = groups[0]!;
+    const { alias: outer, table: keyTable, col: keyCol, outerRef } = gp.group!;
+    if (sel.ctx.scopes.some((s) => s.alias !== outer && !s.cols)) return null; // other row contexts
+
+    // key expression on the aggregated table: joins along the relationship path
+    const path = keyTable === sel.table ? [] : this.flowPath(keyTable, sel.table);
+    if (!path) return null;
+    const chain = (fAlias: string): { joins: string[]; keySql: string; unique: boolean } | null => {
+      const joins: string[] = [];
+      let unique = true;
+      let cur = { table: sel.table, alias: fAlias };
+      for (let i = path.length - 1; i >= 0; i--) {
+        const hop = path[i]!;
+        if (hop.to !== cur.table) return null;
+        if (!this.isUniqueSide(hop.from, hop.fromCol)) unique = false;
+        const j = this.alias('a');
+        joins.push(
+          `LEFT JOIN ${this.table(hop.from).latest} ${j} ON CAST(${this.colRef(hop.to, hop.toCol, cur.alias).sql} AS STRING) = CAST(${this.colRef(hop.from, hop.fromCol, j).sql} AS STRING)`,
+        );
+        cur = { table: hop.from, alias: j };
+      }
+      if (cur.table !== keyTable) return null;
+      return { joins, keySql: this.colRef(keyTable, keyCol, cur.alias).sql, unique };
+    };
+    const alias = this.alias();
+    const direct = chain(alias);
+    if (!direct) return null;
+    let joins = direct.joins;
+    let keySql = direct.keySql;
+    let pairJoin: string | null = null;
+    if (!direct.unique) {
+      // Pair mode: the path crosses a non-unique side (e.g. a bidirectional many→one hop), so a
+      // join would repeat rows. Build the DISTINCT (key, row identity) pairs once and aggregate
+      // the table joined to them — each row counts once per key it belongs to.
+      const idOf = (a: string): string | null => {
+        const k = this.relationshipKeyOf(sel.table);
+        if (k) return `CAST(${this.colRef(sel.table, k, a).sql} AS STRING)`;
+        const st = this.table(sel.table);
+        if (st.calcTable) return null;
+        this.enableRowHash(st);
+        return `CAST(${a}.${q(ROW_HASH)} AS STRING)`;
+      };
+      const pf = this.alias('a');
+      const pc = chain(pf);
+      const idInner = idOf(pf);
+      const idOuter = idOf(alias);
+      if (!pc || !idInner || !idOuter) return null;
+      const pairs =
+        `(SELECT DISTINCT coalesce(CAST(${pc.keySql} AS STRING), '${BLANK_KEY}') AS k, ${idInner} AS id ` +
+        `FROM ${this.table(sel.table).latest} ${pf} ${pc.joins.join(' ')})`;
+      pairJoin = `JOIN ${pairs} pk ON pk.id = ${idOuter}`;
+      joins = [];
+      keySql = '';
+    }
+
+    const ctx: Ctx = { ...sel.ctx, filters: sel.ctx.filters.filter((p) => p !== gp) };
+    const inner: Ctx = { ...ctx, scopes: [...ctx.scopes.filter((s) => s.alias !== outer), { table: sel.table, alias }] };
+    let selectSql: string;
+    let where: string[];
+    try {
+      selectSql = select(alias, inner);
+      where = [...sel.preds.map((p) => p.build(alias)), ...this.contextPreds(ctx, sel.table, alias)];
+    } catch (e) {
+      if (e instanceof CompileError) return null;
+      throw e;
+    }
+    const key = pairJoin ? 'pk.k' : `coalesce(CAST(${keySql} AS STRING), '${BLANK_KEY}')`;
+    const body =
+      `SELECT ${key} AS k, ${selectSql} AS v FROM ${this.table(sel.table).latest} ${alias}` +
+      (pairJoin ? `\n    ${pairJoin}` : '') +
+      (joins.length ? `\n    ${joins.join('\n    ')}` : '') +
+      (where.length ? `\n    WHERE ${where.join(' AND ')}` : '') +
+      `\n    GROUP BY 1`;
+    if (!isUncorrelatedSql(body)) return null; // still reads another outer row
+    let name = this.groupedCtes.get(body);
+    if (!name) {
+      name = `grp${++this.sharedNo}`;
+      this.groupedCtes.set(body, name);
+      this.ctes.push({ name, build: () => body });
+      this.notes.push(`Per-value iteration over ${keyTable}[${keyCol}] evaluated grouped (decorrelated)`);
+    }
+    if (this.joinCapable.has(outer)) {
+      // Join the grouped result into the iterator itself: no correlated subquery remains
+      // (correlated lookups into grouped CTEs hit Spark optimizer bugs on Vessel: INTERNAL_ERROR /
+      // PHOTON_EXPR_COMPILATION_FAILED).
+      const list = this.iteratorJoins.get(outer) ?? [];
+      let j = list.find((x) => x.name === name && x.outerRef === outerRef);
+      if (!j) {
+        j = { name, alias: this.alias('x'), outerRef };
+        list.push(j);
+        this.iteratorJoins.set(outer, list);
+      }
+      return `${j.alias}.${q('v')}`;
+    }
+    // k is unique (GROUP BY key), so MAX(v) is v; Spark requires a correlated scalar subquery
+    // to be aggregated (MUST_AGGREGATE_CORRELATED_SCALAR_SUBQUERY).
+    return `(SELECT MAX(v) FROM ${name} WHERE ${name}.k = coalesce(CAST(${outerRef} AS STRING), '${BLANK_KEY}'))`;
+  }
+
+  /** LEFT JOINs of grouped results requested while compiling the iterator `alias` (k is unique: no fan-out). */
+  private takeIteratorJoins(alias: string): string {
+    const list = this.iteratorJoins.get(alias) ?? [];
+    this.iteratorJoins.delete(alias);
+    return list
+      .map((j) => ` LEFT JOIN ${j.name} ${j.alias} ON ${j.alias}.k = coalesce(CAST(${j.outerRef} AS STRING), '${BLANK_KEY}')`)
+      .join('');
+  }
+
+  /** A column of the table that is the unique ("one") side of an active model relationship. */
+  private uniqueKeyOf(table: string): string | null {
+    const meta = this.catalog.tableMeta.get(table);
+    if (!meta || this.tables.get(table)?.calcTable) return null;
+    const r = (this.catalog.relationships ?? []).find((x) => x.active && tkey(x.toTable) === table);
+    return r ? r.toColumn : null;
+  }
+
+  /** The table's column on the unique side of any model relationship (calculated tables too). */
+  private relationshipKeyOf(table: string): string | null {
+    const r = (this.catalog.relationships ?? []).find((x) => tkey(x.toTable) === table);
+    return r ? r.toColumn : null;
+  }
+
+  /** The column is the unique ("one") side of a model relationship. */
+  private isUniqueSide(table: string, column: string): boolean {
+    return (this.catalog.relationships ?? []).some(
+      (r) => tkey(r.toTable) === table && r.toColumn.toLowerCase() === column.toLowerCase(),
+    );
   }
 
   /** Iterate distinct values of columns (VALUES / ALL(T[c])) under the filter context. */
@@ -830,6 +1102,7 @@ class Compiler {
     if (sel.top1) throw new CompileError('TOPN over VALUES/ALL(columns) not supported');
     const cols = sel.distinctCols!;
     const g = this.alias('g');
+    this.joinCapable.add(g);
     const inner: Ctx = {
       ...sel.ctx,
       scopes: [...sel.ctx.scopes, { table: sel.table, alias: g, cols }],
@@ -847,7 +1120,8 @@ class Compiler {
       rel += `\n  UNION SELECT ${cols.map((c) => `NULL AS ${q(c)}`).join(', ')} FROM (SELECT 1) one WHERE ${orphans}`;
     }
     const from = `(${rel})`;
-    return `(SELECT ${selectSql} FROM ${from} ${g}${where.length ? ` WHERE ${where.join(' AND ')}` : ''})`;
+    const joins = this.takeIteratorJoins(g);
+    return `(SELECT ${selectSql} FROM ${from} ${g}${joins}${where.length ? ` WHERE ${where.join(' AND ')}` : ''})`;
   }
 
   /**
@@ -886,6 +1160,19 @@ class Compiler {
     const transitions: RowScope[] = [...ctx.transitions];
     for (const s of ctx.scopes) {
       if (!s.cols) {
+        // A full row of a table with a unique key (the "one" side of a relationship) is that key:
+        // the transition becomes `T[key] = current key`, which also allows grouped evaluation.
+        const key = this.uniqueKeyOf(s.table);
+        if (key) {
+          const outerRef = this.colRef(s.table, key, s.alias).sql;
+          filters.push({
+            table: s.table,
+            cols: [key.toLowerCase()],
+            build: (alias) => `${this.colRef(s.table, key, alias).sql} <=> ${outerRef}`,
+            group: { alias: s.alias, table: s.table, col: key, outerRef },
+          });
+          continue;
+        }
         transitions.push(s);
         continue;
       }
@@ -895,6 +1182,9 @@ class Compiler {
         cols: cols.map((c) => c.toLowerCase()),
         build: (alias) =>
           cols.map((c) => `${this.colRef(s.table, c, alias).sql} <=> ${s.alias}.${q(c)}`).join(' AND '),
+        ...(cols.length === 1
+          ? { group: { alias: s.alias, table: s.table, col: cols[0]!, outerRef: `${s.alias}.${q(cols[0]!)}` } }
+          : {}),
       });
     }
     return { filters, transitions };
@@ -1168,7 +1458,19 @@ class Compiler {
    */
   private isRowFree(ctx: Ctx): boolean {
     if (ctx.scopes.length !== 0 || ctx.transitions.length !== 0) return false;
-    return !/\b(?:cur|[agrxmo]\d+)\.`/.test(this.filterSignature(ctx));
+    return isUncorrelatedSql(this.filterSignature(ctx));
+  }
+
+  /**
+   * BLANK-aware arithmetic repeats each operand (IS NULL test + coalesce), so nested arithmetic
+   * doubles at every level (CII: 152 KB statements). An operand that is an uncorrelated scalar
+   * subquery is computed once as a shared CTE and referenced by a short `(SELECT v FROM mN)`.
+   */
+  private shareOperand(v: Sql): Sql {
+    if (v.literal || v.sql.length < SHARE_MIN_CHARS || !/\bSELECT\b/i.test(v.sql)) return v;
+    if (!isUncorrelatedSql(v.sql)) return v;
+    const key = `expr:${v.sql}`;
+    return this.sharedScalars.get(key) ?? this.shareScalar(key, v);
   }
 
   /** Stable text of the filter context (preds rendered over a fixed alias). */
@@ -1378,15 +1680,23 @@ class Compiler {
         return { sql: `concat(${this.text(l)}, ${this.text(r)})`, kind: 'string' };
       case '+':
       case '-': {
-        if (l.kind === 'date' || r.kind === 'date') return this.dateArithmetic(op, l, r);
+        if (l.kind === 'date' || r.kind === 'date') return this.dateArithmetic(op, this.shareOperand(l), this.shareOperand(r));
         const numeric = l.kind === 'number' || r.kind === 'number';
         if (!numeric) return { sql: `(${l.sql} ${op} ${r.sql})`, kind: 'unknown' };
         // DAX: BLANK behaves as 0 in + / - unless both operands are BLANK
-        const lz = l.literal ? l.sql : `coalesce(${l.sql}, 0)`;
-        const rz = r.literal ? r.sql : `coalesce(${r.sql}, 0)`;
-        if (l.literal || r.literal) return { sql: `(${lz} ${op} ${rz})`, kind: 'number' };
+        const ls = this.shareOperand(l);
+        const rs = this.shareOperand(r);
+        const lz = ls.literal ? ls.sql : `coalesce(${ls.sql}, 0)`;
+        const rz = rs.literal ? rs.sql : `coalesce(${rs.sql}, 0)`;
+        if (ls.literal || rs.literal) return { sql: `(${lz} ${op} ${rz})`, kind: 'number' };
+        if (needsLinearBlankSum([ls, rs])) {
+          return blankSum([
+            { sign: '+', sql: ls },
+            { sign: op as '+' | '-', sql: rs },
+          ]);
+        }
         return {
-          sql: `(CASE WHEN ${l.sql} IS NULL AND ${r.sql} IS NULL THEN NULL ELSE ${lz} ${op} ${rz} END)`,
+          sql: `(CASE WHEN ${ls.sql} IS NULL AND ${rs.sql} IS NULL THEN NULL ELSE ${lz} ${op} ${rz} END)`,
           kind: 'number',
         };
       }
@@ -1421,6 +1731,10 @@ class Compiler {
     walk(node, '+');
     const compiled = terms.map((t) => ({ sign: t.sign, sql: this.scalar(t.node, ctx) }));
     if (compiled.some((t) => t.sql.kind === 'date')) return null;
+    for (const t of compiled) t.sql = this.shareOperand(t.sql);
+    if (!compiled.some((t) => t.sql.literal) && needsLinearBlankSum(compiled.map((t) => t.sql))) {
+      return blankSum(compiled);
+    }
     if (!compiled.some((t) => t.sql.kind === 'number')) return null;
     const body = compiled
       .map((t, i) => {

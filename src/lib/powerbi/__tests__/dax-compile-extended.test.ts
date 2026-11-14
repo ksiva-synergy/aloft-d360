@@ -90,8 +90,12 @@ describe('compiler: measures, calculated tables, iterators', () => {
     });
     expect(out.ok).toBe(true);
     if (!out.ok) return;
-    // Audit is filtered through Audit.Key2 IN (Ships.KEY where Ships.IMO_NO = current value)
-    expect(out.sql).toMatch(/CAST\(a\d+\.`Key2` AS STRING\) IN \(SELECT CAST\(r\d+\.`KEY` AS STRING\) FROM t\d+ r\d+ WHERE r\d+\.`IMO_NO` <=> g\d+\.`IMO_NO`\)/);
+    // Decorrelated: Audit is aggregated once per Ships.IMO_NO (joined through Audit.Key2 = Ships.KEY)
+    // and each iterated value looks its result up.
+    expect(out.sql).toMatch(/LEFT JOIN t\d+ a\d+ ON CAST\(a\d+\.`Key2` AS STRING\) = CAST\(a\d+\.`KEY` AS STRING\)/);
+    expect(out.sql).toMatch(/GROUP BY 1/);
+    // the grouped result is joined into the iterator (no correlated lookup left)
+    expect(out.sql).toMatch(/LEFT JOIN grp\d+ x\d+ ON x\d+\.k = coalesce\(CAST\(g\d+\.`IMO_NO` AS STRING\), '__blank__'\)/);
     expect(out.result_kind).toBe('number');
   });
 
