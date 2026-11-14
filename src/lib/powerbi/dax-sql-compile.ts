@@ -33,7 +33,7 @@ import { normalizePbiTableName } from '@/lib/powerbi/translate-dax-refs';
  * Bump whenever compiled SQL can change for the same DAX + model (semantics, plan shape, rules).
  * Translate checkpoints are keyed on it, so a bump recompiles every measure once.
  */
-export const COMPILER_VERSION = '2026-11-14.phase1b';
+export const COMPILER_VERSION = '2026-11-14.pq-merge';
 
 export type DaxCompileOptions = {
   /** tableKey → warehouse leaf column (lower) → replacement column (from warehouse errors). */
