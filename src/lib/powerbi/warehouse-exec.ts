@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { systemPrincipal } from '@/lib/access/principal';
 import type { AccessSurface, Level } from '@/lib/access/types';
 import { runWarehouseQuery } from '@/lib/access/warehouse';
+import { checkPbiSql } from '@/lib/powerbi/sql-gate';
 
 /**
  * The one execution path from the Power BI bridge to Databricks (Architecture v2, L3).
@@ -58,6 +59,13 @@ export async function runPbiSql(input: {
   maxAttempts?: number;
   useCache?: boolean;
 }): Promise<PbiSqlOutcome> {
+  // Statement gate: only one read-only query may run, whoever generated it (compiler, LLM,
+  // registry rule, Power Query native SQL, investigation probe).
+  const gate = checkPbiSql(input.sql);
+  if (!gate.ok) {
+    console.warn(`[pbi-sql-gate] blocked (${input.purpose}): ${gate.reason}`);
+    return { status: 'sql_error', error: `Blocked by the SQL gate: ${gate.reason}`, ms: 0, attempts: 0 };
+  }
   const budgetMs = input.budgetMs ?? pbiSqlBudgetMs(input.mode);
   const maxAttempts = input.maxAttempts ?? 3;
   const statement = input.mode === 'explain' ? `EXPLAIN ${input.sql}` : input.sql;
