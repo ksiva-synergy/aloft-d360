@@ -12,6 +12,10 @@
  *   - steps that change rows or columns in ways we do not model (reported, never guessed).
  */
 
+import { inflateRawSync } from 'node:zlib';
+
+import { renderTemplate, ruleKey, type RuleSet } from '@/lib/powerbi/rule-registry';
+
 export type MColumnExpr = { sql: string; leaves: string[] };
 
 export type MLineage = {
@@ -28,7 +32,64 @@ export type MLineage = {
   unsupported: string[];
   /** Resolve an M output column name to a SQL expression over the base relation. */
   column: (name: string) => MColumnExpr | { error: string };
+  /**
+   * Rows come from another query (table) of the model instead of a warehouse object, e.g.
+   * `Source = Table.NestedJoin(IMO_MASTER_LIST, …)` or `Source = OtherQuery`.
+   */
+  baseTable: string | null;
+  /** "Enter data" rows embedded in the M source (Table.FromRows over compressed JSON). */
+  embedded: { columns: string[]; rows: (string | null)[][] } | null;
+  /**
+   * Merged queries (Table.NestedJoin + Table.ExpandTableColumn). Expanded columns appear in
+   * column SQL as join markers (see joinRef) that the compiler qualifies with the join alias.
+   */
+  joins: MJoin[];
 };
+
+export type MJoin = {
+  alias: string;
+  /** The joined query (a table of the model). */
+  table: string;
+  leftKeys: MColumnExpr[];
+  rightKeys: string[];
+  kind: 'left' | 'inner' | 'right' | 'full';
+};
+
+/** Marker for a column of a merged query inside lineage SQL: §alias§column§. */
+export const JOIN_REF_RE = /§(j\d+)§([^§]+)§/g;
+export const joinRef = (alias: string, column: string) => `§${alias}§${column}§`;
+
+/**
+ * Decode an "Enter data" table: Table.FromRows(Json.Document(Binary.Decompress(
+ * Binary.FromText("…", BinaryEncoding.Base64), Compression.Deflate)), let _t = … in type table [A = _t, …]).
+ */
+export function decodeEmbeddedTable(sourceM: string): { columns: string[]; rows: (string | null)[][] } | null {
+  const b64 = sourceM.match(/Binary\.FromText\s*\(\s*"([A-Za-z0-9+/=\s]+)"/i)?.[1];
+  const typeTable = sourceM.match(/type\s+table\s*\[([\s\S]*?)\]\s*\)/i)?.[1];
+  if (!b64 || typeTable === undefined) return null;
+  const columns = splitTopLevel(typeTable)
+    .map((part) => part.split('=')[0]!.trim())
+    .filter(Boolean)
+    .map((n) => (n.startsWith('#"') ? decodeMString(n.slice(1)) : n));
+  let rows: unknown;
+  try {
+    const raw = Buffer.from(b64.replace(/\s+/g, ''), 'base64');
+    const compressed = /Compression\.Deflate/i.test(sourceM);
+    const text = compressed ? inflateRawSync(raw).toString('utf8') : raw.toString('utf8');
+    rows = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(rows)) return null;
+  return {
+    columns,
+    rows: rows.map((r) =>
+      Array.isArray(r)
+        ? columns.map((_, i) => (r[i] === null || r[i] === undefined ? null : String(r[i])))
+        : columns.map(() => null),
+    ),
+  };
+}
 
 export function quoteIdent(name: string): string {
   return `\`${name.replace(/`/g, '``')}\``;
@@ -309,6 +370,9 @@ function lexM(src: string): MTok[] {
 
 type MExprSql = { sql: string; leaves: string[]; isNull?: boolean };
 
+/** Verified registry rules for the duration of one (synchronous) parseMLineage call. */
+let activeRules: RuleSet | null = null;
+
 class MExprCompiler {
   private pos = 0;
   constructor(
@@ -550,14 +614,21 @@ function mFunctionSql(fn: string, args: MExprSql[]): MExprSql {
       return one(`(CASE WHEN ${a[0]} < 0 THEN ceil(${a[0]}${a[1] ? `, ${a[1]}` : ''}) ELSE floor(${a[0]}${a[1] ? `, ${a[1]}` : ''}) END)`);
     case 'number.abs':
       return one(`abs(${a[0]})`);
+    case 'number.power':
+      return one(`power(${a[0]}, ${a[1]})`);
+    case 'number.sqrt':
+      return one(`sqrt(${a[0]})`);
     case 'number.mod':
       return one(`(${a[0]} % ${a[1]})`);
     case 'number.integerdivide':
       return one(`(${a[0]} div ${a[1]})`);
     case 'list.contains':
       return one(`(${a[1]} IN ${a[0]})`);
-    default:
+    default: {
+      const rule = activeRules?.get(ruleKey('m_fn', fn, args.length));
+      if (rule) return one(renderTemplate(rule.sqlTemplate, a));
       throw new Error(`unsupported M function ${fn}`);
+    }
   }
 }
 
@@ -607,7 +678,17 @@ const ROW_NEUTRAL_FNS = new Set([
 // Lineage
 // ---------------------------------------------------------------------------
 
-export function parseMLineage(sourceM: string | null | undefined): MLineage {
+export function parseMLineage(sourceM: string | null | undefined, rules?: RuleSet | null): MLineage {
+  const previous = activeRules;
+  activeRules = rules ?? null;
+  try {
+    return parseMLineageInner(sourceM);
+  } finally {
+    activeRules = previous;
+  }
+}
+
+function parseMLineageInner(sourceM: string | null | undefined): MLineage {
   const exprs = new Map<string, MColumnExpr | { error: string }>();
   const where: MColumnExpr[] = [];
   const filterTexts: string[] = [];
@@ -615,6 +696,11 @@ export function parseMLineage(sourceM: string | null | undefined): MLineage {
   const unsupported: string[] = [];
   let dedupe: MLineage['dedupe'] = null;
   let nativeSql: string | null = null;
+  let baseTable: string | null = null;
+  let embedded: MLineage['embedded'] = null;
+  const joins: MJoin[] = [];
+  /** NestedJoin output column name → join, waiting for Table.ExpandTableColumn. */
+  const pendingNested = new Map<string, MJoin>();
 
   const lookup = (name: string): MColumnExpr | { error: string } => {
     const hit = exprs.get(name) ?? exprs.get(name.toLowerCase());
@@ -643,6 +729,9 @@ export function parseMLineage(sourceM: string | null | undefined): MLineage {
     notes,
     unsupported,
     column: lookup,
+    baseTable,
+    embedded,
+    joins,
   });
 
   if (!sourceM?.trim()) return result();
@@ -654,20 +743,38 @@ export function parseMLineage(sourceM: string | null | undefined): MLineage {
   const chain: { step: MStep; call: MCall | null }[] = [];
   const seen = new Set<string>();
   let cursor = output;
+  const isRef = (src: string) => /^(#"(?:[^"]|"")*"|[A-Za-z_][\w.]*)$/.test(src.trim());
   while (cursor && byName.has(cursor) && !seen.has(cursor)) {
     seen.add(cursor);
     const step = byName.get(cursor)!;
     const call = parseCall(step.expr);
     chain.push({ step, call });
     if (call && /^table\./i.test(call.fn) && call.args[0]) {
-      cursor = normalizeStepName(call.args[0]);
-    } else if (/^#?"?[\w\s]+"?$/.test(step.expr.trim()) && byName.has(normalizeStepName(step.expr))) {
+      // A table argument can itself be a Table.* call (e.g. SplitColumn(TransformColumnTypes(prev, …), …)):
+      // walk into it as an anonymous step so nothing before it is lost.
+      let arg = call.args[0];
+      let inner = parseCall(arg.trim());
+      let depth = 0;
+      while (inner && /^table\./i.test(inner.fn) && inner.args[0]) {
+        depth += 1;
+        chain.push({ step: { name: `${step.name} (inner ${depth})`, expr: arg }, call: inner });
+        arg = inner.args[0];
+        inner = parseCall(arg.trim());
+      }
+      cursor = normalizeStepName(arg);
+      if (!byName.has(cursor) && isRef(arg)) baseTable = cursor; // another query of the model
+    } else if (isRef(step.expr) && byName.has(normalizeStepName(step.expr))) {
       cursor = normalizeStepName(step.expr);
     } else {
+      if (isRef(step.expr) && !/^(true|false|null)$/i.test(step.expr.trim())) baseTable = normalizeStepName(step.expr);
       cursor = null;
     }
   }
   chain.reverse();
+  if (/Binary\.FromText/i.test(sourceM) && /Table\.FromRows/i.test(sourceM)) {
+    embedded = decodeEmbeddedTable(sourceM);
+    if (!embedded) unsupported.push('Source: embedded table could not be decoded');
+  }
 
   // Steps not on the chain may still hold the native query (e.g. Source = Value.NativeQuery(...)).
   for (const s of steps) {
@@ -774,6 +881,69 @@ export function parseMLineage(sourceM: string | null | undefined): MLineage {
           if (dedupe) notes.push(`${step.name}: row filter after Table.Distinct applied before de-dup`);
           break;
         }
+        case 'table.splitcolumn': {
+          const col = decodeMString(args[1] ?? '""');
+          const cur = field(col);
+          const splitter = (args[2] ?? '').trim();
+          const dm = splitter.match(/^Splitter\.SplitTextByDelimiter\s*\(\s*("(?:[^"]|"")*")/i);
+          if (!dm) throw new Error(`splitter ${splitter.slice(0, 60)} not modeled`);
+          const delim = decodeMString(dm[1]!);
+          const names = parseStringList(args[3] ?? '');
+          if (!names.length) throw new Error('split without explicit column names not modeled');
+          // Spark split() takes a Java regex: escape the delimiter. M returns null for a missing part.
+          const pattern = delim.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const text = `CAST(${cur.sql} AS STRING)`;
+          names.forEach((n, i) => {
+            set(n, { sql: `try_element_at(split(${text}, ${sqlString(pattern)}), ${i + 1})`, leaves: cur.leaves });
+          });
+          del(col);
+          notes.push(
+            `${step.name}: [${col}] split on ${JSON.stringify(delim)}; text uses Spark's default formatting (culture-specific formatting not reproduced)`,
+          );
+          break;
+        }
+        case 'table.nestedjoin': {
+          const right = normalizeStepName(args[2] ?? '');
+          if (!right || byName.has(right)) throw new Error('self-join within one query not modeled');
+          const kindSrc = (args[5] ?? 'JoinKind.LeftOuter').toLowerCase();
+          const kind: MJoin['kind'] | null = /leftouter/.test(kindSrc)
+            ? 'left'
+            : /inner/.test(kindSrc)
+              ? 'inner'
+              : /rightouter/.test(kindSrc)
+                ? 'right'
+                : /fullouter/.test(kindSrc)
+                  ? 'full'
+                  : null;
+          if (!kind) throw new Error(`join kind ${args[5]} not modeled`);
+          const join: MJoin = {
+            alias: `j${joins.length + 1}`,
+            table: right,
+            leftKeys: parseStringList(args[1] ?? '').map((k) => field(k)),
+            rightKeys: parseStringList(args[3] ?? ''),
+            kind,
+          };
+          if (!join.leftKeys.length || join.leftKeys.length !== join.rightKeys.length) {
+            throw new Error('join keys not modeled');
+          }
+          joins.push(join);
+          pendingNested.set(decodeMString(args[4] ?? '""'), join);
+          break;
+        }
+        case 'table.expandtablecolumn': {
+          const nested = decodeMString(args[1] ?? '""');
+          const join = pendingNested.get(nested);
+          if (!join) throw new Error(`[${nested}] is not a merged query of this table`);
+          const names = parseStringList(args[2] ?? '');
+          const renamed = args[3] ? parseStringList(args[3]) : names;
+          names.forEach((n, i) => set(renamed[i] ?? n, { sql: joinRef(join.alias, n), leaves: [] }));
+          del(nested);
+          break;
+        }
+        case 'table.fromrows':
+          // "Enter data" source: rows decoded above into `embedded`.
+          if (!embedded) throw new Error('embedded rows could not be decoded');
+          break;
         case 'table.distinct': {
           const keys = args[1] ? parseStringList(args[1]) : [];
           dedupe = { keySql: keys.length ? keys.map((k) => field(k).sql) : null };

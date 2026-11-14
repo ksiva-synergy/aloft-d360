@@ -17,14 +17,23 @@
 
 import { collectColumnRefs, parseDax, type DaxNode } from '@/lib/powerbi/dax-parse';
 import {
+  JOIN_REF_RE,
   parseMLineage,
   quoteIdent as q,
   sqlString,
   type MColumnExpr,
+  type MJoin,
   type MLineage,
 } from '@/lib/powerbi/m-lineage';
 import type { MeasureLogicCatalog } from '@/lib/powerbi/measure-logic-analyze';
+import { renderTemplate, ruleKey, type CapabilityGap } from '@/lib/powerbi/rule-registry';
 import { normalizePbiTableName } from '@/lib/powerbi/translate-dax-refs';
+
+/**
+ * Bump whenever compiled SQL can change for the same DAX + model (semantics, plan shape, rules).
+ * Translate checkpoints are keyed on it, so a bump recompiles every measure once.
+ */
+export const COMPILER_VERSION = '2026-11-14.phase1b';
 
 export type DaxCompileOptions = {
   /** tableKey → warehouse leaf column (lower) → replacement column (from warehouse errors). */
@@ -48,7 +57,13 @@ export type DaxCompileSuccess = {
   result_kind: 'number' | 'string' | 'date' | 'bool' | 'unknown';
 };
 
-export type DaxCompileFailure = { ok: false; reason: string; notes: string[] };
+export type DaxCompileFailure = {
+  ok: false;
+  reason: string;
+  notes: string[];
+  /** Structured missing capability, when the failure is one (backlog unit). */
+  gap?: CapabilityGap;
+};
 
 export type DaxCompileResult = DaxCompileSuccess | DaxCompileFailure;
 
@@ -61,7 +76,14 @@ export type CompileRelationship = {
   active: boolean;
 };
 
-class CompileError extends Error {}
+class CompileError extends Error {
+  constructor(
+    message: string,
+    readonly gap?: CapabilityGap,
+  ) {
+    super(message);
+  }
+}
 
 type Kind = 'number' | 'string' | 'date' | 'bool' | 'unknown';
 type Sql = { sql: string; kind: Kind; literal?: boolean };
@@ -103,7 +125,15 @@ type TableState = {
   knownNorm: Map<string, string>;
   /** DAX calculated table: produced column name (lower) → name + kind. */
   calcTable: Map<string, { name: string; kind: Kind }> | null;
+  /** Rows come from another table of the model (Power Query query reference). */
+  baseSt: TableState | null;
+  /** Merged queries (Table.NestedJoin): join alias → joined table. */
+  joinSts: Map<string, TableState>;
 };
+
+/** Projected name of a Power Query column read from a referenced / merged table. */
+const pqCol = (name: string) => `__pq_${name}`;
+const JOIN_SQL: Record<MJoin['kind'], string> = { left: 'LEFT', inner: 'INNER', right: 'RIGHT', full: 'FULL' };
 
 const NUMERIC_TYPES = /^(int|integer|int64|int32|double|decimal|currency|number|single|float)/i;
 
@@ -218,9 +248,14 @@ function noLetters(s: Sql): boolean {
 
 class Compiler {
   private readonly ctes: { name: string; build: () => string }[] = [];
+  /** Tables whose Power Query references are being resolved (cycle guard). */
+  private readonly resolving = new Set<string>();
   private readonly tables = new Map<string, TableState>();
   private readonly measuresInProgress = new Set<string>();
   private readonly measuresInlined = new Set<string>();
+  /** Shared scalar CTEs: measure / VAR values that don't depend on a row context. */
+  private readonly sharedScalars = new Map<string, Sql>();
+  private sharedNo = 0;
   private readonly calcColumns = new Set<string>();
   readonly notes: string[] = [];
   private aliasNo = 0;
@@ -253,13 +288,36 @@ class Compiler {
       if (daxTable && !/^let\b/i.test(daxTable) && !/\bTable\.\w+\s*\(/.test(daxTable)) {
         return this.calculatedTable(key, meta.displayName, daxTable);
       }
-      throw new CompileError(`Table '${meta.displayName}' has no Unity Catalog binding`);
+      const derived = parseMLineage(meta.source_m, this.catalog.rules);
+      if (!derived.baseTable && !derived.embedded) {
+        throw new CompileError(`Table '${meta.displayName}' has no Unity Catalog binding`);
+      }
     }
-    const lineage = parseMLineage(meta.source_m);
+    const lineage = parseMLineage(meta.source_m, this.catalog.rules);
     if (lineage.unsupported.length) {
+      const first = lineage.unsupported[0]!;
+      const fnMatch = first.match(/unsupported M function ([\w.#]+)/);
+      const stepMatch = first.match(/:\s*(Table\.\w+)/);
       throw new CompileError(
         `Power Query steps of '${meta.displayName}' are not modeled: ${lineage.unsupported.join('; ')}`,
+        fnMatch
+          ? { kind: 'm_fn', name: fnMatch[1]! }
+          : stepMatch
+            ? { kind: 'm_step', name: stepMatch[1]! }
+            : undefined,
       );
+    }
+    // Power Query references to other tables of the model (Source = OtherQuery, merged queries):
+    // build them first so their CTEs precede this table's.
+    if (this.resolving.has(key)) throw new CompileError(`Power Query reference cycle at '${meta.displayName}'`);
+    this.resolving.add(key);
+    let baseSt: TableState | null = null;
+    const joinSts = new Map<string, TableState>();
+    try {
+      if (lineage.baseTable) baseSt = this.referencedTable(lineage.baseTable, meta.displayName);
+      for (const j of lineage.joins) joinSts.set(j.alias, this.referencedTable(j.table, meta.displayName));
+    } finally {
+      this.resolving.delete(key);
     }
     const n = this.tables.size + 1;
     const known = new Set<string>();
@@ -271,7 +329,7 @@ class Compiler {
     const st: TableState = {
       key,
       name: meta.displayName,
-      uc: meta.uc_full_path,
+      uc: meta.uc_full_path ?? '',
       lineage,
       base: `t${n}`,
       srcAlias: `src_${n}`,
@@ -283,8 +341,18 @@ class Compiler {
       known,
       knownNorm,
       calcTable: null,
+      baseSt,
+      joinSts,
     };
     this.tables.set(key, st);
+    // Columns the row filters, de-dup keys and join keys read from referenced / merged tables.
+    for (const j of lineage.joins) {
+      const right = joinSts.get(j.alias)!;
+      for (const k of j.rightKeys) this.ensureBase(right, pqCol(k), k);
+      for (const k of j.leftKeys) this.registerRefs(st, k.sql);
+    }
+    for (const w of lineage.where) this.registerRefs(st, w.sql);
+    for (const k of lineage.dedupe?.keySql ?? []) this.registerRefs(st, k);
     this.ctes.push({ name: st.base, build: () => this.buildBaseCte(st) });
     for (const note of lineage.notes) this.notes.push(`${st.name}: ${note}`);
     return st;
@@ -314,6 +382,8 @@ class Compiler {
       known: new Set(),
       knownNorm: new Map(),
       calcTable: new Map(),
+      baseSt: null,
+      joinSts: new Map(),
     };
     this.tables.set(key, st);
     const sql = this.tableRelation(st, ast);
@@ -348,20 +418,35 @@ class Compiler {
     if (node.k === 'call' && node.fn === 'DATATABLE') {
       const list = node.args[node.args.length - 1];
       if (list?.k !== 'list') throw new CompileError('DATATABLE needs a row list');
-      const cols: { name: string; kind: Kind }[] = [];
+      const cols: { name: string; kind: Kind; sqlType: string }[] = [];
       for (let i = 0; i + 1 < node.args.length - 1; i += 2) {
         const n = node.args[i]!;
         const t = node.args[i + 1]!;
         if (n.k !== 'str') throw new CompileError('DATATABLE column names must be strings');
         const type = t.k === 'ref' ? t.name.toUpperCase() : '';
+        const sqlType = /STRING/.test(type)
+          ? 'STRING'
+          : /DATE/.test(type)
+            ? 'TIMESTAMP'
+            : /BOOL/.test(type)
+              ? 'BOOLEAN'
+              : /INTEGER/.test(type)
+                ? 'BIGINT'
+                : /CURRENCY/.test(type)
+                  ? 'DECIMAL(19,4)'
+                  : 'DOUBLE';
         cols.push({
           name: n.v,
           kind: /STRING/.test(type) ? 'string' : /DATE/.test(type) ? 'date' : /BOOL/.test(type) ? 'bool' : 'number',
+          sqlType,
         });
       }
+      // values carry the declared column type (DATETIME "2024-01-01" is a timestamp, not text)
       const rows = list.items.map((row) => {
         if (row.k !== 'list') throw new CompileError('DATATABLE rows must be lists');
-        return `(${row.items.map((v) => this.scalar(v, empty).sql).join(', ')})`;
+        return `(${row.items
+          .map((v, j) => `TRY_CAST(${this.scalar(v, empty).sql} AS ${cols[j]?.sqlType ?? 'STRING'})`)
+          .join(', ')})`;
       });
       for (const c of cols) st.calcTable!.set(c.name.toLowerCase(), c);
       return `SELECT * FROM VALUES ${rows.join(', ')} AS v(${cols.map((c) => q(c.name)).join(', ')})`;
@@ -462,6 +547,40 @@ class Compiler {
     const expr = st.lineage.column(sourceColumn?.trim() || pbiName);
     if ('error' in expr) throw new CompileError(expr.error);
     st.baseCols.set(lk, { name: pbiName, expr });
+    this.registerRefs(st, expr.sql);
+  }
+
+  /** A table read by this table's Power Query (query reference or merge), with context on failure. */
+  private referencedTable(name: string, from: string): TableState {
+    try {
+      return this.table(name);
+    } catch (e) {
+      if (e instanceof CompileError && /not in the harvested model/.test(e.message)) {
+        throw new CompileError(`Power Query of '${from}' reads query '${name}', which is not loaded into the model`, {
+          kind: 'm_step',
+          name: 'query reference',
+        });
+      }
+      throw e;
+    }
+  }
+
+  /**
+   * Make the columns a lineage expression reads from referenced / merged tables available in
+   * their base CTEs (those CTEs are built before this table's, so this must happen up front).
+   */
+  private registerRefs(st: TableState, sql: string) {
+    if (st.baseSt) {
+      for (const m of sql.matchAll(/`((?:[^`]|``)+)`/g)) {
+        const leaf = m[1]!.replace(/``/g, '`');
+        this.ensureBase(st.baseSt, pqCol(leaf), leaf);
+      }
+    }
+    for (const m of sql.matchAll(JOIN_REF_RE)) {
+      const right = st.joinSts.get(m[1]!);
+      if (!right) throw new CompileError(`'${st.name}': merged query ${m[1]} is not resolved`);
+      this.ensureBase(right, pqCol(m[2]!), m[2]!);
+    }
   }
 
   private resolveLeaf(st: TableState, leaf: string): string {
@@ -479,10 +598,24 @@ class Compiler {
 
   /** Qualify warehouse leaf columns in a lineage expression with the source alias. */
   private qualifyLeaves(st: TableState, sql: string): string {
-    return sql.replace(/`((?:[^`]|``)+)`/g, (_m, inner: string) => {
+    const leaves = sql.replace(/`((?:[^`]|``)+)`/g, (_m, inner: string) => {
       const leaf = inner.replace(/``/g, '`');
+      if (st.baseSt) return `${st.srcAlias}.${q(pqCol(leaf))}`;
+      if (st.lineage.embedded) return `${st.srcAlias}.${q(leaf)}`;
       return `${st.srcAlias}.${q(this.resolveLeaf(st, leaf))}`;
     });
+    // markers contain no backticks, so they are qualified after the leaves
+    return leaves.replace(JOIN_REF_RE, (_m, alias: string, col: string) => `${st.srcAlias}_${alias}.${q(pqCol(col))}`);
+  }
+
+  /** "Enter data" rows as an inline VALUES relation (all text, as Power Query stores them). */
+  private embeddedRelation(e: NonNullable<MLineage['embedded']>): string {
+    const cols = e.columns.map((c) => q(c)).join(', ');
+    if (!e.rows.length) {
+      return `(SELECT ${e.columns.map((c) => `CAST(NULL AS STRING) AS ${q(c)}`).join(', ')} WHERE FALSE)`;
+    }
+    const rows = e.rows.map((r) => `(${r.map((v) => (v === null ? 'CAST(NULL AS STRING)' : sqlString(v))).join(', ')})`);
+    return `(SELECT * FROM VALUES\n    ${rows.join(',\n    ')}\n  AS e(${cols}))`;
   }
 
   private buildBaseCte(st: TableState): string {
@@ -490,11 +623,25 @@ class Compiler {
       (c) => `${this.qualifyLeaves(st, c.expr.sql)} AS ${q(c.name)}`,
     );
     if (!proj.length) proj.push(`1 AS ${q('__row')}`);
-    let from = st.lineage.nativeSql ? `(\n${st.lineage.nativeSql}\n)` : ucToFrom(st.uc);
+    let from = st.lineage.embedded
+      ? this.embeddedRelation(st.lineage.embedded)
+      : st.baseSt
+        ? st.baseSt.base
+        : st.lineage.nativeSql
+          ? `(\n${st.lineage.nativeSql}\n)`
+          : ucToFrom(st.uc);
     const dedupe = st.lineage.dedupe;
     if (dedupe && !dedupe.keySql) from = `(SELECT DISTINCT * FROM ${from} ${st.srcAlias}_d)`;
     const where = st.lineage.where.map((w) => this.qualifyLeaves(st, w.sql));
     let sql = `SELECT ${proj.join(',\n    ')}\n  FROM ${from} ${st.srcAlias}`;
+    for (const j of st.lineage.joins) {
+      const right = st.joinSts.get(j.alias)!;
+      const alias = `${st.srcAlias}_${j.alias}`;
+      const on = j.leftKeys
+        .map((k, i) => `${this.qualifyLeaves(st, k.sql)} = ${alias}.${q(pqCol(j.rightKeys[i]!))}`)
+        .join(' AND ');
+      sql += `\n  ${JOIN_SQL[j.kind]} JOIN ${right.base} ${alias} ON ${on}`;
+    }
     if (where.length) sql += `\n  WHERE ${where.join('\n    AND ')}`;
     if (dedupe?.keySql) {
       const keys = dedupe.keySql.map((k) => this.qualifyLeaves(st, k)).join(', ');
@@ -846,7 +993,10 @@ class Compiler {
         default:
           break;
       }
-      throw new CompileError(`Table expression ${node.fn}(…) not supported`);
+      throw new CompileError(`Table expression ${node.fn}(…) not supported`, {
+        kind: 'table_expr',
+        name: node.fn,
+      });
     }
     throw new CompileError('Expected a table expression');
   }
@@ -993,10 +1143,50 @@ class Compiler {
       filters: [...ctx.filters, ...tr.filters],
       transitions: tr.transitions,
     };
+    // Without a row context the measure has one value per filter context: compile it once as a
+    // shared CTE and reference it, instead of pasting its SQL at every reference (CII measure
+    // chains produced 150–390 KB statements Spark could not plan).
+    const shareKey = this.isRowFree(inner) ? `measure:${m.name.toLowerCase()}|${this.filterSignature(inner)}` : null;
+    const cached = shareKey ? this.sharedScalars.get(shareKey) : undefined;
+    if (cached) {
+      this.measuresInProgress.delete(m.name.toLowerCase());
+      return cached;
+    }
     const out = this.scalar(ast, inner);
     this.measuresInProgress.delete(m.name.toLowerCase());
     this.measuresInlined.add(m.name);
-    return out;
+    return shareKey ? this.shareScalar(shareKey, out) : out;
+  }
+
+  /**
+   * No outer row can be referenced: the value is a constant for the query. Filters can carry
+   * correlation too — inside SUMX(VALUES(T[c]), [M]) the measure is filtered by `T[c] = g.c`
+   * (current value of the outer iteration), so such a measure must stay inline, not become a
+   * standalone CTE. Any alias reference in the filter text (other than the signature alias)
+   * conservatively counts as correlated.
+   */
+  private isRowFree(ctx: Ctx): boolean {
+    if (ctx.scopes.length !== 0 || ctx.transitions.length !== 0) return false;
+    return !/\b(?:cur|[agrxmo]\d+)\.`/.test(this.filterSignature(ctx));
+  }
+
+  /** Stable text of the filter context (preds rendered over a fixed alias). */
+  private filterSignature(ctx: Ctx): string {
+    return ctx.filters
+      .map((p) => `${p.table}:${p.build('__sig')}`)
+      .sort()
+      .join('|');
+  }
+
+  /** Materialize an uncorrelated scalar as `mN AS (SELECT <sql> AS v)`; reuse by key. */
+  private shareScalar(key: string, value: Sql): Sql {
+    if (value.literal || !/\bSELECT\b/i.test(value.sql)) return value; // cheap: keep inline
+    const name = `m${++this.sharedNo}`;
+    const sql = value.sql;
+    this.ctes.push({ name, build: () => `SELECT ${sql} AS v` });
+    const ref: Sql = { sql: `(SELECT v FROM ${name})`, kind: value.kind };
+    this.sharedScalars.set(key, ref);
+    return ref;
   }
 
   // ---------------------------------------------------------------- scalar expressions
@@ -1027,7 +1217,14 @@ class Compiler {
       case 'var': {
         const env = new Map(ctx.env);
         const inner: Ctx = { ...ctx, env };
-        for (const d of node.decls) env.set(d.name.toLowerCase(), this.scalar(d.e, inner));
+        for (const d of node.decls) {
+          const v = this.scalar(d.e, inner);
+          // a row-free VAR is evaluated once: share it instead of pasting it at each use
+          env.set(
+            d.name.toLowerCase(),
+            this.isRowFree(inner) ? this.shareScalar(`var:${++this.sharedNo}`, v) : v,
+          );
+        }
         return this.scalar(node.body, inner);
       }
       case 'bin':
@@ -1165,6 +1362,10 @@ class Compiler {
       }
       return this.compare(op, this.scalar(node.l, ctx), this.scalar(node.r, ctx));
     }
+    if ((op === '+' || op === '-') && node.l.k === 'bin' && (node.l.op === '+' || node.l.op === '-')) {
+      const chain = this.additiveChain(node, ctx);
+      if (chain) return chain;
+    }
     const l = this.scalar(node.l, ctx);
     const r = this.scalar(node.r, ctx);
     switch (op) {
@@ -1197,6 +1398,38 @@ class Compiler {
       default:
         throw new CompileError(`Operator ${op} not supported`);
     }
+  }
+
+  /**
+   * Numeric `a + b - c + …` as one expression. DAX evaluates left to right with BLANK as 0, and
+   * the result is BLANK only when every term is BLANK — so the chain is exactly
+   * `CASE WHEN coalesce(a, b, …) IS NULL THEN NULL ELSE coalesce(a,0) + coalesce(b,0) - … END`.
+   * Size grows linearly; pairwise translation doubled the SQL with every term.
+   * Returns null (caller falls back to pairwise) for date arithmetic or non-numeric chains.
+   */
+  private additiveChain(node: Extract<DaxNode, { k: 'bin' }>, ctx: Ctx): Sql | null {
+    const terms: { sign: '+' | '-'; node: DaxNode }[] = [];
+    const walk = (n: DaxNode, sign: '+' | '-') => {
+      if (n.k === 'bin' && (n.op === '+' || n.op === '-')) {
+        walk(n.l, sign);
+        terms.push({ sign: n.op as '+' | '-', node: n.r });
+      } else {
+        terms.push({ sign, node: n });
+      }
+    };
+    walk(node, '+');
+    const compiled = terms.map((t) => ({ sign: t.sign, sql: this.scalar(t.node, ctx) }));
+    if (compiled.some((t) => t.sql.kind === 'date')) return null;
+    if (!compiled.some((t) => t.sql.kind === 'number')) return null;
+    const body = compiled
+      .map((t, i) => {
+        const v = t.sql.literal ? t.sql.sql : `coalesce(${t.sql.sql}, 0)`;
+        return i === 0 ? v : `${t.sign} ${v}`;
+      })
+      .join(' ');
+    if (compiled.some((t) => t.sql.literal)) return { sql: `(${body})`, kind: 'number' };
+    const allNull = `coalesce(${compiled.map((t) => t.sql.sql).join(', ')}) IS NULL`;
+    return { sql: `(CASE WHEN ${allNull} THEN NULL ELSE ${body} END)`, kind: 'number' };
   }
 
   /**
@@ -1475,8 +1708,12 @@ class Compiler {
         return { sql: `(CASE WHEN ${s(0).sql} < 0 THEN ceil(${s(0).sql}, ${opt(1)?.sql ?? '0'}) ELSE floor(${s(0).sql}, ${opt(1)?.sql ?? '0'}) END)`, kind: 'number' };
       case 'INT':
         return { sql: `floor(${s(0).sql})`, kind: 'number' };
-      case 'MOD':
-        return { sql: `pmod(${s(0).sql}, ${s(1).sql})`, kind: 'number' };
+      case 'MOD': {
+        // differential-tested: result takes the divisor's sign (MOD(1, -3) = -2), like Excel
+        const a = s(0).sql;
+        const b = s(1).sql;
+        return { sql: `(${a} - ${b} * floor(${a} / ${b}))`, kind: 'number' };
+      }
       case 'POWER':
         return { sql: `power(${s(0).sql}, ${s(1).sql})`, kind: 'number' };
       case 'SQRT':
@@ -1540,7 +1777,8 @@ class Compiler {
       case 'LOWER':
         return { sql: `lower(${this.text(s(0))})`, kind: 'string' };
       case 'LEN':
-        return { sql: `length(${this.text(s(0))})`, kind: 'number' };
+        // differential-tested: LEN(BLANK) is BLANK (not 0); LEN("") is 0
+        return { sql: `length(${s(0).kind === 'string' ? s(0).sql : `CAST(${s(0).sql} AS STRING)`})`, kind: 'number' };
       case 'LEFT':
         return { sql: `left(${this.text(s(0))}, ${opt(1)?.sql ?? '1'})`, kind: 'string' };
       case 'RIGHT':
@@ -1551,8 +1789,14 @@ class Compiler {
         return { sql: `replace(${this.text(s(0))}, ${s(1).sql}, ${s(2).sql})`, kind: 'string' };
       case 'CONCATENATE':
         return { sql: `concat(${this.text(s(0))}, ${this.text(s(1))})`, kind: 'string' };
-      case 'CONTAINSSTRING':
-        return { sql: `(instr(lower(${this.text(s(0))}), lower(${this.text(s(1))})) > 0)`, kind: 'bool' };
+      case 'CONTAINSSTRING': {
+        // differential-tested: an empty / BLANK within_text never contains anything (even "")
+        const within = this.text(s(0));
+        return {
+          sql: `(length(${within}) > 0 AND instr(lower(${within}), lower(${this.text(s(1))})) > 0)`,
+          kind: 'bool',
+        };
+      }
       case 'SEARCH': {
         const pos = `instr(lower(${this.text(s(1))}), lower(${this.text(s(0))}))`;
         const nf = opt(3);
@@ -1563,8 +1807,17 @@ class Compiler {
         if (fmt?.k !== 'str') throw new CompileError('FORMAT needs a literal format string');
         return formatSql(s(0), fmt.v);
       }
-      default:
-        throw new CompileError(`DAX function ${fn} not supported`);
+      default: {
+        const rule = this.catalog.rules?.get(ruleKey('dax_fn', fn, args.length));
+        if (rule) {
+          return { sql: renderTemplate(rule.sqlTemplate, args.map((_, i) => s(i).sql)), kind: rule.resultKind };
+        }
+        throw new CompileError(`DAX function ${fn} not supported`, {
+          kind: 'dax_fn',
+          name: fn,
+          arity: args.length,
+        });
+      }
     }
   }
 
@@ -1636,6 +1889,25 @@ class Compiler {
     };
   }
 
+  /** Compile DAX row expressions evaluated in the row context of `tableName` (one column each). */
+  compileRows(tableName: string, exprs: string[], idColumn: string | null): string {
+    const st = this.table(tableName);
+    const ctx: Ctx = { scopes: [{ table: st.key, alias: 'cur' }], filters: [], transitions: [], env: new Map() };
+    const id = idColumn ? this.colRef(st.key, idColumn, 'cur').sql : null;
+    const cols = exprs.map((e, i) => {
+      let ast: DaxNode;
+      try {
+        ast = parseDax(e);
+      } catch (err) {
+        throw new CompileError(`Cannot parse row expression ${i}: ${(err as Error).message}`);
+      }
+      return `${this.scalar(ast, ctx).sql} AS ${q(`r${i}`)}`;
+    });
+    const ctes = this.ctes.map((c) => `${c.name} AS (\n  ${c.build()}\n)`);
+    const select = `SELECT ${id ? `${id} AS ${q(idColumn!)}, ` : ''}${cols.join(', ')}\nFROM ${st.latest} cur`;
+    return ctes.length ? `WITH ${ctes.join(',\n')}\n${select}` : select;
+  }
+
   /**
    * Top-level `FORMAT(x, "0.00") & " days"` is presentation: parity compares numbers,
    * so emit ROUND(x, decimals) instead of text.
@@ -1664,6 +1936,24 @@ class Compiler {
   }
 }
 
+/** Row-level compile used by the differential test harness (built-ins and registry rules). */
+export function compileRowExpressionsToSql(input: {
+  tableName: string;
+  exprs: string[];
+  idColumn: string | null;
+  catalog: MeasureLogicCatalog;
+}): { ok: true; sql: string } | DaxCompileFailure {
+  const c = new Compiler(input.catalog, {});
+  try {
+    return { ok: true, sql: c.compileRows(input.tableName, input.exprs, input.idColumn) };
+  } catch (e) {
+    if (e instanceof CompileError) {
+      return { ok: false, reason: e.message, notes: [...new Set(c.notes)], ...(e.gap ? { gap: e.gap } : {}) };
+    }
+    throw e;
+  }
+}
+
 export function compileMeasureToSql(input: {
   measureDax: string;
   catalog: MeasureLogicCatalog;
@@ -1673,7 +1963,9 @@ export function compileMeasureToSql(input: {
   try {
     return c.compileMeasure(input.measureDax);
   } catch (e) {
-    if (e instanceof CompileError) return { ok: false, reason: e.message, notes: [...new Set(c.notes)] };
+    if (e instanceof CompileError) {
+      return { ok: false, reason: e.message, notes: [...new Set(c.notes)], ...(e.gap ? { gap: e.gap } : {}) };
+    }
     throw e;
   }
 }

@@ -1,6 +1,7 @@
 import 'server-only';
 
 import prisma from '@/lib/db';
+import { executeDaxQueries } from '@/lib/powerbi/execute-dax';
 import {
   executeDatasetQueries,
   getLatestDatasetRefreshEnd,
@@ -116,7 +117,11 @@ export async function runPbiOracle(
   let resultsWritten = 0;
 
   for (const model of models) {
-    if (model.rls_required) {
+    // RLS models: the JSON executeQueries API rejects service principals (401), so they are
+    // read through executeDaxQueries (Arrow), which works for a workspace-Admin service principal
+    // and returns unfiltered values. PBI_ORACLE_RLS=0 restores the old skip.
+    const viaArrow = model.rls_required === true;
+    if (viaArrow && process.env.PBI_ORACLE_RLS === '0') {
       modelsSkippedRls += 1;
       continue;
     }
@@ -163,13 +168,19 @@ export async function runPbiOracle(
       measuresRun += 1;
       const dax = buildMeasureOracleQuery(measure.name);
       try {
-        const response = await executeDatasetQueries(wsId, datasetId, [dax]);
-        const block = response.results?.[0];
-        if (block?.error) {
-          measuresFailed += 1;
-          continue;
+        let rows: unknown[];
+        if (viaArrow) {
+          const sets = await executeDaxQueries(wsId, datasetId, dax, { queryTimeoutSec: 300 });
+          rows = sets[0]?.rows ?? [];
+        } else {
+          const response = await executeDatasetQueries(wsId, datasetId, [dax]);
+          const block = response.results?.[0];
+          if (block?.error) {
+            measuresFailed += 1;
+            continue;
+          }
+          rows = block?.tables?.[0]?.rows ?? [];
         }
-        const rows = block?.tables?.[0]?.rows ?? [];
         const preview = rows.slice(0, 20);
         const resultHash = hashOracleRows(rows);
 
@@ -186,7 +197,7 @@ export async function runPbiOracle(
             identity_kind: 'service_principal',
             model_refresh_at: model.last_refresh_at,
             run_id: opts.runId,
-            props: { source_id: sourceId },
+            props: { source_id: sourceId, api: viaArrow ? 'executeDaxQueries' : 'executeQueries' },
           },
         });
         resultsWritten += 1;
