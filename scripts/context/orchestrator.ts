@@ -65,6 +65,22 @@ function shouldAdvanceJobChain(status: 'succeeded' | 'failed' | 'partial'): bool
 
 const inlineChainJobIds: string[] = [];
 
+/**
+ * Power BI stages finalize as succeeded before the next stage starts. A failure to start the next
+ * stage is logged, never turned into a failure of the stage that already succeeded.
+ */
+async function advancePbiChain(
+  orgId: string,
+  job: { id: string; source_id: string | null; parent_job_id?: string | null; scope?: unknown },
+) {
+  if (job.parent_job_id || !job.source_id) return;
+  try {
+    await advanceChain(orgId, (job.scope ?? {}) as Record<string, unknown>, job.source_id, job.id);
+  } catch (err) {
+    console.error(`[orchestrator] chain: could not start the next Power BI stage after ${job.id}:`, err);
+  }
+}
+
 async function advanceChain(
   orgId: string,
   parentScope: Record<string, unknown>,
@@ -582,6 +598,8 @@ async function dispatchSingleJob(
         console.log(
           `[pbi_inventory] source=${job.source_id} workspaces=${inv.workspaces} models=${inv.models} reports=${inv.reports}`,
         );
+        // Run pipeline chains Power BI stages like the other tiers: start the next stage.
+        await advancePbiChain(orgId, job);
         return { status: 'succeeded' };
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -616,6 +634,8 @@ async function dispatchSingleJob(
         console.log(
           `[pbi_definitions] models=${stats.models_fetched}/${stats.models_skipped}/${stats.models_failed} reports=${stats.reports_fetched}/${stats.reports_skipped}/${stats.reports_failed} capped=${stats.capped}`,
         );
+        // Run pipeline chains Power BI stages like the other tiers: start the next stage.
+        await advancePbiChain(orgId, job);
         return { status: 'succeeded' };
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -650,6 +670,8 @@ async function dispatchSingleJob(
         console.log(
           `[pbi_parse] models=${stats.models_parsed}/${stats.models_skipped}/${stats.models_failed} reports=${stats.reports_parsed}/${stats.reports_skipped}/${stats.reports_failed}`,
         );
+        // Run pipeline chains Power BI stages like the other tiers: start the next stage.
+        await advancePbiChain(orgId, job);
         return { status: 'succeeded' };
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -673,6 +695,8 @@ async function dispatchSingleJob(
         console.log(
           `[pbi_catalog_link] matched=${stats.matched} unscanned=${stats.unscanned} ambiguous=${stats.ambiguous}`,
         );
+        // Run pipeline chains Power BI stages like the other tiers: start the next stage.
+        await advancePbiChain(orgId, job);
         return { status: 'succeeded' };
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -696,6 +720,8 @@ async function dispatchSingleJob(
         console.log(
           `[pbi_domains] models=${stats.models_assigned}/${stats.models_scored} conflicts=${stats.conflicts}`,
         );
+        // Run pipeline chains Power BI stages like the other tiers: start the next stage.
+        await advancePbiChain(orgId, job);
         return { status: 'succeeded' };
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -719,6 +745,8 @@ async function dispatchSingleJob(
         console.log(
           `[pbi_families] families=${stats.families_upserted} models=${stats.models_linked} cleared=${stats.singletons_cleared}`,
         );
+        // Run pipeline chains Power BI stages like the other tiers: start the next stage.
+        await advancePbiChain(orgId, job);
         return { status: 'succeeded' };
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -751,6 +779,8 @@ async function dispatchSingleJob(
         console.log(
           `[pbi_oracle] mode=${stats.oracle_mode} written=${stats.results_written} failed=${stats.measures_failed} skipped_rls=${stats.models_skipped_rls} run=${stats.measures_run}`,
         );
+        // Run pipeline chains Power BI stages like the other tiers: start the next stage.
+        await advancePbiChain(orgId, job);
         return { status: 'succeeded' };
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -785,6 +815,8 @@ async function dispatchSingleJob(
         console.log(
           `[pbi_translate] rule=${stats.rule_translated} expand=${stats.pattern_expanded ?? 0} expand_fail=${stats.expand_compile_failed ?? 0}c/${stats.expand_warehouse_failed ?? 0}w skipped_unchanged=${stats.skipped_unchanged ?? 0} fidelity_blocked=${stats.skipped_fidelity ?? 0} errored=${stats.measures_errored ?? 0} ${Math.round((stats.duration_ms ?? 0) / 1000)}s orphans_removed=${stats.orphan_translations_removed ?? 0} llm=${stats.llm_translated}/${stats.measures_scanned} dax_uc=${stats.uc_via_dax_refs ?? 0} no_bind=${stats.skipped_no_binding} logic_gate=${stats.skipped_logic_gate ?? 0} unsupported=${stats.skipped_unsupported_dax} cost_usd=${stats.cost_usd.toFixed(4)}`,
         );
+        // Run pipeline chains Power BI stages like the other tiers: start the next stage.
+        await advancePbiChain(orgId, job);
         return { status: 'succeeded' };
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -810,6 +842,8 @@ async function dispatchSingleJob(
         console.log(
           `[pbi_parity] pass=${stats.passed} fail=${stats.failed} skip=${stats.skipped} err=${stats.errors}`,
         );
+        // Run pipeline chains Power BI stages like the other tiers: start the next stage.
+        await advancePbiChain(orgId, job);
         return { status: 'succeeded' };
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -839,6 +873,8 @@ async function dispatchSingleJob(
         console.log(
           `[pbi_publish] published=${stats.published} skip=${stats.skipped} demoted=${stats.demoted}`,
         );
+        // Run pipeline chains Power BI stages like the other tiers: start the next stage.
+        await advancePbiChain(orgId, job);
         return { status: 'succeeded' };
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
