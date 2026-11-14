@@ -210,12 +210,9 @@ export function parseTmdl(text: string): TmdlBlock[] {
 }
 
 /** `source = …` directly under `partition X = calculated` holds a DAX table expression. */
+/** `source = …` directly under a partition (M, calculated, …) holds the partition expression. */
 function isCalculatedPartitionSource(block: TmdlBlock, parent: TmdlBlock | null): boolean {
-  return (
-    block.keyword === 'source' &&
-    parent?.keyword === 'partition' &&
-    /=\s*calculated\s*$/i.test(parent.headerLine)
-  );
+  return block.keyword === 'source' && parent?.keyword === 'partition';
 }
 
 function attachPropertyLines(blocks: TmdlBlock[]): void {
@@ -263,6 +260,8 @@ export type ParsedTmdlTable = {
   }[];
   partitionSourceM: string;
   partitionMode: string | null;
+  /** Partition type from its TMDL header (`partition X = calculated | m | entity …`). */
+  partitionType: string | null;
 };
 
 function blockText(block: TmdlBlock): string {
@@ -318,10 +317,11 @@ function measureDax(measure: TmdlBlock): string {
 }
 
 function measureNameFromBlock(measure: TmdlBlock): string {
-  if (measure.name?.trim()) return measure.name.trim();
+  // TMDL quotes names with spaces/special characters ('Avg CO2'); DAX refers to [Avg CO2].
+  if (measure.name?.trim()) return stripTmdlQuotedName(measure.name);
   const eq = measure.headerLine.indexOf('=');
-  if (eq === -1) return measure.headerLine.replace(/^measure\s+/i, '').trim();
-  return measure.headerLine.slice(0, eq).replace(/^measure\s+/i, '').trim();
+  if (eq === -1) return stripTmdlQuotedName(measure.headerLine.replace(/^measure\s+/i, ''));
+  return stripTmdlQuotedName(measure.headerLine.slice(0, eq).replace(/^measure\s+/i, ''));
 }
 
 export function parseTmdlTableFile(text: string): ParsedTmdlTable | null {
@@ -352,6 +352,9 @@ export function parseTmdlTableFile(text: string): ParsedTmdlTable | null {
     }));
 
   const { source, mode } = extractPartitionM(table, text);
+  const partitionBlock = table.children.find((c) => c.keyword === 'partition');
+  const partitionType =
+    partitionBlock?.headerLine.match(/=\s*([A-Za-z]+)\s*$/)?.[1]?.toLowerCase() ?? null;
 
   return {
     name: stripTmdlQuotedName(table.name),
@@ -359,8 +362,11 @@ export function parseTmdlTableFile(text: string): ParsedTmdlTable | null {
     hidden: table.properties.isHidden === 'true',
     columns,
     measures,
-    partitionSourceM: source || blockText(table),
+    // No partition (measure-only table) → no source. Never store the table's TMDL text here:
+    // downstream it would be read as a DAX calculated-table expression.
+    partitionSourceM: source,
     partitionMode: mode,
+    partitionType,
   };
 }
 

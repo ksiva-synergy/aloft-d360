@@ -23,8 +23,10 @@ export function isAutoDateTableName(tableName: string): boolean {
 export function classifyPartitionSource(
   partitionSource: string,
   tableName: string,
+  partitionType?: string | null,
 ): PartitionKind {
   if (isAutoDateTableName(tableName)) return 'auto_date_table';
+  if (partitionType === 'calculated') return 'calculated_table';
   const m = partitionSource;
   if (!m.trim()) return 'unknown';
   if (/\bpartition\b.*=\s*calculated/i.test(m) || /= calculated\b/i.test(m)) {

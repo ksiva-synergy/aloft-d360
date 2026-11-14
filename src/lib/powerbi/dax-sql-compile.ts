@@ -402,15 +402,25 @@ class Compiler {
     throw new CompileError(`Calculated table '${st.name}' uses ${fn} (not supported)`);
   }
 
+  /** Stored column key for a DAX column name (exact, case-insensitive, then trailing-space tolerant). */
+  private findColumnKey(tableKey: string, column: string): string | null {
+    const cols = this.catalog.columnsByTable.get(tableKey);
+    if (!cols) return null;
+    if (cols.has(column)) return column;
+    if (cols.has(column.toLowerCase())) return column.toLowerCase();
+    const want = column.trim().toLowerCase();
+    for (const k of cols.keys()) if (k.trim().toLowerCase() === want) return k;
+    return null;
+  }
+
   private columnMeta(st: TableState, column: string) {
-    const cols = this.catalog.columnsByTable.get(st.key);
-    return cols?.get(column) ?? cols?.get(column.toLowerCase()) ?? null;
+    const key = this.findColumnKey(st.key, column);
+    return key ? this.catalog.columnsByTable.get(st.key)!.get(key)! : null;
   }
 
   private hasColumn(tableKey: string, column: string): boolean {
     if (this.tables.get(tableKey)?.calcTable?.has(column.toLowerCase())) return true;
-    const cols = this.catalog.columnsByTable.get(tableKey);
-    return Boolean(cols?.get(column) ?? cols?.get(column.toLowerCase()));
+    return this.findColumnKey(tableKey, column) !== null;
   }
 
   private colRef(tableName: string, column: string, alias: string): Sql {
@@ -436,10 +446,14 @@ class Compiler {
   private canonicalColumnName(st: TableState, column: string): string {
     const cols = this.catalog.columnsByTable.get(st.key);
     if (cols?.has(column)) return column;
+    const want = column.trim().toLowerCase();
+    let fallback: string | null = null;
     for (const k of cols?.keys() ?? []) {
-      if (k.toLowerCase() === column.toLowerCase() && k !== k.toLowerCase()) return k;
+      if (k.trim().toLowerCase() !== want) continue;
+      if (k !== k.toLowerCase()) return k;
+      fallback = k;
     }
-    return column;
+    return fallback ?? column;
   }
 
   private ensureBase(st: TableState, pbiName: string, sourceColumn: string | null) {
@@ -959,7 +973,8 @@ class Compiler {
   // ---------------------------------------------------------------- measures
 
   private measureRef(name: string, ctx: Ctx): Sql {
-    const m = this.catalog.measures?.get(name.toLowerCase());
+    const m =
+      this.catalog.measures?.get(name.toLowerCase()) ?? this.catalog.measures?.get(name.trim().toLowerCase());
     if (!m) throw new CompileError(`[${name}] is neither a column in row context nor a known measure`);
     if (this.measuresInProgress.has(m.name.toLowerCase())) {
       throw new CompileError(`Circular measure reference at [${m.name}]`);
@@ -1025,6 +1040,28 @@ class Compiler {
   }
 
   private column(node: Extract<DaxNode, { k: 'col' }>, ctx: Ctx): Sql {
+    if (node.level) {
+      // Auto date/time hierarchy level of a date column ('T'[Date].[Year]).
+      const base = this.column({ ...node, level: undefined }, ctx);
+      switch (node.level.toLowerCase()) {
+        case 'date':
+          return base;
+        case 'year':
+          return { sql: `year(${base.sql})`, kind: 'number' };
+        case 'quarter':
+          return { sql: `concat('Qtr ', quarter(${base.sql}))`, kind: 'string' };
+        case 'quarterno':
+          return { sql: `quarter(${base.sql})`, kind: 'number' };
+        case 'month':
+          return { sql: `date_format(${base.sql}, 'MMMM')`, kind: 'string' };
+        case 'monthno':
+          return { sql: `month(${base.sql})`, kind: 'number' };
+        case 'day':
+          return { sql: `day(${base.sql})`, kind: 'number' };
+        default:
+          throw new CompileError(`Date hierarchy level [${node.level}] not supported`);
+      }
+    }
     if (node.table === null) {
       for (let i = ctx.scopes.length - 1; i >= 0; i--) {
         const s = ctx.scopes[i]!;
@@ -1226,8 +1263,10 @@ class Compiler {
         }
         const { table, column } = this.colArg(args[0], fn);
         let kind: Kind = 'number';
-        const sql = this.aggregate({ table, preds: [], all: false, ctx }, (alias) => {
-          const c = this.colRef(table, column, alias);
+        const colNode = args[0] as Extract<DaxNode, { k: 'col' }>;
+        const sql = this.aggregate({ table, preds: [], all: false, ctx }, (alias, inner) => {
+          // through the row scope so hierarchy levels ('T'[Date].[Year]) apply
+          const c = colNode.level ? this.scalar(colNode, inner) : this.colRef(table, column, alias);
           if (fn === 'MIN' || fn === 'MAX') kind = c.kind;
           return this.aggExpr(fn, c);
         });
@@ -1275,6 +1314,40 @@ class Compiler {
             : `CASE WHEN COUNT(DISTINCT ${c.sql}) = 1 THEN MAX(${c.sql}) ELSE ${alt?.sql ?? 'NULL'} END`;
         });
         return { sql, kind: fn === 'HASONEVALUE' ? 'bool' : kind };
+      }
+      case 'ISINSCOPE':
+        // grand-total evaluation: no group-by is in scope
+        return { sql: 'FALSE', kind: 'bool', literal: true };
+      case 'HASONEFILTER': {
+        const { table, column } = this.colArg(args[0], fn);
+        const hit = ctx.filters.some(
+          (p) => p.table === table && p.cols !== null && p.cols.includes(column.toLowerCase()),
+        );
+        return { sql: hit ? 'TRUE' : 'FALSE', kind: 'bool', literal: true };
+      }
+      case 'ERROR':
+        return { sql: `raise_error(${s(0).sql})`, kind: 'unknown' };
+      case 'IFERROR': {
+        // SQL here uses error-free operators (try_divide / TRY_CAST); DAX errors become NULL.
+        this.notes.push('IFERROR: fallback value applies only where SQL yields NULL from an error-free operator');
+        return s(0);
+      }
+      case 'COMBINEVALUES': {
+        const parts = args.slice(1).map((_, i) => this.text(s(i + 1)));
+        return { sql: `concat_ws(${s(0).sql}, ${parts.join(', ')})`, kind: 'string' };
+      }
+      case 'WEEKNUM': {
+        const d = s(0).sql;
+        const type = args[1]?.k === 'num' ? Number(args[1].v) : 1;
+        if (type === 21) return { sql: `weekofyear(${d})`, kind: 'number' };
+        // first day of week as Spark dayofweek (1 = Sunday … 7 = Saturday)
+        const start: Record<number, number> = { 1: 1, 17: 1, 2: 2, 11: 2, 12: 3, 13: 4, 14: 5, 15: 6, 16: 7 };
+        const s0 = start[type];
+        if (!s0) throw new CompileError(`WEEKNUM return type ${type} not supported`);
+        return {
+          sql: `(floor((dayofyear(${d}) - 1 + pmod(dayofweek(make_date(year(${d}), 1, 1)) - ${s0}, 7)) / 7) + 1)`,
+          kind: 'number',
+        };
       }
       case 'ISFILTERED': {
         const { table, column } = this.colArg(args[0], fn);
@@ -1524,6 +1597,9 @@ class Compiler {
   // ---------------------------------------------------------------- entry
 
   compileMeasure(dax: string): DaxCompileSuccess {
+    if (!dax.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(\/\/|--).*$/gm, '').trim()) {
+      throw new CompileError('Measure DAX is empty or fully commented out');
+    }
     let ast: DaxNode;
     try {
       ast = parseDax(dax);

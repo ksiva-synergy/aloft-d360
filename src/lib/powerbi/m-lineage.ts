@@ -424,6 +424,21 @@ class MExprCompiler {
     return this.primary();
   }
   private primary(): MExprSql {
+    if (this.isKw('if')) {
+      // M conditional: if c then a else b
+      this.next();
+      const c = this.or();
+      if (!this.isKw('then')) throw new Error("expected 'then' in M if-expression");
+      this.next();
+      const a = this.or();
+      if (!this.isKw('else')) throw new Error("expected 'else' in M if-expression");
+      this.next();
+      const b = this.or();
+      return {
+        sql: `(CASE WHEN ${c.sql} THEN ${a.sql} ELSE ${b.sql} END)`,
+        leaves: [...c.leaves, ...a.leaves, ...b.leaves],
+      };
+    }
     const t = this.next();
     if (t.t === 'op' && t.v === '(') {
       const e = this.or();
@@ -524,6 +539,21 @@ function mFunctionSql(fn: string, args: MExprSql[]): MExprSql {
       return one(`make_date(${a[0]}, ${a[1]}, ${a[2]})`);
     case '#datetime':
       return one(`make_timestamp(${a.slice(0, 6).join(', ')})`);
+    case 'number.round':
+      // M rounds half to even by default
+      return one(a.length > 1 ? `bround(${a[0]}, ${a[1]})` : `bround(${a[0]})`);
+    case 'number.roundup':
+      return one(a.length > 1 ? `ceil(${a[0]}, ${a[1]})` : `ceil(${a[0]})`);
+    case 'number.rounddown':
+      return one(a.length > 1 ? `floor(${a[0]}, ${a[1]})` : `floor(${a[0]})`);
+    case 'number.roundtowardzero':
+      return one(`(CASE WHEN ${a[0]} < 0 THEN ceil(${a[0]}${a[1] ? `, ${a[1]}` : ''}) ELSE floor(${a[0]}${a[1] ? `, ${a[1]}` : ''}) END)`);
+    case 'number.abs':
+      return one(`abs(${a[0]})`);
+    case 'number.mod':
+      return one(`(${a[0]} % ${a[1]})`);
+    case 'number.integerdivide':
+      return one(`(${a[0]} div ${a[1]})`);
     case 'list.contains':
       return one(`(${a[1]} IN ${a[0]})`);
     default:

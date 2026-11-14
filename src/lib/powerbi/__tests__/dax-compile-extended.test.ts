@@ -286,3 +286,51 @@ describe('root cause: per-value counts vs slicer helpers', () => {
     ).not.toBe('ui_slicer_helper');
   });
 });
+
+describe('tmdl harvest fidelity', () => {
+  it('strips TMDL quotes from measure names', () => {
+    const t = parseTmdlTableFile(['table M', "\tmeasure 'Avg CO2' = SUM(T[x])", ''].join('\n'));
+    expect(t?.measures[0]?.name).toBe('Avg CO2');
+  });
+
+  it('does not store table TMDL text as the source of a measure-only table', () => {
+    const t = parseTmdlTableFile(
+      ['table CII_Measures', '\tmeasure Total = ```', '\t\t\tSUM(T[x])', '\t\t\t```', '\t\tformatString: 0', ''].join('\n'),
+    );
+    expect(t?.partitionSourceM).toBe('');
+    expect(t?.partitionType).toBeNull();
+  });
+
+  it('reports the partition type for calculated partitions', async () => {
+    const { classifyPartitionSource } = await import('@/lib/powerbi/partition-kind');
+    const t = parseTmdlTableFile(
+      ['table Cal', '\tpartition Cal = calculated', '\t\tmode: import', '\t\tsource = CALENDAR(DATE(2024,1,1), DATE(2024,12,31))', ''].join('\n'),
+    );
+    expect(t?.partitionType).toBe('calculated');
+    expect(classifyPartitionSource(t!.partitionSourceM, t!.name, t!.partitionType)).toBe('calculated_table');
+  });
+});
+
+describe('step-2 capabilities', () => {
+  it('compiles date-hierarchy levels, WEEKNUM, COMBINEVALUES and empty measures', () => {
+    const cat = catalog();
+    const lvl = compileMeasureToSql({ measureDax: "MAX('Audit'[AuditToDate].[Year])", catalog: cat });
+    expect(lvl.ok && lvl.sql).toContain('year(');
+    const wk = compileMeasureToSql({ measureDax: "MAX('Ships'[TAKE_OVER_DATE]) + WEEKNUM(TODAY())", catalog: cat });
+    expect(wk.ok && wk.sql).toContain('dayofyear(current_date())');
+    const cv = compileMeasureToSql({ measureDax: 'COMBINEVALUES("-", "a", "b")', catalog: cat });
+    expect(cv.ok && cv.sql).toContain("concat_ws('-'");
+    const empty = compileMeasureToSql({ measureDax: '// SUM(x)\n// RETURN y', catalog: cat });
+    expect(!empty.ok && empty.reason).toMatch(/empty or fully commented out/);
+  });
+
+  it('M if-then-else and Number.Round become SQL', async () => {
+    const { parseMLineage } = await import('@/lib/powerbi/m-lineage');
+    const l = parseMLineage(
+      'let Source = Sql.Database("h","d"), A = Table.AddColumn(Source, "Flag", each if [x] > 10 then "big" else "small"), B = Table.TransformColumns(A, {{"y", each Number.Round(_, 2)}}) in B',
+    );
+    expect(l.unsupported).toEqual([]);
+    expect((l.column('Flag') as { sql: string }).sql).toBe("(CASE WHEN (`x` > 10) THEN 'big' ELSE 'small' END)");
+    expect((l.column('y') as { sql: string }).sql).toBe('bround(`y`, 2)');
+  });
+});

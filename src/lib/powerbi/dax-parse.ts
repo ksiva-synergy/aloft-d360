@@ -7,7 +7,7 @@ export type DaxNode =
   | { k: 'num'; v: string }
   | { k: 'str'; v: string }
   /** 'T'[c], T[c], or [c] (table = null: column of the row context, or a measure). */
-  | { k: 'col'; table: string | null; column: string }
+  | { k: 'col'; table: string | null; column: string; level?: string }
   /** Bare identifier: variable name or unquoted table name. */
   | { k: 'ref'; name: string }
   /** Quoted table reference without a column: 'T'. */
@@ -99,11 +99,12 @@ function lex(src: string): Tok[] {
         v += src[i];
         i += 1;
       }
-      out.push({ t: 'br', v: v.trim(), adj: prevEnd === start });
+      // keep names verbatim: Power BI column names may end in a space ('CII'[CH4 ])
+      out.push({ t: 'br', v, adj: prevEnd === start });
     } else {
       const num = src.slice(i).match(/^(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?/);
       const id = src.slice(i).match(/^[A-Za-z_][\w.]*/);
-      const op = src.slice(i).match(/^(&&|\|\||<>|<=|>=|==|[=<>+\-*/&^(),{}])/);
+      const op = src.slice(i).match(/^(&&|\|\||<>|<=|>=|==|\.(?=\s*\[)|[=<>+\-*/&^(),{}])/);
       if (num) {
         out.push({ t: 'num', v: num[0] });
         i += num[0].length;
@@ -208,12 +209,12 @@ class Parser {
     const t = this.next();
     if (t.t === 'num') return { k: 'num', v: t.v };
     if (t.t === 'str') return { k: 'str', v: t.v };
-    if (t.t === 'br') return { k: 'col', table: null, column: t.v };
+    if (t.t === 'br') return this.level({ k: 'col', table: null, column: t.v });
     if (t.t === 'qtbl') {
       const n = this.peek();
       if (n.t === 'br') {
         this.next();
-        return { k: 'col', table: t.v, column: n.v };
+        return this.level({ k: 'col', table: t.v, column: n.v });
       }
       return { k: 'tbl', name: t.v };
     }
@@ -258,12 +259,22 @@ class Parser {
       }
       if (n.t === 'br' && n.adj) {
         this.next();
-        return { k: 'col', table: t.v, column: n.v };
+        return this.level({ k: 'col', table: t.v, column: n.v });
       }
       if (upper === 'TRUE' || upper === 'FALSE') return { k: 'call', fn: upper, args: [] };
       return { k: 'ref', name: t.v };
     }
     throw new DaxParseError('Unexpected token');
+  }
+
+  /** Auto date/time hierarchy reference: 'T'[Date].[Year]. */
+  private level(node: Extract<DaxNode, { k: 'col' }>): DaxNode {
+    if (this.isOp('.') && this.peek(1).t === 'br') {
+      this.next();
+      const lv = this.next() as { v: string };
+      return { ...node, level: lv.v.trim() };
+    }
+    return node;
   }
 
   private varBlock(): DaxNode {

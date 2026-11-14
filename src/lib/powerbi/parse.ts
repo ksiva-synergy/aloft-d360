@@ -223,7 +223,11 @@ export async function runPbiParse(
           const parsed = parseTmdlTableFile(text);
           if (!parsed) continue;
 
-          const kind = classifyPartitionSource(parsed.partitionSourceM, parsed.name);
+          const kind = classifyPartitionSource(
+            parsed.partitionSourceM,
+            parsed.name,
+            parsed.partitionType,
+          );
           if (kind !== 'auto_date_table') {
             partitionKinds.push(kind);
           }
