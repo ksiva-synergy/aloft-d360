@@ -53,7 +53,7 @@ export function buildModelGraph(catalog: MeasureLogicCatalog): ModelGraph {
   const nodes = new Map<string, GraphNode>();
   const relSig = h(
     (catalog.relationships ?? [])
-      .map((r) => `${tkey(r.fromTable)}.${r.fromColumn}>${tkey(r.toTable)}.${r.toColumn}:${r.both}:${r.active}`)
+      .map((r) => `${tkey(r.fromTable)}.${r.fromColumn}>${tkey(r.toTable)}.${r.toColumn}:${r.both}:${r.active}${r.cardinality ? `:${r.cardinality}` : ''}`)
       .sort()
       .join('|'),
   );

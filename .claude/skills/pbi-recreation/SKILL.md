@@ -73,6 +73,8 @@ dates). Never add rows or text values from data.
 |---|---|---|
 | `replica_drift` (fidelity gate) | Replica column missing, renamed or split (e.g. `X_OR_Y` → `X`, `Y`) | Steward confirms the mapping; never guess in SQL |
 | `source_not_in_warehouse` (fidelity gate) | Table is loaded from a file / site / feed / dataflow (Excel or CSV on SharePoint, OneDrive, web, folder), traced through helper queries by `source-origin.ts` | Not a compiler gap: the data must be loaded into Databricks first. Model → Tables → Data sources shows the file, sheet and site. Never fake it with SQL. New connectors: add them to `source-origin.ts` (generic, with a test) |
+| Parity: SQL counts more rows on a table with an incremental refresh policy | Power BI keeps only the policy's rolling window; desktop `RangeStart`/`RangeEnd` values are not what the service uses | Window is computed from `refreshPolicy` + last refresh (`m-parameters.ts`) and inlined into lineage. Check Model → Tables → Model definition |
+| `row_fanout` / missing blank row through a many-to-many or one-to-one relationship | The relationship's "to" side is not unique (M:M), or 1:1 filters both ways | Compiler reads `cardinality` (TMDL `fromCardinality`/`toCardinality`); re-parse if it is NULL |
 | `rls_required`, oracle `skipped_rls` | Model enforces RLS; JSON executeQueries returns 401 for a service principal | Oracle uses `executeDaxQueries` (Arrow, `execute-dax.ts`) with a workspace-Admin service principal (unfiltered). Do not publish RLS models without RLS-aware publishing. |
 | `data_freshness`; decomposition "rows differ" with SQL > Power BI | Dataset older than the warehouse | Check the ownership card (refresh status / failure); refresh the dataset |
 | `pq_capability_gap` (`Table.X` not modeled) | Power Query step not in `m-lineage.ts` | Model it generically (see split / merge / embedded tables). Do not let the LLM write around it: it cannot see Power Query. |
@@ -96,6 +98,11 @@ dates). Never add rows or text values from data.
 - **Stale scratch scripts:** use a new, unique file name for every helper script.
 - **Before stopping a run**, check what it already rewrote: parity verdicts reset on rewrite
   until the next run.
+- **TMDL bare flags** (`isHidden`, `isNameInferred`, `fastCombine` …) have no colon. Treating them
+  as body text stored `isHidden` as calculated-column DAX for ~700 columns and dropped every hidden
+  flag. Unknown TMDL object types must stay objects (`unhandledTmdlKeywords` reports them per model
+  in `props.tmdl_unhandled`), never fold into DAX / M text. Bump `PBI_PARSER_VERSION` when parsing
+  changes so models re-parse once.
 - **Never filter type-check output down to "my files" only.** Compare the full error list before
   and after a change. A `continue` outside a loop in the jobs launch route sat in the build for two
   days: the dev server compiles routes lazily, so it only surfaced when the route was first

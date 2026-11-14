@@ -5,6 +5,8 @@
 export type TmdlBlock = {
   keyword: string;
   name?: string;
+  /** `///` description lines written directly above the object. */
+  description?: string;
   headerLine: string;
   properties: Record<string, string>;
   bodyLines: string[];
@@ -31,7 +33,66 @@ const CHILD_BLOCK_KEYWORDS = new Set([
   'detailRowsDefinition',
   'refreshPolicy',
   'alternateOf',
+  'tablePermission',
+  'columnPermission',
+  'member',
+  'kpi',
+  'relatedColumnDetails',
+  'dataAccessOptions',
+  'linguisticMetadata',
+  'perspective',
+  'perspectiveTable',
+  'perspectiveColumn',
+  'perspectiveMeasure',
+  'perspectiveHierarchy',
+  'sourceExpression',
+  'pollingExpression',
+  'queryGroup',
+  'cultureInfo',
+  'expression',
 ]);
+
+/** Objects whose header may end with `=` and continue with a multi-line expression / JSON body. */
+const EXPRESSION_KEYWORDS = new Set([
+  'column',
+  'measure',
+  'tablePermission',
+  'columnPermission',
+  'formatStringDefinition',
+  'detailRowsDefinition',
+  'calculationItem',
+  'expression',
+  'sourceExpression',
+  'pollingExpression',
+  'extendedProperty',
+  'linguisticMetadata',
+  'annotation',
+]);
+
+/** Bare boolean flags that do not follow the `isX` pattern. */
+const OTHER_BARE_FLAGS = new Set([
+  'showAsVariationsOnly',
+  'fastCombine',
+  'legacyRedirects',
+  'returnErrorValuesAsNull',
+  'discourageImplicitMeasures',
+  'keepUniqueRows',
+  'relyOnReferentialIntegrity',
+]);
+
+const EXPRESSION_WORDS = new Set(['var', 'return', 'if', 'then', 'else', 'let', 'in', 'each', 'and', 'or', 'not', 'true', 'false', 'try', 'otherwise', 'type', 'meta']);
+
+/** `keyword Name` / `keyword` with children, where keyword is an unknown camelCase object type. */
+function isUnknownObject(b: TmdlBlock): boolean {
+  if (CHILD_BLOCK_KEYWORDS.has(b.keyword) || EXPRESSION_WORDS.has(b.keyword)) return false;
+  if (!/^[a-z][A-Za-z]+$/.test(b.keyword) || b.headerLine.includes(':')) return false;
+  return b.children.length > 0 || Boolean(b.name && /^('(?:[^']|'')+'|\S+)(\s*=.*)?$/.test(b.headerLine.slice(b.keyword.length).trim()));
+}
+
+function isBareFlag(line: string): boolean {
+  const t = line.trim();
+  return BARE_FLAG_RE.test(t) || OTHER_BARE_FLAGS.has(t);
+}
 
 /** Bare boolean TMDL properties (`isHidden`, `isNameInferred`, …) carry no colon. */
 const BARE_FLAG_RE = /^is[A-Z]\w*$/;
@@ -46,7 +107,8 @@ function isPropertyOrChildHeader(content: string): boolean {
   const trimmed = content.trim();
   const header = parseHeader(content);
   if (CHILD_BLOCK_KEYWORDS.has(header.keyword)) return true;
-  if (BARE_FLAG_RE.test(trimmed)) return true;
+  if (isBareFlag(trimmed)) return true;
+  if (trimmed.startsWith('///')) return true;
   return /^\w[\w.]*\s*:/.test(trimmed);
 }
 
@@ -67,7 +129,7 @@ export function stripTrailingTmdlProperties(dax: string | null | undefined): str
 }
 
 function expressionModeForHeader(keyword: string, headerLine: string, rest?: string): 'fenced' | 'open' | undefined {
-  if (keyword !== 'column' && keyword !== 'measure') return undefined;
+  if (!EXPRESSION_KEYWORDS.has(keyword)) return undefined;
   if (rest === '```') return 'fenced';
   const eq = headerLine.indexOf('=');
   if (eq === -1) return undefined;
@@ -115,6 +177,7 @@ export function parseTmdl(text: string): TmdlBlock[] {
   const lines = text.replace(/\r\n/g, '\n').split('\n');
   const root: TmdlBlock[] = [];
   const stack: TmdlStackFrame[] = [];
+  let pendingDescription: string[] = [];
 
   let i = 0;
   while (i < lines.length) {
@@ -173,10 +236,22 @@ export function parseTmdl(text: string): TmdlBlock[] {
       }
     }
 
+    // `///` lines describe the next object
+    if (content.trimStart().startsWith('///')) {
+      if (frame?.expressionMode === 'open') frame.expressionMode = undefined;
+      while (stack.length > 0 && stack[stack.length - 1].indent >= indent) stack.pop();
+      pendingDescription.push(content.trimStart().replace(/^\/\/\/\s?/, ''));
+      i += 1;
+      continue;
+    }
+
     const header = parseHeader(content);
+    const description = pendingDescription.length ? pendingDescription.join('\n').trim() : undefined;
+    pendingDescription = [];
     const block: TmdlBlock = {
       keyword: header.keyword,
       name: header.name,
+      ...(description ? { description } : {}),
       headerLine: content.trim(),
       properties: {},
       bodyLines: header.rest && header.rest !== '```' ? [header.rest] : [],
@@ -222,6 +297,13 @@ function attachPropertyLines(blocks: TmdlBlock[]): void {
     for (const child of b.children) {
       if (isCalculatedPartitionSource(child, b)) {
         kept.push(child);
+      } else if (!child.children.length && !child.bodyLines.length && isBareFlag(child.headerLine)) {
+        // `isHidden`, `isNameInferred`, `fastCombine` …: a boolean property, never DAX text
+        b.properties[child.headerLine.trim()] = 'true';
+      } else if (isUnknownObject(child)) {
+        // a TMDL object type this reader does not know (e.g. a newer feature): keep it as an
+        // object so it is reported and never leaks into the parent's DAX / M text
+        kept.push(child);
       } else if (childKeywords.has(child.keyword)) {
         kept.push(child);
         attachPropertyLines([child]);
@@ -250,6 +332,8 @@ export type ParsedTmdlTable = {
     formatString: string | null;
     summarizeBy: string | null;
     calculatedDax: string | null;
+    displayFolder: string | null;
+    meta: TmdlColumnMeta;
   }[];
   measures: {
     name: string;
@@ -257,7 +341,9 @@ export type ParsedTmdlTable = {
     lineageTag: string | null;
     formatString: string | null;
     displayFolder: string | null;
+    meta: TmdlMeasureMeta;
   }[];
+  meta: TmdlTableMeta;
   partitionSourceM: string;
   partitionMode: string | null;
   /** Partition type from its TMDL header (`partition X = calculated | m | entity …`). */
@@ -339,6 +425,8 @@ export function parseTmdlTableFile(text: string): ParsedTmdlTable | null {
       formatString: col.properties.formatString ?? null,
       summarizeBy: col.properties.summarizeBy ?? null,
       calculatedDax: col.bodyLines.length ? col.bodyLines.join('\n').trim() : null,
+      displayFolder: col.properties.displayFolder ?? null,
+      meta: columnMeta(col),
     }));
 
   const measures = table.children
@@ -349,6 +437,7 @@ export function parseTmdlTableFile(text: string): ParsedTmdlTable | null {
       lineageTag: m.properties.lineageTag ?? null,
       formatString: m.properties.formatString ?? null,
       displayFolder: m.properties.displayFolder ?? null,
+      meta: measureMeta(m),
     }));
 
   const { source, mode } = extractPartitionM(table, text);
@@ -362,6 +451,7 @@ export function parseTmdlTableFile(text: string): ParsedTmdlTable | null {
     hidden: table.properties.isHidden === 'true',
     columns,
     measures,
+    meta: tableMeta(table),
     // No partition (measure-only table) → no source. Never store the table's TMDL text here:
     // downstream it would be read as a DAX calculated-table expression.
     partitionSourceM: source,
@@ -376,6 +466,9 @@ export type ParsedTmdlRelationship = {
   toColumn: string | null;
   crossFiltering: string | null;
   isActive: boolean | null;
+  /** `many_to_one` (TMDL default), `one_to_one`, `many_to_many`, `one_to_many`. */
+  cardinality: string;
+  meta: TmdlObjectMeta;
 };
 
 export function parseTmdlRelationshipsFile(text: string): ParsedTmdlRelationship[] {
@@ -388,23 +481,414 @@ export function parseTmdlRelationshipsFile(text: string): ParsedTmdlRelationship
       toColumn: rel.properties.toColumn ?? null,
       crossFiltering: rel.properties.crossFilteringBehavior ?? null,
       isActive: rel.properties.isActive ? rel.properties.isActive === 'true' : null,
+      cardinality: `${rel.properties.fromCardinality ?? 'many'}_to_${rel.properties.toCardinality ?? 'one'}`,
+      meta: objectMeta(rel, ['fromColumn', 'toColumn', 'crossFilteringBehavior', 'isActive', 'lineageTag']),
     }));
 }
 
 export type ParsedTmdlRole = {
   name: string;
+  /** All table filters, one per line as `Table: <DAX>` (kept for older readers). */
   filterDax: string | null;
+  modelPermission: string | null;
+  tablePermissions: { table: string; filter: string | null }[];
+  columnPermissions: { table: string; column: string; permission: string | null }[];
+  members: { name: string; identityProvider: string | null; memberType: string | null }[];
+  meta: TmdlObjectMeta;
 };
+
+/** The expression of `keyword Name = <expr>` (header remainder plus any multi-line body). */
+function expressionText(block: TmdlBlock): string | null {
+  const eq = block.headerLine.indexOf('=');
+  const rest = eq === -1 ? '' : block.headerLine.slice(eq + 1).trim();
+  const body = block.bodyLines[0] === rest ? block.bodyLines.slice(1) : block.bodyLines;
+  const lines = [...(rest && rest !== '```' ? [rest] : []), ...body];
+  const text = lines.join('\n').trim();
+  return text || null;
+}
 
 export function parseTmdlRoleFile(text: string): ParsedTmdlRole | null {
   const roots = parseTmdl(text);
   const role = roots.find((r) => r.keyword === 'role');
   if (!role?.name) return null;
-  const tablePerm = role.children.find((c) => c.keyword === 'tablePermission');
-  const filter =
-    tablePerm?.properties.filterExpression ??
-    tablePerm?.bodyLines.join('\n') ??
-    role.properties.filterExpression ??
-    null;
-  return { name: role.name.replace(/^'|'$/g, ''), filterDax: filter };
+  const perms = role.children.filter((c) => c.keyword === 'tablePermission');
+  const tablePermissions = perms.map((c) => ({
+    table: stripTmdlQuotedName(c.name ?? ''),
+    filter: c.properties.filterExpression ?? expressionText(c),
+  }));
+  const columnPermissions = perms.flatMap((t) =>
+    t.children
+      .filter((c) => c.keyword === 'columnPermission')
+      .map((c) => ({
+        table: stripTmdlQuotedName(t.name ?? ''),
+        column: stripTmdlQuotedName(c.name ?? ''),
+        permission: c.properties.metadataPermission ?? expressionText(c),
+      })),
+  );
+  const members = role.children
+    .filter((c) => c.keyword === 'member')
+    .map((c) => ({
+      name: stripTmdlQuotedName(c.name ?? ''),
+      identityProvider: c.properties.identityProvider ?? null,
+      memberType: c.properties.memberType ?? null,
+    }));
+  const withFilter = tablePermissions.filter((t) => t.filter);
+  const filterDax = withFilter.length
+    ? withFilter.map((t) => `${t.table}: ${t.filter}`).join('\n')
+    : (role.properties.filterExpression ?? null);
+  return {
+    name: stripTmdlQuotedName(role.name),
+    filterDax,
+    modelPermission: role.properties.modelPermission ?? null,
+    tablePermissions,
+    columnPermissions,
+    members,
+    meta: objectMeta(role, ['modelPermission']),
+  };
+}
+
+// ── Metadata beyond what recreation needs today (kept so nothing in the definition is lost) ──
+
+export type TmdlObjectMeta = {
+  description?: string;
+  /** Every scalar property (bare flags as 'true'), except the ones stored in their own column. */
+  properties?: Record<string, string>;
+  annotations?: Record<string, string>;
+  extendedProperties?: Record<string, string>;
+};
+
+export type TmdlColumnMeta = TmdlObjectMeta & {
+  hidden?: boolean;
+  /** Auto date/time variations: the relationship to the LocalDateTable and its default hierarchy. */
+  variations?: { name: string; relationship: string | null; defaultHierarchy: string | null; isDefault: boolean }[];
+  /** Field-parameter / group columns: the columns this one is grouped by. */
+  groupByColumns?: string[];
+  alternateOf?: Record<string, string>;
+};
+
+export type TmdlMeasureMeta = TmdlObjectMeta & {
+  hidden?: boolean;
+  /** Dynamic format string (DAX). */
+  formatStringDefinition?: string;
+  detailRowsDefinition?: string;
+  kpi?: Record<string, string>;
+};
+
+export type TmdlRefreshPolicy = {
+  policyType: string | null;
+  mode: string | null;
+  rollingWindowGranularity: string | null;
+  rollingWindowPeriods: number | null;
+  incrementalGranularity: string | null;
+  incrementalPeriods: number | null;
+  incrementalPeriodsOffset: number | null;
+  pollingExpression: string | null;
+  sourceExpression: string | null;
+};
+
+export type TmdlTableMeta = TmdlObjectMeta & {
+  hidden?: boolean;
+  /** Every partition (name, type, mode, source). Recreation reads the first one's source. */
+  partitions?: { name: string; type: string | null; mode: string | null; source: string | null; queryGroup: string | null }[];
+  refreshPolicy?: TmdlRefreshPolicy;
+  hierarchies?: { name: string; description?: string; hidden: boolean; levels: { name: string; column: string | null }[] }[];
+  calculationGroup?: {
+    precedence: number | null;
+    items: { name: string; ordinal: number | null; expression: string | null; formatStringDefinition: string | null }[];
+  };
+  /** Field parameter table (NAMEOF list with a grouped "Fields" column): a slicer helper. */
+  fieldParameter?: boolean;
+};
+
+const STORED_COLUMN_PROPS = ['dataType', 'sourceColumn', 'lineageTag', 'formatString', 'summarizeBy', 'displayFolder'];
+const STORED_MEASURE_PROPS = ['lineageTag', 'formatString', 'displayFolder'];
+
+function annotationsOf(block: TmdlBlock, keyword: 'annotation' | 'extendedProperty'): Record<string, string> | undefined {
+  const out: Record<string, string> = {};
+  for (const c of block.children) {
+    if (c.keyword !== keyword || !c.name) continue;
+    const v = expressionText(c);
+    if (v != null) out[stripTmdlQuotedName(c.name)] = v.slice(0, 4000);
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+function objectMeta(block: TmdlBlock, stored: string[] = []): TmdlObjectMeta {
+  const props: Record<string, string> = {};
+  for (const [k, v] of Object.entries(block.properties)) if (!stored.includes(k)) props[k] = v;
+  const meta: TmdlObjectMeta = {};
+  if (block.description) meta.description = block.description;
+  if (Object.keys(props).length) meta.properties = props;
+  const ann = annotationsOf(block, 'annotation');
+  if (ann) meta.annotations = ann;
+  const ext = annotationsOf(block, 'extendedProperty');
+  if (ext) meta.extendedProperties = ext;
+  return meta;
+}
+
+function columnMeta(col: TmdlBlock): TmdlColumnMeta {
+  const meta: TmdlColumnMeta = objectMeta(col, STORED_COLUMN_PROPS);
+  if (col.properties.isHidden === 'true') meta.hidden = true;
+  const variations = col.children
+    .filter((c) => c.keyword === 'variation')
+    .map((v) => ({
+      name: stripTmdlQuotedName(v.name ?? ''),
+      relationship: v.properties.relationship ?? null,
+      defaultHierarchy: v.properties.defaultHierarchy ?? null,
+      isDefault: v.properties.isDefault === 'true',
+    }));
+  if (variations.length) meta.variations = variations;
+  const groupBy = col.children
+    .filter((c) => c.keyword === 'relatedColumnDetails')
+    .flatMap((c) => [c.properties.groupByColumn, ...c.children.filter((g) => g.keyword === 'groupByColumn').map((g) => g.name)])
+    .filter((x): x is string => Boolean(x))
+    .map(stripTmdlQuotedName);
+  if (groupBy.length) meta.groupByColumns = [...new Set(groupBy)];
+  const alt = col.children.find((c) => c.keyword === 'alternateOf');
+  if (alt) meta.alternateOf = { ...alt.properties };
+  return meta;
+}
+
+function measureMeta(m: TmdlBlock): TmdlMeasureMeta {
+  const meta: TmdlMeasureMeta = objectMeta(m, STORED_MEASURE_PROPS);
+  if (m.properties.isHidden === 'true') meta.hidden = true;
+  const fsd = m.children.find((c) => c.keyword === 'formatStringDefinition');
+  const fsdText = fsd ? expressionText(fsd) : null;
+  if (fsdText) meta.formatStringDefinition = fsdText;
+  const drd = m.children.find((c) => c.keyword === 'detailRowsDefinition');
+  const drdText = drd ? expressionText(drd) : null;
+  if (drdText) meta.detailRowsDefinition = drdText;
+  const kpi = m.children.find((c) => c.keyword === 'kpi');
+  if (kpi) {
+    const k: Record<string, string> = { ...kpi.properties };
+    for (const c of kpi.children) {
+      const t = expressionText(c);
+      if (t) k[c.keyword] = t;
+    }
+    meta.kpi = k;
+  }
+  return meta;
+}
+
+const num = (v: string | undefined) => (v != null && v !== '' && Number.isFinite(Number(v)) ? Number(v) : null);
+
+function partitionSourceText(p: TmdlBlock): string {
+  if (p.properties.source) return p.properties.source;
+  const src = p.children.find((c) => c.keyword === 'source');
+  return src ? [...src.bodyLines, ...src.children.flatMap(collectBlockLines)].join('\n').trim() : '';
+}
+
+function tableMeta(table: TmdlBlock): TmdlTableMeta {
+  const meta: TmdlTableMeta = objectMeta(table, ['lineageTag']);
+  if (table.properties.isHidden === 'true') meta.hidden = true;
+  const partitions = table.children
+    .filter((c) => c.keyword === 'partition')
+    .map((p) => {
+      const srcText = partitionSourceText(p);
+      return {
+        name: stripTmdlQuotedName(p.name ?? ''),
+        type: p.headerLine.match(/=\s*([A-Za-z]+)\s*$/)?.[1]?.toLowerCase() ?? null,
+        mode: p.properties.mode ?? null,
+        source: srcText ? srcText.slice(0, 20_000) : null,
+        queryGroup: p.properties.queryGroup ?? null,
+      };
+    });
+  if (partitions.length) meta.partitions = partitions;
+  const rp = table.children.find((c) => c.keyword === 'refreshPolicy');
+  if (rp) {
+    const child = (k: string) => {
+      const c = rp.children.find((x) => x.keyword === k);
+      return c ? expressionText(c) : (rp.properties[k] ?? null);
+    };
+    meta.refreshPolicy = {
+      policyType: rp.properties.policyType ?? null,
+      mode: rp.properties.mode ?? null,
+      rollingWindowGranularity: rp.properties.rollingWindowGranularity ?? null,
+      rollingWindowPeriods: num(rp.properties.rollingWindowPeriods),
+      incrementalGranularity: rp.properties.incrementalGranularity ?? null,
+      incrementalPeriods: num(rp.properties.incrementalPeriods),
+      incrementalPeriodsOffset: num(rp.properties.incrementalPeriodsOffset),
+      pollingExpression: child('pollingExpression'),
+      sourceExpression: child('sourceExpression'),
+    };
+  }
+  const hierarchies = table.children
+    .filter((c) => c.keyword === 'hierarchy')
+    .map((h) => ({
+      name: stripTmdlQuotedName(h.name ?? ''),
+      ...(h.description ? { description: h.description } : {}),
+      hidden: h.properties.isHidden === 'true',
+      levels: h.children
+        .filter((l) => l.keyword === 'level')
+        .map((l) => ({ name: stripTmdlQuotedName(l.name ?? ''), column: l.properties.column ? stripTmdlQuotedName(l.properties.column) : null })),
+    }));
+  if (hierarchies.length) meta.hierarchies = hierarchies;
+  const cg = table.children.find((c) => c.keyword === 'calculationGroup');
+  if (cg) {
+    meta.calculationGroup = {
+      precedence: num(cg.properties.precedence),
+      items: cg.children
+        .filter((c) => c.keyword === 'calculationItem')
+        .map((it) => {
+          const f = it.children.find((c) => c.keyword === 'formatStringDefinition');
+          return {
+            name: stripTmdlQuotedName(it.name ?? ''),
+            ordinal: num(it.properties.ordinal),
+            expression: expressionText(it),
+            formatStringDefinition: f ? expressionText(f) : null,
+          };
+        }),
+    };
+  }
+  const columns = table.children.filter((c) => c.keyword === 'column');
+  if (
+    columns.some((c) => c.children.some((x) => x.keyword === 'relatedColumnDetails')) &&
+    /\bNAMEOF\s*\(/i.test(partitions[0]?.source ?? '')
+  ) {
+    meta.fieldParameter = true;
+  }
+  return meta;
+}
+
+// ── Model-level files ─────────────────────────────────────────────────────────────────────────
+
+export type ParsedTmdlModel = {
+  culture: string | null;
+  /** Culture Power Query uses to convert text to dates / numbers (e.g. en-IN reads dd/MM). */
+  sourceQueryCulture: string | null;
+  discourageImplicitMeasures: boolean;
+  defaultPowerBIDataSourceVersion: string | null;
+  dataAccessOptions: string[];
+  /** Auto date/time enabled for new date columns. */
+  timeIntelligenceEnabled: boolean | null;
+  queryGroups: { name: string; description?: string; folder: string | null }[];
+  perspectives: string[];
+  meta: TmdlObjectMeta;
+};
+
+export function parseTmdlModelFile(text: string): ParsedTmdlModel | null {
+  const roots = parseTmdl(text);
+  const model = roots.find((r) => r.keyword === 'model');
+  if (!model) return null;
+  const all = [...roots, ...model.children];
+  const annotations: Record<string, string> = {};
+  for (const r of all) {
+    if (r.keyword === 'annotation' && r.name) annotations[stripTmdlQuotedName(r.name)] = (expressionText(r) ?? '').slice(0, 4000);
+  }
+  const dao = model.children.find((c) => c.keyword === 'dataAccessOptions');
+  const meta = objectMeta(model, ['culture', 'sourceQueryCulture', 'discourageImplicitMeasures', 'defaultPowerBIDataSourceVersion']);
+  if (Object.keys(annotations).length) meta.annotations = annotations;
+  const tie = annotations.__PBI_TimeIntelligenceEnabled;
+  return {
+    culture: model.properties.culture ?? null,
+    sourceQueryCulture: model.properties.sourceQueryCulture ?? null,
+    discourageImplicitMeasures: model.properties.discourageImplicitMeasures === 'true',
+    defaultPowerBIDataSourceVersion: model.properties.defaultPowerBIDataSourceVersion ?? null,
+    dataAccessOptions: dao ? Object.keys(dao.properties).filter((k) => dao.properties[k] === 'true') : [],
+    timeIntelligenceEnabled: tie == null ? null : tie.trim() === '1',
+    queryGroups: all
+      .filter((c) => c.keyword === 'queryGroup')
+      .map((q) => ({
+        name: stripTmdlQuotedName(q.name ?? ''),
+        ...(q.description ? { description: q.description } : {}),
+        folder: q.properties.folder ?? null,
+      })),
+    perspectives: all.filter((c) => c.keyword === 'perspective').map((p) => stripTmdlQuotedName(p.name ?? '')),
+    meta,
+  };
+}
+
+export function parseTmdlDatabaseFile(text: string): { compatibilityLevel: number | null; compatibilityMode: string | null } {
+  const db = parseTmdl(text).find((r) => r.keyword === 'database');
+  return {
+    compatibilityLevel: num(db?.properties.compatibilityLevel),
+    compatibilityMode: db?.properties.compatibilityMode ?? null,
+  };
+}
+
+type LinguisticEntity = {
+  Definition?: { Binding?: Record<string, string> };
+  Terms?: Record<string, { State?: string; Weight?: number }>[];
+};
+
+/**
+ * Q&A linguistic schema (cultures/*.tmdl) → synonyms per model object. Keeps authored terms and
+ * high-weight generated ones; drops thesaurus suggestions and deleted terms. Key is the
+ * conceptual binding: `Table`, `Table.Column` or `Table.Measure`.
+ */
+export function parseTmdlCultureFile(
+  text: string,
+  opts: { maxEntities?: number; maxTermsPerEntity?: number } = {},
+): { culture: string | null; synonyms: Record<string, string[]>; authored: number } {
+  const culture = text.match(/^cultureInfo\s+(\S+)/m)?.[1] ?? null;
+  const at = text.indexOf('linguisticMetadata');
+  const start = at === -1 ? -1 : text.indexOf('{', at);
+  const synonyms: Record<string, string[]> = {};
+  let authored = 0;
+  if (start === -1) return { culture, synonyms, authored };
+  let json: { Entities?: Record<string, LinguisticEntity> };
+  try {
+    const body = text.slice(start);
+    json = JSON.parse(body.slice(0, matchingBrace(body) + 1));
+  } catch {
+    return { culture, synonyms, authored };
+  }
+  const maxEntities = opts.maxEntities ?? 5000;
+  const maxTerms = opts.maxTermsPerEntity ?? 10;
+  for (const ent of Object.values(json.Entities ?? {})) {
+    if (Object.keys(synonyms).length >= maxEntities) break;
+    const b = ent.Definition?.Binding ?? {};
+    const key = [b.ConceptualEntity, b.ConceptualProperty].filter(Boolean).join('.');
+    if (!key) continue;
+    const terms: string[] = [];
+    for (const t of ent.Terms ?? []) {
+      for (const [term, info] of Object.entries(t)) {
+        const state = info?.State ?? 'Authored';
+        if (state === 'Suggested' || state === 'Deleted') continue;
+        if (state === 'Generated' && (info?.Weight ?? 1) < 0.9) continue;
+        if (state === 'Authored') authored += 1;
+        if (!terms.includes(term)) terms.push(term);
+      }
+    }
+    if (terms.length) synonyms[key] = [...new Set([...(synonyms[key] ?? []), ...terms])].slice(0, maxTerms);
+  }
+  return { culture, synonyms, authored };
+}
+
+function matchingBrace(s: string): number {
+  let depth = 0;
+  let inStr = false;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (inStr) {
+      if (ch === '\\') i++;
+      else if (ch === '"') inStr = false;
+    } else if (ch === '"') inStr = true;
+    else if (ch === '{') depth++;
+    else if (ch === '}' && --depth === 0) return i;
+  }
+  return s.length - 1;
+}
+
+// ── Coverage guard: TMDL object types this parser does not interpret ──────────────────────────
+
+const KNOWN_OBJECT_KEYWORDS = new Set([...CHILD_BLOCK_KEYWORDS, 'source', 'ref', 'database', 'groupByColumn']);
+
+/**
+ * Object keywords in a TMDL file that the parser does not interpret (their scalar properties are
+ * still kept generically). Recorded per model at parse time so new TMDL features surface instead
+ * of being silently dropped.
+ */
+export function unhandledTmdlKeywords(text: string): Record<string, number> {
+  const out: Record<string, number> = {};
+  const walk = (blocks: TmdlBlock[]) => {
+    for (const b of blocks) {
+      if (!KNOWN_OBJECT_KEYWORDS.has(b.keyword) && !isBareFlag(b.keyword) && /^[a-z][A-Za-z]+$/.test(b.keyword) && !b.headerLine.includes(':')) {
+        out[b.keyword] = (out[b.keyword] ?? 0) + 1;
+      }
+      walk(b.children);
+    }
+  };
+  walk(parseTmdl(text));
+  return out;
 }

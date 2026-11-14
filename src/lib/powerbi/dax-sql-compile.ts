@@ -33,7 +33,7 @@ import { normalizePbiTableName } from '@/lib/powerbi/translate-dax-refs';
  * Bump whenever compiled SQL can change for the same DAX + model (semantics, plan shape, rules).
  * Translate checkpoints are keyed on it, so a bump recompiles every measure once.
  */
-export const COMPILER_VERSION = '2026-11-14.blank-row-antijoin';
+export const COMPILER_VERSION = '2026-11-15.relationship-cardinality';
 
 export type DaxCompileOptions = {
   /** tableKey → warehouse leaf column (lower) → replacement column (from warehouse errors). */
@@ -74,7 +74,14 @@ export type CompileRelationship = {
   toColumn: string;
   both: boolean;
   active: boolean;
+  /** TMDL cardinality `<from>_to_<to>`; absent = many_to_one (the TMDL default). */
+  cardinality?: string;
 };
+
+/** The relationship's "to" column is unique (one side): many_to_one / one_to_one. */
+const toSideUnique = (r: { cardinality?: string }) => !r.cardinality || /_to_one$/.test(r.cardinality);
+/** The relationship's "from" column is unique: one_to_one / one_to_many. */
+const fromSideUnique = (r: { cardinality?: string }) => /^one_to_/.test(r.cardinality ?? '');
 
 class CompileError extends Error {
   constructor(
@@ -830,8 +837,10 @@ class Compiler {
         const ft = tkey(r.fromTable);
         const tt = tkey(r.toTable);
         const edges: { next: string; toCol: string; fromCol: string }[] = [];
+        // one-to-one relationships always filter in both directions in Power BI
+        const both = r.both || r.cardinality === 'one_to_one';
         if (tt === cur) edges.push({ next: ft, toCol: r.fromColumn, fromCol: r.toColumn });
-        if (r.both && ft === cur) edges.push({ next: tt, toCol: r.toColumn, fromCol: r.fromColumn });
+        if (both && ft === cur) edges.push({ next: tt, toCol: r.toColumn, fromCol: r.fromColumn });
         for (const e of edges) {
           if (seen.has(e.next)) continue;
           seen.add(e.next);
@@ -1085,20 +1094,24 @@ class Compiler {
   private uniqueKeyOf(table: string): string | null {
     const meta = this.catalog.tableMeta.get(table);
     if (!meta || this.tables.get(table)?.calcTable) return null;
-    const r = (this.catalog.relationships ?? []).find((x) => x.active && tkey(x.toTable) === table);
-    return r ? r.toColumn : null;
+    return uniqueColumnOf(
+      (this.catalog.relationships ?? []).filter((x) => x.active),
+      table,
+    );
   }
 
   /** The table's column on the unique side of any model relationship (calculated tables too). */
   private relationshipKeyOf(table: string): string | null {
-    const r = (this.catalog.relationships ?? []).find((x) => tkey(x.toTable) === table);
-    return r ? r.toColumn : null;
+    return uniqueColumnOf(this.catalog.relationships ?? [], table);
   }
 
   /** The column is the unique ("one") side of a model relationship. */
   private isUniqueSide(table: string, column: string): boolean {
+    const c = column.toLowerCase();
     return (this.catalog.relationships ?? []).some(
-      (r) => tkey(r.toTable) === table && r.toColumn.toLowerCase() === column.toLowerCase(),
+      (r) =>
+        (toSideUnique(r) && tkey(r.toTable) === table && r.toColumn.toLowerCase() === c) ||
+        (fromSideUnique(r) && tkey(r.fromTable) === table && r.fromColumn.toLowerCase() === c),
     );
   }
 
@@ -1141,6 +1154,8 @@ class Compiler {
     const parts: string[] = [];
     for (const r of this.rels) {
       if (tkey(r.toTable) !== table || tkey(r.fromTable) === table) continue;
+      // only regular (to-one) relationships add a blank row; many-to-many ones are limited
+      if (!toSideUnique(r)) continue;
       const many = tkey(r.fromTable);
       if (!this.catalog.tableMeta.get(many)) continue;
       try {
@@ -2292,4 +2307,13 @@ export function compileMeasureToSql(input: {
     }
     throw e;
   }
+}
+
+/** A column of `table` that is the unique side of one of `rels` (cardinality-aware). */
+function uniqueColumnOf(rels: CompileRelationship[], table: string): string | null {
+  for (const r of rels) {
+    if (toSideUnique(r) && tkey(r.toTable) === table) return r.toColumn;
+    if (fromSideUnique(r) && tkey(r.fromTable) === table) return r.fromColumn;
+  }
+  return null;
 }

@@ -11,6 +11,8 @@ import {
 import { stripTrailingTmdlProperties } from '@/lib/powerbi/tmdl-parse';
 import { extractPqRowFilters } from '@/lib/powerbi/pq-filter-parse';
 import { buildQueryMap, readModelExpressions } from '@/lib/powerbi/source-origin';
+import { inlineMParameters, readMParameters, tableParameterValues } from '@/lib/powerbi/m-parameters';
+import type { TmdlRefreshPolicy } from '@/lib/powerbi/tmdl-parse';
 import {
   extractDaxColumnRefs,
   normalizePbiTableName,
@@ -83,6 +85,8 @@ export type MeasureLogicRelationship = {
   toColumn: string;
   both: boolean;
   active: boolean;
+  /** TMDL cardinality `<from>_to_<to>` (default many_to_one). */
+  cardinality?: string;
 };
 
 export type MeasureLogicCatalog = {
@@ -409,6 +413,7 @@ export async function loadMeasureLogicCatalog(
       select: {
         name: true,
         source_m: true,
+        props: true,
         sourceBinding: {
           select: { uc_full_path: true, bind_status: true, context_object_id: true },
         },
@@ -430,10 +435,10 @@ export async function loadMeasureLogicCatalog(
     }),
     prisma.pbiRelationship.findMany({
       where: { org_id: orgId, model_id: internalModelId, lifecycle: 'active' },
-      select: { from_column: true, to_column: true, cross_filtering: true, is_active: true },
+      select: { from_column: true, to_column: true, cross_filtering: true, is_active: true, cardinality: true },
     }),
     loadRuleRows(orgId),
-    prisma.pbiModel.findFirst({ where: { id: internalModelId, org_id: orgId }, select: { props: true } }),
+    prisma.pbiModel.findFirst({ where: { id: internalModelId, org_id: orgId }, select: { props: true, last_refresh_at: true } }),
   ]);
 
   const columnsByTable = new Map<string, Map<string, MeasureLogicColumnMeta>>();
@@ -471,19 +476,29 @@ export async function loadMeasureLogicCatalog(
     }
   }
 
+  // Power Query parameters (and incremental-refresh windows) resolved into each table's M, so
+  // lineage compiles filters such as `[Date] >= RangeStart` to the rows the dataset really holds.
+  const modelParameters = readMParameters(readModelExpressions(modelRow?.props));
+  const refreshedAt = modelRow?.last_refresh_at ?? new Date();
+  const tableSourceM = (t: (typeof tables)[number]) => {
+    const policy = ((t.props as { tmdl?: { refreshPolicy?: TmdlRefreshPolicy } } | null)?.tmdl?.refreshPolicy ?? null);
+    return inlineMParameters(t.source_m, tableParameterValues(modelParameters, policy, refreshedAt));
+  };
+
   const tableMeta = new Map<string, MeasureLogicTableMeta>();
   for (const t of tables) {
+    const sourceM = tableSourceM(t);
     const tKey = normalizePbiTableName(t.name).toLowerCase();
     const uc =
       t.sourceBinding?.bind_status === 'matched' && t.sourceBinding.uc_full_path?.trim()
         ? t.sourceBinding.uc_full_path.trim()
         : null;
     const objectId = t.sourceBinding?.context_object_id ?? null;
-    const lineage = t.source_m ? parseMLineage(t.source_m) : null; // warehouse column names only
+    const lineage = sourceM ? parseMLineage(sourceM) : null; // warehouse column names only
     tableMeta.set(tKey, {
       displayName: t.name,
       uc_full_path: uc,
-      source_m: t.source_m,
+      source_m: sourceM,
       warehouse_columns: [
         ...(objectId ? (warehouseCols.get(objectId) ?? []) : []),
         ...extractColumnNamesFromNativeSql(lineage?.nativeSql ?? null),
@@ -513,6 +528,7 @@ export async function loadMeasureLogicCatalog(
       toColumn: to.column,
       both: (r.cross_filtering ?? '').toLowerCase() === 'bothdirections',
       active: r.is_active !== false,
+      ...(r.cardinality && r.cardinality !== 'many_to_one' ? { cardinality: r.cardinality } : {}),
     });
   }
 

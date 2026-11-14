@@ -34,3 +34,10 @@ export function buildAltPhrasings(
   }
   return [...new Set(phrases.map(p => p.trim()).filter(Boolean))].slice(0, 7);
 }
+
+/** Constant measure (e.g. `= 0`) that exists for its dynamic format string. */
+export function isDisplayHelper(measure: { dax?: string | null; props?: unknown } | null | undefined): boolean {
+  const fsd = (measure?.props as { tmdl?: { formatStringDefinition?: string } } | null)?.tmdl?.formatStringDefinition;
+  const dax = (measure?.dax ?? '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/(\/\/|--).*$/gm, '').trim();
+  return Boolean(fsd) && /^(-?\d+(\.\d+)?|BLANK\(\)|"[^"]*")$/i.test(dax);
+}

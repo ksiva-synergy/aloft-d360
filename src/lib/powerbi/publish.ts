@@ -5,6 +5,7 @@ import { isFreshnessGap } from '@/lib/powerbi/recreation-root-cause';
 import {
   buildAltPhrasings,
   buildVerifiedQueryQuestion,
+  isDisplayHelper,
 } from '@/lib/powerbi/publish-question';
 import { computeSchemaHash } from '@/lib/powerbi/schema-hash';
 import {
@@ -162,9 +163,21 @@ export async function runPbiPublish(
     },
     include: {
       model: { select: { id: true, name: true, rls_required: true, pbi_model_id: true } },
-      measure: { select: { id: true, name: true, dax_hash: true } },
+      measure: { select: { id: true, name: true, dax: true, dax_hash: true, props: true, table: { select: { name: true } } } },
     },
   });
+
+  // Q&A synonyms per model (from the culture's linguistic schema), keyed `Table.Measure`
+  const synonymsByModel = new Map<string, Record<string, string[]>>();
+  for (const m of await prisma.pbiModel.findMany({
+    where: { id: { in: [...new Set(translations.map((t) => t.model.id))] } },
+    select: { id: true, props: true },
+  })) {
+    const entries = ((m.props as { synonyms?: { entries?: Record<string, string[]> } } | null)?.synonyms?.entries ?? {}) as Record<string, string[]>;
+    const lower: Record<string, string[]> = {};
+    for (const [k, v] of Object.entries(entries)) lower[k.toLowerCase()] = v;
+    synonymsByModel.set(m.id, lower);
+  }
 
   let published = 0;
   let skipped = 0;
@@ -182,6 +195,12 @@ export async function runPbiPublish(
       continue;
     }
     if (opts.requireApproved && tr.status !== 'approved') {
+      skipped += 1;
+      continue;
+    }
+    if (isDisplayHelper(tr.measure)) {
+      // a constant whose real output is its dynamic format string: drives a visual label, it
+      // is not a reportable number
       skipped += 1;
       continue;
     }
@@ -250,6 +269,9 @@ export async function runPbiPublish(
       altPhrasings,
       measureName: tr.measure_name,
       modelName: tr.model.name,
+      description: (tr.measure?.props as { tmdl?: { description?: string } } | null)?.tmdl?.description ?? null,
+      synonyms:
+        synonymsByModel.get(tr.model.id)?.[`${tr.measure?.table?.name ?? ''}.${tr.measure_name}`.toLowerCase()] ?? [],
     });
     await upsertVerifiedQueryEmbedding(row.id, embedText);
 

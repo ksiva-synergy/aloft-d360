@@ -16,10 +16,15 @@ import { extractTablePathsFromSql } from '@/lib/powerbi/native-sql';
 import { getPbiRawStoreRoot } from '@/lib/powerbi/raw-store';
 import { parseLegacyReportJson } from '@/lib/powerbi/report-parse-legacy';
 import { describeSourceOrigins, parseTmdlExpressions } from '@/lib/powerbi/source-origin';
+import { readMParameters } from '@/lib/powerbi/m-parameters';
 import {
+  parseTmdlCultureFile,
+  parseTmdlDatabaseFile,
+  parseTmdlModelFile,
   parseTmdlRelationshipsFile,
   parseTmdlRoleFile,
   parseTmdlTableFile,
+  unhandledTmdlKeywords,
 } from '@/lib/powerbi/tmdl-parse';
 
 type DefinitionMeta = {
@@ -32,9 +37,10 @@ type DefinitionMeta = {
 /**
  * Bump when parsing changes what is stored for an unchanged definition, so existing models are
  * re-parsed once on the next parse run. 2026-11-15: shared expressions stored, file sources
- * classified before joins.
+ * classified before joins; full TMDL metadata (flags, descriptions, RLS filters, cardinality,
+ * refresh policies, hierarchies, synonyms …); bare flags no longer stored as DAX.
  */
-export const PBI_PARSER_VERSION = '2026-11-15.source-origin';
+export const PBI_PARSER_VERSION = '2026-11-15.tmdl-complete';
 
 /** Shared expressions kept on the model (helper queries tables call); capped. */
 const MAX_EXPRESSIONS = 500;
@@ -155,6 +161,9 @@ export async function runPbiParse(
       let tableCount = 0;
       let measureCount = 0;
       let expressions: { name: string; m: string }[] = [];
+      let modelDefinition: Record<string, unknown> = {};
+      let synonyms: { culture: string | null; entries: Record<string, string[]>; authored: number } | null = null;
+      const tmdlUnhandled: Record<string, number> = {};
 
       await prisma.$transaction(async (tx) => {
         // Reconcile instead of wipe-and-rebuild: tables and measures keep their ids across
@@ -163,11 +172,11 @@ export async function runPbiParse(
         // (columns, relationships, roles, embedded-table rows) are rebuilt.
         const existingTables = await tx.pbiTable.findMany({
           where: { model_id: model.id },
-          select: { id: true, name: true, lineage_tag: true },
+          select: { id: true, name: true, lineage_tag: true, props: true },
         });
         const existingMeasures = await tx.pbiMeasure.findMany({
           where: { model_id: model.id },
-          select: { id: true, name: true, lineage_tag: true, table_id: true },
+          select: { id: true, name: true, lineage_tag: true, table_id: true, props: true },
         });
         const existingBindings = await tx.pbiSourceBinding.findMany({
           where: { model_id: model.id },
@@ -198,6 +207,25 @@ export async function runPbiParse(
         for (const file of tmdlFiles) {
           const rel = path.relative(absDir, file).replace(/\\/g, '/');
           const text = fs.readFileSync(file, 'utf8');
+          for (const [k, v] of Object.entries(unhandledTmdlKeywords(text))) tmdlUnhandled[k] = (tmdlUnhandled[k] ?? 0) + v;
+
+          if (rel === 'model.tmdl' || rel.endsWith('/model.tmdl')) {
+            const m = parseTmdlModelFile(text);
+            if (m) modelDefinition = { ...modelDefinition, ...m };
+            continue;
+          }
+          if (rel === 'database.tmdl' || rel.endsWith('/database.tmdl')) {
+            modelDefinition = { ...modelDefinition, ...parseTmdlDatabaseFile(text) };
+            continue;
+          }
+          if (rel.startsWith('cultures/') || rel.includes('/cultures/')) {
+            const c = parseTmdlCultureFile(text);
+            // one culture is enough for synonyms; prefer the model culture when several exist
+            if (!synonyms || Object.keys(c.synonyms).length > Object.keys(synonyms.entries).length) {
+              synonyms = { culture: c.culture, entries: c.synonyms, authored: c.authored };
+            }
+            continue;
+          }
 
           if (rel === 'expressions.tmdl' || rel.endsWith('/expressions.tmdl')) {
             expressions = parseTmdlExpressions(text)
@@ -217,6 +245,8 @@ export async function runPbiParse(
                   to_column: relRow.toColumn,
                   cross_filtering: relRow.crossFiltering,
                   is_active: relRow.isActive,
+                  cardinality: relRow.cardinality,
+                  props: { tmdl: relRow.meta } as object,
                   content_hash: sha256Short(JSON.stringify(relRow)),
                 },
               });
@@ -233,7 +263,14 @@ export async function runPbiParse(
                   model_id: model.id,
                   name: role.name,
                   filter_dax: role.filterDax,
-                  content_hash: sha256Short(role.filterDax ?? role.name),
+                  props: {
+                    model_permission: role.modelPermission,
+                    table_permissions: role.tablePermissions,
+                    column_permissions: role.columnPermissions,
+                    members: role.members,
+                    tmdl: role.meta,
+                  } as object,
+                  content_hash: sha256Short(JSON.stringify(role)),
                 },
               });
             }
@@ -260,6 +297,7 @@ export async function runPbiParse(
             partition_kind: kind,
             storage_mode: parsed.partitionMode,
             hidden: parsed.hidden,
+            props: {} as object, // set below, merged with what the table already carries
             source_m: parsed.partitionSourceM.slice(0, 500_000) || null,
             is_auto_date: kind === 'auto_date_table',
             content_hash: sha256Short(text),
@@ -269,6 +307,14 @@ export async function runPbiParse(
           const prior =
             (parsed.lineageTag ? tableByTag.get(parsed.lineageTag) : undefined) ??
             tableByName.get(parsed.name);
+          // the first partition's source is already source_m: keep only the others in full
+          const tableTmdl = {
+            ...parsed.meta,
+            ...(parsed.meta.partitions
+              ? { partitions: parsed.meta.partitions.map((p, idx) => (idx === 0 ? { ...p, source: null } : p)) }
+              : {}),
+          };
+          tableData.props = { ...((prior?.props as Record<string, unknown> | null) ?? {}), tmdl: tableTmdl } as object;
           const table =
             prior && !seenTables.has(prior.id)
               ? await tx.pbiTable.update({ where: { id: prior.id }, data: tableData })
@@ -353,6 +399,8 @@ export async function runPbiParse(
                 format_string: col.formatString,
                 summarize_by: col.summarizeBy,
                 calculated_dax: col.calculatedDax,
+                display_folder: col.displayFolder,
+                props: (Object.keys(col.meta).length ? { tmdl: col.meta } : {}) as object,
                 content_hash: sha256Short(JSON.stringify(col)),
               },
             });
@@ -371,12 +419,15 @@ export async function runPbiParse(
               display_folder: m.displayFolder,
               content_hash: sha256Short(JSON.stringify(m)),
               lifecycle: 'active',
+              props: {} as object,
             };
             const priorMeasure =
               (m.lineageTag ? measureByTag.get(m.lineageTag) : undefined) ??
               measureByTableName.get(`${table.id}\0${m.name}`) ??
               measureByName.get(m.name) ??
               undefined;
+            const priorProps = (priorMeasure?.props as Record<string, unknown> | null) ?? {};
+            measureData.props = { ...priorProps, tmdl: m.meta } as object;
             if (priorMeasure && !seenMeasures.has(priorMeasure.id)) {
               await tx.pbiMeasure.update({ where: { id: priorMeasure.id }, data: measureData });
               seenMeasures.add(priorMeasure.id);
@@ -418,6 +469,10 @@ export async function runPbiParse(
         parse: parseMeta,
         classification: { answerability, partition_kinds: partitionKinds },
         expressions,
+        parameters: readMParameters(expressions),
+        model_definition: modelDefinition,
+        synonyms,
+        tmdl_unhandled: tmdlUnhandled,
       };
 
       await prisma.pbiModel.update({

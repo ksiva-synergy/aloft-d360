@@ -9,11 +9,17 @@ export function composeVerifiedQueryEmbedText(input: {
   altPhrasings: string[];
   measureName: string;
   modelName?: string | null;
+  /** Measure description from the model definition (`///` in TMDL). */
+  description?: string | null;
+  /** Q&A synonyms the model defines for the measure. */
+  synonyms?: string[];
 }): string {
   const lines = [
     input.question,
     ...input.altPhrasings.slice(0, 5),
     input.measureName,
+    input.description?.trim() ?? '',
+    ...(input.synonyms ?? []).filter((s) => s.toLowerCase() !== input.measureName.toLowerCase()).slice(0, 8),
     input.modelName?.trim() ?? '',
   ].filter(Boolean);
   return lines.join('\n');
