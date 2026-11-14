@@ -10,6 +10,8 @@ import {
   ChevronDown,
   ChevronRight,
   Database,
+  GitBranch,
+  HeartPulse,
   ExternalLink,
   FileBarChart,
   Loader2,
@@ -22,6 +24,8 @@ import {
 import { cn } from '@/lib/utils';
 import { CATALOG_BTN, CATALOG_SELECT, CATALOG_SELECT_ARROW } from '@/components/estate/catalog-ui';
 import { Callout, CodeBlock, Tag, type Tone } from '@/components/estate/object-ui';
+import { MeasureDependencyGraph, ModelHealthPanel } from '@/components/estate/ModelDependencyGraph';
+import { ModelOwnershipCard } from '@/components/estate/ModelOwnershipCard';
 import { useSectionLevel } from '@/lib/sections/useSectionLevels';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -98,6 +102,25 @@ type RecreationSummary = {
   recreation_pct: number;
   published_pct: number;
   root_causes?: Record<string, number>;
+  causes_precise?: number;
+  causes_total?: number;
+  cause_precision_pct?: number;
+  patterns?: Record<string, number>;
+};
+
+const PATTERN_LABEL: Record<string, string> = {
+  compiler_blowup: 'SQL blow-up',
+  slow_plan: 'slow Databricks planning',
+  validation_deferred: 'validated at parity',
+  pq_capability_gap: 'Power Query step not modeled',
+  dax_capability_gap: 'DAX function not modeled',
+  scale_mismatch: 'scale ×100/×1000',
+  sign_flip: 'sign flipped',
+  row_fanout: 'row fan-out',
+  empty_sql_result: 'SQL empty',
+  blank_mismatch: 'Power BI BLANK',
+  boundary_rows: 'few rows differ',
+  type_mismatch: 'text vs number',
 };
 
 const ROOT_CAUSE_LABEL: Record<string, string> = {
@@ -107,10 +130,14 @@ const ROOT_CAUSE_LABEL: Record<string, string> = {
   nondeterministic_source: 'non-deterministic in PBI',
   unsupported_dax: 'DAX not modeled',
   harvest_gap: 'harvest gap',
+  replica_drift: 'replica schema drift',
+  rls_required: 'needs RLS identity',
   unbound_table: 'unbound table',
   pq_unsupported: 'Power Query step',
   warehouse_error: 'warehouse error',
   engine_limit: 'Spark planning limit',
+  warehouse_timeout: 'time budget exceeded',
+  warehouse_unavailable: 'warehouse unavailable',
   llm_failed: 'LLM failed',
   data_freshness: 'dataset stale',
   parity_mismatch: 'value mismatch',
@@ -135,7 +162,13 @@ type ModelDetail = {
     dax_preview: string;
     recreation_stage?: MeasureRecreationStage;
     recreation_reason?: string | null;
-    root_cause?: { category: string; detail: string; fix: string } | null;
+    root_cause?: {
+      category: string;
+      detail: string;
+      fix: string;
+      precise?: boolean;
+      evidence?: { detector: string; evidence: string; action: string }[];
+    } | null;
     translation_tier?: string | null;
     parity_verdict?: string | null;
     verified_query_status?: string | null;
@@ -161,7 +194,7 @@ type ModelDetail = {
 };
 
 type StatusFilter = 'all' | 'answerable' | 'caveated' | 'blocked' | 'unparsed';
-type DetailTab = 'measures' | 'tables' | 'reports';
+type DetailTab = 'measures' | 'tables' | 'reports' | 'health';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -303,6 +336,23 @@ function RecreationSummaryBar({ recreation }: { recreation: RecreationSummary })
             .sort((a, b) => b[1] - a[1])
             .map(([k, n]) => `${ROOT_CAUSE_LABEL[k] ?? k} ${n}`)
             .join(' · ')}
+        </p>
+      )}
+      {recreation.causes_total !== undefined && recreation.causes_total > 0 && (
+        <p
+          className="mt-1 text-caption text-[var(--estate-text-muted)]"
+          title="Share of not-recreated measures whose cause names a specific defect (Phase 3 target: 90%)"
+        >
+          Precise causes: {recreation.causes_precise}/{recreation.causes_total} ({recreation.cause_precision_pct}%)
+          {recreation.patterns && Object.keys(recreation.patterns).length > 0 && (
+            <>
+              {' · patterns: '}
+              {Object.entries(recreation.patterns)
+                .sort((a, b) => b[1] - a[1])
+                .map(([k, n]) => `${PATTERN_LABEL[k] ?? k} ${n}`)
+                .join(' · ')}
+            </>
+          )}
         </p>
       )}
     </div>
@@ -575,16 +625,32 @@ function partitionTone(kind: string | null): Tone {
 type Binding = { uc_full_path?: string; bind_status?: string; context_object_id?: string } | null;
 
 function MeasuresTab({
+  modelId,
   measures,
   query,
   setQuery,
+  focus,
 }: {
+  modelId: string;
   measures: ModelDetail['measures'];
   query: string;
   setQuery: (q: string) => void;
+  /** Measure to open with its dependency graph (from Model health); `seq` re-triggers. */
+  focus: { name: string; seq: number } | null;
 }) {
   // undefined = no explicit choice yet, so a search that narrows to one measure opens it.
   const [openId, setOpenId] = useState<string | null | undefined>(undefined);
+  const [graphOpen, setGraphOpen] = useState<Set<string>>(() => new Set());
+  // Open a measure requested from Model health (once per request seq, adjusted during render).
+  const [handledFocus, setHandledFocus] = useState<number | null>(null);
+  if (focus && focus.seq !== handledFocus) {
+    setHandledFocus(focus.seq);
+    const m = measures.find((x) => x.name === focus.name);
+    if (m) {
+      setOpenId(m.id);
+      setGraphOpen((prev) => new Set(prev).add(m.id));
+    }
+  }
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return measures;
@@ -658,6 +724,12 @@ function MeasuresTab({
                           {m.root_cause.fix}
                         </p>
                       )}
+                      {m.root_cause?.evidence?.map((f) => (
+                        <p key={f.detector} className="text-caption text-[var(--estate-text-secondary)]">
+                          <span className="text-[var(--estate-ink)]">{PATTERN_LABEL[f.detector] ?? f.detector}:</span>{' '}
+                          {f.evidence}. <span className="text-[var(--estate-text-muted)]">{f.action}</span>
+                        </p>
+                      ))}
                       {m.recreation_reason && (
                         <p className="text-caption text-[var(--estate-text-secondary)]">
                           {m.recreation_reason}
@@ -719,6 +791,23 @@ function MeasuresTab({
                         </p>
                       )}
                       <CodeBlock code={m.dax_preview || '— no DAX captured —'} maxHeight={320} />
+                      <button
+                        type="button"
+                        aria-expanded={graphOpen.has(m.id)}
+                        onClick={() =>
+                          setGraphOpen((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(m.id)) next.delete(m.id);
+                            else next.add(m.id);
+                            return next;
+                          })
+                        }
+                        className={cn(CATALOG_BTN, 'inline-flex items-center gap-1.5')}
+                      >
+                        <GitBranch className="size-3.5" aria-hidden />
+                        {graphOpen.has(m.id) ? 'Hide dependency graph' : 'Show dependency graph'}
+                      </button>
+                      {graphOpen.has(m.id) && <MeasureDependencyGraph modelId={modelId} measure={m.name} />}
                     </div>
                   )}
                 </li>
@@ -829,10 +918,18 @@ function ModelDetailView({
   const score = domainScoreLabel(detail.domain_assignment?.confidence ?? row?.domain_confidence);
   const firstReportUrl = detail.reports.find((r) => r.web_url)?.web_url ?? null;
 
-  const tabs: { id: DetailTab; label: string; count: number; icon: React.ReactNode }[] = [
+  const [measureFocus, setMeasureFocus] = useState<{ name: string; seq: number } | null>(null);
+  const openMeasure = (name: string) => {
+    setMeasureQuery(name);
+    setMeasureFocus((prev) => ({ name, seq: (prev?.seq ?? 0) + 1 }));
+    setTab('measures');
+  };
+
+  const tabs: { id: DetailTab; label: string; count?: number; icon: React.ReactNode }[] = [
     { id: 'measures', label: 'Measures', count: detail.measures.length, icon: <Sigma className="size-3.5" aria-hidden /> },
     { id: 'tables', label: 'Tables', count: detail.tables.length, icon: <Table2 className="size-3.5" aria-hidden /> },
     { id: 'reports', label: 'Reports', count: detail.reports.length, icon: <FileBarChart className="size-3.5" aria-hidden /> },
+    { id: 'health', label: 'Model health', icon: <HeartPulse className="size-3.5" aria-hidden /> },
   ];
 
   return (
@@ -876,6 +973,8 @@ function ModelDetailView({
         )}
       </header>
 
+      {parsed && <ModelOwnershipCard key={detail.id} modelId={detail.id} />}
+
       {recreation && recreation.sql_drafted > 0 && (
         <RecreationSummaryBar recreation={recreation} />
       )}
@@ -914,18 +1013,28 @@ function ModelDetailView({
                 >
                   {t.icon}
                   {t.label}
-                  <span className="rounded-full bg-[var(--estate-raised)] px-1.5 text-caption tabular-nums text-[var(--estate-text-secondary)]">
-                    {t.count}
-                  </span>
+                  {t.count !== undefined && (
+                    <span className="rounded-full bg-[var(--estate-raised)] px-1.5 text-caption tabular-nums text-[var(--estate-text-secondary)]">
+                      {t.count}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
             <div role="tabpanel">
               {tab === 'measures' && (
-                <MeasuresTab key={detail.id} measures={detail.measures} query={measureQuery} setQuery={setMeasureQuery} />
+                <MeasuresTab
+                  key={detail.id}
+                  modelId={detail.id}
+                  measures={detail.measures}
+                  query={measureQuery}
+                  setQuery={setMeasureQuery}
+                  focus={measureFocus}
+                />
               )}
               {tab === 'tables' && <TablesTab tables={detail.tables} />}
               {tab === 'reports' && <ReportsTab reports={detail.reports} />}
+              {tab === 'health' && <ModelHealthPanel modelId={detail.id} onOpenMeasure={openMeasure} />}
             </div>
           </div>
         </>
