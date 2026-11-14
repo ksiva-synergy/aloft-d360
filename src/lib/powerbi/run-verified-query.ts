@@ -52,7 +52,7 @@ export async function runVerifiedQueryForPrincipal(opts: {
   >;
 
   return {
-    columns: sqlResult.columns,
+    columns: sqlResult.columns.map((c) => ({ name: c.name, type: c.type_name })),
     rows: sqlResult.rows,
     row_count: sqlResult.row_count,
     truncated: sqlResult.truncated,

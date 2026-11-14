@@ -1,5 +1,6 @@
 import 'server-only';
 
+import type { Prisma } from '@prisma/client';
 import prisma from '@/lib/db';
 import { PowerBiApiError } from '@/lib/powerbi/client';
 import {
@@ -181,13 +182,13 @@ function translationProps(
   via: 'home_table' | 'dax_ref',
   sourceTable: string,
   extra?: Record<string, unknown>,
-): Record<string, unknown> {
+): Prisma.InputJsonObject {
   return {
     uc_full_path: uc,
     uc_resolve_via: via,
     uc_source_table: sourceTable,
     ...extra,
-  };
+  } as Prisma.InputJsonObject;
 }
 
 export interface PbiTranslateResult {
@@ -579,7 +580,7 @@ export async function runPbiTranslate(
           status: 'draft',
           parity_verdict: null,
           run_id: opts.runId,
-          props: translationProps(resolved.uc, resolved.via, resolved.sourceTable, {
+          props: translationProps(resolved!.uc, resolved!.via, resolved!.sourceTable, {
             ...colProps,
             ...logicProps,
             ...extra,
@@ -593,7 +594,7 @@ export async function runPbiTranslate(
           status: 'draft',
           parity_verdict: null,
           run_id: opts.runId,
-          props: translationProps(resolved.uc, resolved.via, resolved.sourceTable, {
+          props: translationProps(resolved!.uc, resolved!.via, resolved!.sourceTable, {
             ...colProps,
             ...logicProps,
             ...extra,
@@ -659,7 +660,7 @@ export async function runPbiTranslate(
         status: 'draft',
         parity_verdict: null,
         run_id: opts.runId,
-        props: translationProps(resolved.uc, resolved.via, resolved.sourceTable, {
+        props: translationProps(resolved!.uc, resolved!.via, resolved!.sourceTable, {
           pattern: attempt.pattern,
           ...colProps,
           ...logicProps,
@@ -673,7 +674,7 @@ export async function runPbiTranslate(
         status: 'draft',
         parity_verdict: null,
         run_id: opts.runId,
-        props: translationProps(resolved.uc, resolved.via, resolved.sourceTable, {
+        props: translationProps(resolved!.uc, resolved!.via, resolved!.sourceTable, {
           pattern: attempt.pattern,
           ...colProps,
           ...logicProps,

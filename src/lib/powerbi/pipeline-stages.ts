@@ -76,17 +76,35 @@ export const PBI_STAGES: PbiStage[] = [
 
 const BY_ID = new Map(PBI_STAGES.map((s) => [s.id, s]));
 
+/** What the model already has — decides which upstream stages are prerequisites. */
+export type ModelPipelineState = { parsed: boolean; hasDefinition: boolean };
+
+const AFTER_PARSE: PbiStageId[] = ['catalog_link', 'translate', 'oracle', 'parity', 'publish'];
+
 /**
- * Stages that run when `chosen` are picked: the chosen ones plus everything they require
- * (transitively), in run order. `reasons` explains each automatically added stage.
+ * Stages that run when `chosen` are picked: the chosen ones, the upstream stages they need
+ * (an unparsed model must be harvested and parsed first), and everything downstream they
+ * require (transitively), in run order. `reasons` explains each automatically added stage.
  */
-export function resolveStages(chosen: PbiStageId[]): {
+export function resolveStages(
+  chosen: PbiStageId[],
+  state: ModelPipelineState = { parsed: true, hasDefinition: true },
+): {
   stages: PbiStageId[];
   reasons: Partial<Record<PbiStageId, string>>;
 } {
   const selected = new Set<PbiStageId>(chosen);
   const reasons: Partial<Record<PbiStageId, string>> = {};
-  const queue = [...chosen];
+  // upstream prerequisites when the model is not parsed yet
+  if (!state.parsed && chosen.some((c) => AFTER_PARSE.includes(c))) {
+    const pre: PbiStageId[] = state.hasDefinition ? ['parse', 'catalog_link'] : ['definitions', 'parse', 'catalog_link'];
+    for (const p of pre) {
+      if (selected.has(p)) continue;
+      selected.add(p);
+      reasons[p] = 'model not parsed yet — required first';
+    }
+  }
+  const queue = [...selected];
   while (queue.length) {
     const id = queue.shift()!;
     for (const r of BY_ID.get(id)?.requires ?? []) {
@@ -100,15 +118,20 @@ export function resolveStages(chosen: PbiStageId[]): {
 }
 
 /** Stages that cannot be unticked because a ticked stage requires them. */
-export function lockedStages(chosen: PbiStageId[]): Set<PbiStageId> {
-  const { stages } = resolveStages(chosen);
+export function lockedStages(chosen: PbiStageId[], state?: ModelPipelineState): Set<PbiStageId> {
+  const { stages } = resolveStages(chosen, state);
   const explicit = new Set(chosen);
   return new Set(stages.filter((s) => !explicit.has(s)));
 }
 
 /** Job kinds in run order for the launch API. */
-export function stageKinds(chosen: PbiStageId[]): string[] {
-  return resolveStages(chosen).stages.map((s) => BY_ID.get(s)!.kind);
+export function stageKinds(chosen: PbiStageId[], state?: ModelPipelineState): string[] {
+  return resolveStages(chosen, state).stages.map((s) => BY_ID.get(s)!.kind);
+}
+
+/** Sensible default selection for the model's state. */
+export function defaultStages(state: ModelPipelineState): PbiStageId[] {
+  return state.parsed ? ['translate', 'publish'] : ['translate'];
 }
 
 /**

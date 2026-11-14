@@ -18,6 +18,17 @@ describe('Run pipeline stage selection', () => {
     expect(resolveStages(['publish']).stages).toEqual(['publish']);
   });
 
+  it('an unparsed model gets harvest stages as prerequisites (definitions only when missing)', () => {
+    const noDef = resolveStages(['translate'], { parsed: false, hasDefinition: false });
+    expect(noDef.stages).toEqual(['definitions', 'parse', 'catalog_link', 'translate', 'oracle', 'parity']);
+    expect(noDef.reasons.parse).toMatch(/not parsed yet/);
+    const withDef = resolveStages(['translate'], { parsed: false, hasDefinition: true });
+    expect(withDef.stages).toEqual(['parse', 'catalog_link', 'translate', 'oracle', 'parity']);
+    expect([...lockedStages(['translate'], { parsed: false, hasDefinition: false })]).toContain('definitions');
+    // parsed model: harvest stages stay optional
+    expect(resolveStages(['translate'], { parsed: true, hasDefinition: true }).stages).toEqual(['translate', 'oracle', 'parity']);
+  });
+
   it('locks required stages so they cannot be unticked', () => {
     const locked = lockedStages(['translate', 'publish']);
     expect([...locked].sort()).toEqual(['oracle', 'parity']);
