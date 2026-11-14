@@ -1,6 +1,13 @@
 import prisma from '@/lib/db';
 import { extractColumnNamesFromNativeSql } from '@/lib/powerbi/catalog-column-parse';
 import { parseMLineage } from '@/lib/powerbi/m-lineage';
+import {
+  buildRuleSet,
+  type RuleKind,
+  type RuleResultKind,
+  type RuleSet,
+  type RuleStatus,
+} from '@/lib/powerbi/rule-registry';
 import { stripTrailingTmdlProperties } from '@/lib/powerbi/tmdl-parse';
 import { extractPqRowFilters } from '@/lib/powerbi/pq-filter-parse';
 import {
@@ -83,6 +90,8 @@ export type MeasureLogicCatalog = {
   /** lower(measure name) → definition (for inlining measure references). */
   measures?: Map<string, { name: string; table: string; dax: string }>;
   relationships?: MeasureLogicRelationship[];
+  /** Verified translation rules (registry) the compiler may apply for non-built-in functions. */
+  rules?: RuleSet;
 };
 
 const DAX_AGG_RE =
@@ -391,7 +400,7 @@ export async function loadMeasureLogicCatalog(
   orgId: string,
   internalModelId: string,
 ): Promise<MeasureLogicCatalog> {
-  const [tables, columns, measures, relationships] = await Promise.all([
+  const [tables, columns, measures, relationships, ruleRows] = await Promise.all([
     prisma.pbiTable.findMany({
       where: { org_id: orgId, model_id: internalModelId, lifecycle: 'active' },
       select: {
@@ -420,6 +429,7 @@ export async function loadMeasureLogicCatalog(
       where: { org_id: orgId, model_id: internalModelId, lifecycle: 'active' },
       select: { from_column: true, to_column: true, cross_filtering: true, is_active: true },
     }),
+    loadRuleRows(orgId),
   ]);
 
   const columnsByTable = new Map<string, Map<string, MeasureLogicColumnMeta>>();
@@ -465,7 +475,7 @@ export async function loadMeasureLogicCatalog(
         ? t.sourceBinding.uc_full_path.trim()
         : null;
     const objectId = t.sourceBinding?.context_object_id ?? null;
-    const lineage = t.source_m ? parseMLineage(t.source_m) : null;
+    const lineage = t.source_m ? parseMLineage(t.source_m) : null; // warehouse column names only
     tableMeta.set(tKey, {
       displayName: t.name,
       uc_full_path: uc,
@@ -502,7 +512,45 @@ export async function loadMeasureLogicCatalog(
     });
   }
 
-  return { columnsByTable, tableMeta, measures: measureMap, relationships: rels };
+  const rules = buildRuleSet(
+    ruleRows.map((r) => ({
+      kind: r.kind as RuleKind,
+      name: r.name,
+      arity: r.arity,
+      sqlTemplate: r.sql_template,
+      resultKind: r.result_kind as RuleResultKind,
+      status: r.status as RuleStatus,
+    })),
+  );
+
+  return { columnsByTable, tableMeta, measures: measureMap, relationships: rels, rules };
+}
+
+type RuleRow = {
+  kind: string;
+  name: string;
+  arity: number;
+  sql_template: string;
+  result_kind: string;
+  status: string;
+};
+
+/**
+ * Verified registry rules. The registry is optional: a Prisma client generated before the
+ * `pbi_translation_rules` table existed (or a DB without it) simply yields no rules.
+ */
+async function loadRuleRows(orgId: string): Promise<RuleRow[]> {
+  const delegate = (prisma as unknown as Record<string, { findMany?: (a: unknown) => Promise<RuleRow[]> }>)
+    .pbiTranslationRule;
+  if (!delegate?.findMany) return [];
+  try {
+    return await delegate.findMany({
+      where: { org_id: orgId, status: { in: ['verified', 'promoted'] } },
+      select: { kind: true, name: true, arity: true, sql_template: true, result_kind: true, status: true },
+    });
+  } catch {
+    return [];
+  }
 }
 
 /** `'Vessel Internal Audit'.imono`, `PSC.'Key Column'`, `IMO_Master_List.KEY` → table + column. */

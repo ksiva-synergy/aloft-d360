@@ -3883,6 +3883,32 @@ model PbiOracleResult {
   @@map("pbi_oracle_results")
 }
 
+/// DAX / Power Query function → SQL template, verified by differential testing against Power BI.
+model PbiTranslationRule {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id         String
+  kind           String
+  name           String
+  arity          Int
+  sql_template   String
+  result_kind    String    @default("unknown")
+  status         String    @default("candidate")
+  source         String    @default("llm")
+  arg_specs      Json      @default("[]")
+  evidence       Json      @default("{}")
+  model_used     String?
+  prompt_version String?
+  attempts       Int       @default(0)
+  verified_at    DateTime? @db.Timestamptz(6)
+  promoted_by    String?
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@unique([org_id, kind, name, arity], map: "uq_pbi_translation_rules_key")
+  @@index([org_id, status], map: "idx_pbi_translation_rules_status")
+  @@map("pbi_translation_rules")
+}
+
 model PbiTranslation {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   org_id         String

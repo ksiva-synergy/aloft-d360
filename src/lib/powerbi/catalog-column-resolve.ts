@@ -334,6 +334,10 @@ export async function resolveMeasureColumnContext(input: {
     }
   }
 
+  // Each reference resolves only against ITS table's warehouse object: the same column name
+  // can exist in many tables, and an unbound table (calculated table, etc.) must never fall
+  // back to the primary table's columns.
+  const objectByRef = new Map<ResolvedDaxColumn, string>();
   for (const ref of refs) {
     const tKey = normalizePbiTableName(ref.table).toLowerCase();
     const row =
@@ -341,7 +345,7 @@ export async function resolveMeasureColumnContext(input: {
       [...input.modelTables.entries()].find(
         ([k]) => normalizePbiTableName(k).toLowerCase() === tKey,
       )?.[1];
-    const objectId = row?.contextObjectId ?? primaryObjectId;
+    const objectId = row?.contextObjectId ?? (tKey === primaryKey ? primaryObjectId : null);
     const catalogNames = objectId
       ? (input.catalog.catalogNamesByObjectId.get(objectId) ?? [])
       : [];
@@ -359,15 +363,24 @@ export async function resolveMeasureColumnContext(input: {
       input.catalog.lineageByTable?.get(tKey),
     );
     resolvedRefs.push(r);
+    if (objectId) objectByRef.set(r, objectId);
     if (r.warehouse_column) {
       columnMap[r.pbi_column] = r.warehouse_column;
       allowed.add(r.warehouse_column);
     }
   }
 
-  if (primaryObjectId) {
-    await embedResolveUnmapped(input.orgId, primaryObjectId, resolvedRefs);
-    for (const r of resolvedRefs) {
+  // Embedding fallback (PBI_COLUMN_RESOLVE_EMBED=1), per table: unmapped refs of a table are
+  // matched only against that table's embedded warehouse columns.
+  const unmappedByObject = new Map<string, ResolvedDaxColumn[]>();
+  for (const r of resolvedRefs) {
+    const oid = objectByRef.get(r);
+    if (r.via !== 'unmapped' || !oid) continue;
+    unmappedByObject.set(oid, [...(unmappedByObject.get(oid) ?? []), r]);
+  }
+  for (const [oid, group] of unmappedByObject) {
+    await embedResolveUnmapped(input.orgId, oid, group);
+    for (const r of group) {
       if (r.warehouse_column && r.via === 'embed') {
         columnMap[r.pbi_column] = r.warehouse_column;
         allowed.add(r.warehouse_column);
