@@ -45,6 +45,7 @@ import { runPbiTranslate } from '@/lib/powerbi/translate';
 import { runPbiParity } from '@/lib/powerbi/parity';
 import { runPbiPublish } from '@/lib/powerbi/publish';
 import { assertModelsFree, reapStaleJobs } from '@/lib/powerbi/job-health';
+import { copyPbiScope } from '@/lib/powerbi/pipeline-stages';
 import {
   copyPipelineChainMetadata,
   shouldAdvanceChainAfterT3,
@@ -105,6 +106,9 @@ async function advanceChain(
   if (typeof mergedScope.ui_surface === 'string') {
     childScope.ui_surface = mergedScope.ui_surface;
   }
+  // Power BI runs: every chained stage keeps the model / report scope and run options —
+  // without it a chained stage ran across ALL models.
+  copyPbiScope(mergedScope, childScope);
   const childScopeWithFlags = copyRunnerFlagsToChildScope(mergedScope, childScope);
 
   const scopeOrNull = Object.keys(childScopeWithFlags).length > 0 ? childScopeWithFlags : null;
