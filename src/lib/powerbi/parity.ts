@@ -7,6 +7,7 @@ import { runPbiSql } from '@/lib/powerbi/warehouse-exec';
 import { type SliceContext, loadSliceContext, runSlicedParity } from '@/lib/powerbi/sliced-parity';
 import { type StaleState, decideFreshness } from '@/lib/powerbi/freshness';
 import { DriftCache } from '@/lib/powerbi/freshness-probe';
+import { runWithObjectLocks, warehouseObjectsOf } from '@/lib/powerbi/object-locks';
 import { normalizePbiTableName } from '@/lib/powerbi/translate-dax-refs';
 import {
   decideTypedParity,
@@ -313,16 +314,11 @@ export async function runPbiParity(
     else skipped += 1;
   };
 
+  // Measures reading the same warehouse object never run at the same time: parallel queries on
+  // one slow view made each exceed its 10 min budget (2026-11-15, QHSE - PMS: ~2.5 min alone,
+  // >10 min four at a time). Different objects still run in parallel.
   const concurrency = Math.max(1, Number(process.env.PBI_PARITY_CONCURRENCY ?? 4) || 1);
-  let nextIndex = 0;
-  await Promise.all(
-    Array.from({ length: Math.min(concurrency, translations.length) }, async () => {
-      while (nextIndex < translations.length) {
-        const tr = translations[nextIndex++]!;
-        await checkOne(tr);
-      }
-    }),
-  );
+  await runWithObjectLocks(translations, (tr) => warehouseObjectsOf(tr.sql_text), concurrency, checkOne);
 
   // Nothing compiled to SQL (e.g. every measure reads a source outside the warehouse): a
   // successful no-op, so a chained run still finishes — the reasons live on each translation.
@@ -337,3 +333,4 @@ export async function runPbiParity(
     run_id: opts.runId,
   };
 }
+
