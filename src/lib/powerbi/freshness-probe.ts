@@ -18,6 +18,8 @@ import { normalizePbiTableName } from '@/lib/powerbi/translate-dax-refs';
 import { runPbiSql } from '@/lib/powerbi/warehouse-exec';
 
 const MAX_DATE_COLUMNS = 3;
+/** Warehouse budget of one probe query: drift evidence must be cheap or it is skipped. */
+const PROBE_BUDGET_MS = Number(process.env.PBI_FRESHNESS_PROBE_BUDGET_MS ?? 30_000);
 const tkey = (t: string) => normalizePbiTableName(t).toLowerCase();
 
 /** Warehouse-bound tables in a measure's dependency closure (display names). */
@@ -61,7 +63,16 @@ async function warehouseAggregate(orgId: string, dax: string, ctx: SliceContext)
   if (!ctx.connectionId) return null;
   const c = compileMeasureToSql({ measureDax: dax, catalog: ctx.catalog });
   if (!c.ok) return null;
-  const run = await runPbiSql({ orgId, connectionId: ctx.connectionId, sql: c.sql, mode: 'execute', purpose: 'pbi_freshness_probe', useCache: false });
+  const run = await runPbiSql({
+    orgId,
+    connectionId: ctx.connectionId,
+    sql: c.sql,
+    mode: 'execute',
+    purpose: 'pbi_freshness_probe',
+    budgetMs: PROBE_BUDGET_MS,
+    maxAttempts: 1,
+    useCache: false,
+  });
   return run.status === 'ok' ? extractSqlValue(run.rows).raw : null;
 }
 
@@ -70,11 +81,15 @@ const pick = (row: Record<string, unknown> | null, k: string) => (row ? (row[`[$
 /** Drift of one table (dataset vs warehouse). */
 export async function probeTableDrift(orgId: string, table: string, ctx: SliceContext): Promise<TableDrift> {
   const dates = dateColumns(table, ctx);
-  const [pbi, wRows, ...wDates] = await Promise.all([
+  // Row counts first: a count difference is evidence enough; date checks only when counts agree.
+  const [pbi, wRows] = await Promise.all([
     powerBiAggregates(table, dates, ctx),
     warehouseAggregate(orgId, `COUNTROWS(${daxTable(table)})`, ctx),
-    ...dates.map((c) => warehouseAggregate(orgId, `MAX(${daxColumn(table, c)})`, ctx)),
   ]);
+  const countsDiffer = pick(pbi, 'n') != null && wRows != null && Number(pick(pbi, 'n')) !== Number(wRows);
+  const wDates = countsDiffer
+    ? dates.map(() => null)
+    : await Promise.all(dates.map((c) => warehouseAggregate(orgId, `MAX(${daxColumn(table, c)})`, ctx)));
   const pbiDates: Record<string, unknown> = {};
   const whDates: Record<string, unknown> = {};
   dates.forEach((c, i) => {

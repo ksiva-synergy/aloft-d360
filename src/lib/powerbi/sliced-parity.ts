@@ -43,7 +43,7 @@ export async function loadSliceContext(orgId: string, modelId: string): Promise<
 }
 
 /** Warehouse time budget of one sliced comparison (the per-member SQL is the slow part). */
-export const SLICE_SQL_BUDGET_MS = Number(process.env.PBI_SLICED_BUDGET_MS ?? 45_000);
+export const SLICE_SQL_BUDGET_MS = Number(process.env.PBI_SLICED_BUDGET_MS ?? 30_000);
 
 export async function runSlicedParity(
   orgId: string,
