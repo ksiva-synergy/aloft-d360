@@ -54,3 +54,14 @@ describe('sliced parity', () => {
     expect(r.blank_member).toEqual({ power_bi: 3 });
   });
 });
+
+describe('sliced parity at the member cap', () => {
+  it('a side cut at the cap compares only members both returned (no false "missing in SQL")', () => {
+    const dimension = { table: 'Dim', column: 'Key' };
+    const powerBi = [{ key: 'a', value: 1 }, { key: 'b', value: 2 }, { key: 'c', value: 3 }];
+    const sql = [{ key: 'b', value: 2 }, { key: 'c', value: 3 }, { key: 'd', value: 4 }];
+    expect(compareSlices({ dimension, powerBi, sql }).mismatched).toBe(2);
+    const cut = compareSlices({ dimension, powerBi, sql, onlyCommonKeys: true });
+    expect(cut).toMatchObject({ compared: 2, matched: 2, mismatched: 0, truncated: true });
+  });
+});

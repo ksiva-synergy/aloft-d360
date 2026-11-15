@@ -50,6 +50,8 @@ export type SliceComparison = {
   examples: { key: string; power_bi: unknown; sql: unknown }[];
   /** The relationship blank member is compared separately (it has no key in SQL). */
   blank_member: { power_bi: unknown } | null;
+  /** A side hit the member cap: only members present on both sides were compared. */
+  truncated?: boolean;
 };
 
 const keyOf = (v: unknown) => (v === null || v === undefined ? null : String(v).trim().toLowerCase());
@@ -59,6 +61,8 @@ export function compareSlices(input: {
   dimension: SliceDimension;
   powerBi: { key: unknown; value: unknown }[];
   sql: { key: unknown; value: unknown }[];
+  /** Compare only members both sides returned (use when a side was cut at a row cap). */
+  onlyCommonKeys?: boolean;
 }): SliceComparison {
   const pbi = new Map<string, unknown>();
   let blankMember: unknown = undefined;
@@ -72,7 +76,9 @@ export function compareSlices(input: {
     const k = keyOf(r.key);
     if (k !== null && k !== '') sql.set(k, r.value);
   }
-  const keys = new Set([...pbi.keys(), ...sql.keys()]);
+  const keys = input.onlyCommonKeys
+    ? new Set([...pbi.keys()].filter((k) => sql.has(k)))
+    : new Set([...pbi.keys(), ...sql.keys()]);
   let compared = 0;
   let matched = 0;
   const examples: SliceComparison['examples'] = [];
@@ -92,5 +98,6 @@ export function compareSlices(input: {
     mismatched: compared - matched,
     examples,
     blank_member: blankMember === undefined ? null : { power_bi: blankMember },
+    ...(input.onlyCommonKeys ? { truncated: true } : {}),
   };
 }

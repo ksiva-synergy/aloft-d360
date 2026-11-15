@@ -103,6 +103,10 @@ dates). Never add rows or text values from data.
   flag. Unknown TMDL object types must stay objects (`unhandledTmdlKeywords` reports them per model
   in `props.tmdl_unhandled`), never fold into DAX / M text. Bump `PBI_PARSER_VERSION` when parsing
   changes so models re-parse once.
+- **Row caps must be symmetric and ordered.** Sliced parity capped only the SQL side at 5,000
+  unordered rows: on ~10,000-member dimensions most Power BI members looked "missing in SQL" and 22
+  Vessel measures were falsely demoted. Return only members with a value, order both sides by key,
+  and compare only shared members when a side is cut.
 - **Never filter type-check output down to "my files" only.** Compare the full error list before
   and after a change. A `continue` outside a loop in the jobs launch route sat in the build for two
   days: the dev server compiles routes lazily, so it only surfaced when the route was first

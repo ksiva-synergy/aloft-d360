@@ -53,11 +53,12 @@ export async function runSlicedParity(
 
   // Power BI: one row per member with a non-blank value
   const col = daxColumn(dim.table, dim.column);
-  const query = `EVALUATE SUMMARIZECOLUMNS(${col}, "v", ${daxColumn(null, measure)})`;
+  // ordered by key on both sides, so that when a side is cut at the cap the windows overlap
+  const query = `EVALUATE SUMMARIZECOLUMNS(${col}, "v", ${daxColumn(null, measure)}) ORDER BY ${col}`;
   let pbiRows: Record<string, unknown>[];
   try {
     if (ctx.model.rls) {
-      pbiRows = (await executeDaxQueries(ctx.model.workspaceId, ctx.model.datasetId, query, { rowLimit: SLICE_MAX_MEMBERS }))[0]?.rows ?? [];
+      pbiRows = (await executeDaxQueries(ctx.model.workspaceId, ctx.model.datasetId, query, { rowLimit: SLICE_MAX_MEMBERS + 1 }))[0]?.rows ?? [];
     } else {
       const res = await executeDatasetQueries(ctx.model.workspaceId, ctx.model.datasetId, [query]);
       const block = res.results?.[0];
@@ -79,16 +80,21 @@ export async function runSlicedParity(
     catalog: ctx.catalog,
   });
   if (!compiled.ok) return { skipped: `compile: ${compiled.reason.slice(0, 300)}` };
+  // Only members with a value, like SUMMARIZECOLUMNS: a capped, unordered dimension scan returned
+  // an arbitrary 5,000 of ~10,000 rows and every other Power BI member looked "missing in SQL"
+  // (found 2026-11-15: 22 Vessel measures falsely failed, e.g. 5000/9986 matched).
   const run = await runPbiSql({
     orgId,
     connectionId: ctx.connectionId,
-    sql: compiled.sql,
+    sql: `SELECT * FROM (${compiled.sql}) sliced WHERE sliced.r0 IS NOT NULL ORDER BY sliced.\`${dim.column.replace(/`/g, '``')}\``,
     mode: 'execute',
     purpose: 'pbi_sliced_parity',
-    rowLimit: SLICE_MAX_MEMBERS,
+    rowLimit: SLICE_MAX_MEMBERS + 1,
     useCache: false,
   });
   if (run.status !== 'ok') return { skipped: `SQL ${run.status}: ${run.error.slice(0, 300)}` };
   const sql = run.rows.map((r) => ({ key: r[dim.column], value: r.r0 }));
-  return compareSlices({ dimension: dim, powerBi, sql });
+  // Either side cut at the cap: only members both returned can be compared fairly.
+  const truncated = powerBi.length > SLICE_MAX_MEMBERS || sql.length > SLICE_MAX_MEMBERS;
+  return compareSlices({ dimension: dim, powerBi, sql, onlyCommonKeys: truncated });
 }
