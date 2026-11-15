@@ -108,7 +108,16 @@ export async function runPbiParity(
   // RLS model made a 31-measure Compare take ~2 h). Past it, measures are judged on totals.
   const slicedRunBudgetMs = Number(process.env.PBI_SLICED_RUN_BUDGET_MS ?? 15 * 60_000);
   let slicedSpentMs = 0;
-  const sliceContexts = new Map<string, SliceContext>();
+  const sliceContexts = new Map<string, Promise<SliceContext>>();
+  // one load per model, shared by measures compared in parallel
+  const sliceContextFor = (modelId: string): Promise<SliceContext> => {
+    let p = sliceContexts.get(modelId);
+    if (!p) {
+      p = loadSliceContext(orgId, modelId);
+      sliceContexts.set(modelId, p);
+    }
+    return p;
+  };
   let passed = 0;
   let failed = 0;
   let skipped = 0;
@@ -117,10 +126,12 @@ export async function runPbiParity(
   const driftCaches = new Map<string, DriftCache>();
   const principal = systemPrincipal('harvest', orgId);
 
-  for (const tr of translations) {
+  // Measures are compared several at a time: most of the time is spent waiting on the warehouse
+  // and Power BI (2026-11-15: a view taking ~2.5 min per query made a 31-measure Compare crawl).
+  const checkOne = async (tr: (typeof translations)[number]): Promise<void> => {
     if (!tr.sql_text?.trim() || !tr.measure_id) {
       skipped += 1;
-      continue;
+      return;
     }
 
     const oracle = await prisma.pbiOracleResult.findFirst({
@@ -156,7 +167,7 @@ export async function runPbiParity(
         },
       });
       skipped += 1;
-      continue;
+      return;
     }
 
     const ctxSourceId = await resolveDatabricksSourceIdForTranslation(orgId, tr);
@@ -177,7 +188,7 @@ export async function runPbiParity(
         },
       });
       skipped += 1;
-      continue;
+      return;
     }
 
     const ctxSource = await prisma.platformContextSource.findFirst({
@@ -187,7 +198,7 @@ export async function runPbiParity(
     const connectionId = ctxSource?.connection_ref;
     if (!connectionId) {
       skipped += 1;
-      continue;
+      return;
     }
 
     let sqlRaw: ParityRaw = { present: false, raw: null };
@@ -223,11 +234,7 @@ export async function runPbiParity(
       slicedBudget -= 1;
       const slicedStart = Date.now();
       try {
-        let ctx = sliceContexts.get(tr.model_id);
-        if (!ctx) {
-          ctx = await loadSliceContext(orgId, tr.model_id);
-          sliceContexts.set(tr.model_id, ctx);
-        }
+        const ctx = await sliceContextFor(tr.model_id);
         const cmp = await runSlicedParity(orgId, tr.measure_name, ctx);
         sliced = cmp;
         if ('mismatched' in cmp && cmp.mismatched > 0) {
@@ -250,11 +257,7 @@ export async function runPbiParity(
       ((((tr.props as Record<string, unknown> | null)?.expand_spec as { warnings?: unknown[] } | undefined)?.warnings) ?? []).length > 0;
     if (verdict === 'fail' && tr.measure && !nondeterministic && process.env.PBI_FRESHNESS_CHECK !== '0') {
       try {
-        let ctx = sliceContexts.get(tr.model_id);
-        if (!ctx) {
-          ctx = await loadSliceContext(orgId, tr.model_id);
-          sliceContexts.set(tr.model_id, ctx);
-        }
+        const ctx = await sliceContextFor(tr.model_id);
         let cache = driftCaches.get(tr.model_id);
         if (!cache) {
           cache = new DriftCache(orgId, ctx);
@@ -308,7 +311,18 @@ export async function runPbiParity(
     else if (verdict === 'error') errors += 1;
     else if (verdict === 'stale') stale += 1;
     else skipped += 1;
-  }
+  };
+
+  const concurrency = Math.max(1, Number(process.env.PBI_PARITY_CONCURRENCY ?? 4) || 1);
+  let nextIndex = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, translations.length) }, async () => {
+      while (nextIndex < translations.length) {
+        const tr = translations[nextIndex++]!;
+        await checkOne(tr);
+      }
+    }),
+  );
 
   // Nothing compiled to SQL (e.g. every measure reads a source outside the warehouse): a
   // successful no-op, so a chained run still finishes — the reasons live on each translation.
