@@ -45,3 +45,20 @@ describe('data freshness in parity', () => {
     }
   });
 });
+
+describe('dates from the Power BI Arrow API', () => {
+  it('epoch seconds are dates, and a missing Power BI date is not evidence', () => {
+    const epoch = tableDrift({
+      table: 'Approval_Log',
+      powerBi: { rows: 100, maxDates: { ACTION_DATE: 1794700800, Doc: null } },
+      warehouse: { rows: 100, maxDates: { ACTION_DATE: '2026-11-14T00:00:00Z', Doc: '2026-11-06' } },
+    });
+    expect(epoch.drifted).toBe(false);
+    const newer = tableDrift({
+      table: 'Approval_Log',
+      powerBi: { rows: 100, maxDates: { ACTION_DATE: 1794700800 } },
+      warehouse: { rows: 100, maxDates: { ACTION_DATE: '2026-11-15T10:00:00Z' } },
+    });
+    expect(newer.newer_dates).toEqual([{ column: 'ACTION_DATE', power_bi: '2026-11-15', warehouse: '2026-11-15' }]); // 1794700800 s = 2026-11-15T00:00Z
+  });
+});

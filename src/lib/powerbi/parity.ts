@@ -104,6 +104,10 @@ export async function runPbiParity(
 
   const heartbeat = createHeartbeat(opts.runId);
   let slicedBudget = Math.max(0, Number(process.env.PBI_SLICED_MAX ?? '40') || 0);
+  // Wall-clock budget for member-level checks in one run (2026-11-15: ~4 min per measure on an
+  // RLS model made a 31-measure Compare take ~2 h). Past it, measures are judged on totals.
+  const slicedRunBudgetMs = Number(process.env.PBI_SLICED_RUN_BUDGET_MS ?? 15 * 60_000);
+  let slicedSpentMs = 0;
   const sliceContexts = new Map<string, SliceContext>();
   let passed = 0;
   let failed = 0;
@@ -213,8 +217,11 @@ export async function runPbiParity(
     // Sliced parity: a matching total can hide member-level errors that cancel out. Compare per
     // member of a related dimension (chosen from the model) — a member mismatch fails the measure.
     let sliced: unknown = null;
-    if (verdict === 'pass' && tr.measure && slicedBudget > 0 && process.env.PBI_SLICED_PARITY !== '0') {
+    if (verdict === 'pass' && tr.measure && slicedBudget > 0 && slicedSpentMs >= slicedRunBudgetMs) {
+      sliced = { skipped: `run time budget for member checks used (${Math.round(slicedRunBudgetMs / 60_000)} min): judged on the total` };
+    } else if (verdict === 'pass' && tr.measure && slicedBudget > 0 && process.env.PBI_SLICED_PARITY !== '0') {
       slicedBudget -= 1;
+      const slicedStart = Date.now();
       try {
         let ctx = sliceContexts.get(tr.model_id);
         if (!ctx) {
@@ -230,6 +237,7 @@ export async function runPbiParity(
       } catch (e) {
         sliced = { skipped: (e as Error).message.slice(0, 300) };
       }
+      slicedSpentMs += Date.now() - slicedStart;
     }
 
     // Freshness: Power BI answers from its last refresh. A difference is "stale" (not a

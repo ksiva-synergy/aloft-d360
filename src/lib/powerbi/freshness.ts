@@ -31,6 +31,17 @@ export const STALE_MAX_REFRESHES = 2;
 
 const num = (v: unknown) => (v === null || v === undefined || v === '' ? null : Number(v));
 
+/** Date value from Power BI / SQL: ISO text, Date, or epoch number (Arrow returns seconds or ms). */
+export function dateMs(v: unknown): number {
+  if (v === null || v === undefined || v === '') return NaN;
+  if (v instanceof Date) return v.getTime();
+  const n = typeof v === 'number' ? v : /^-?\d+(\.\d+)?$/.test(String(v).trim()) ? Number(v) : NaN;
+  if (Number.isFinite(n)) return Math.abs(n) < 1e11 ? n * 1000 : n;
+  return Date.parse(String(v));
+}
+
+const isoDay = (ms: number) => (Number.isFinite(ms) ? new Date(ms).toISOString().slice(0, 10) : null);
+
 /** Compare dataset vs warehouse aggregates of one table. */
 export function tableDrift(input: {
   table: string;
@@ -42,10 +53,11 @@ export function tableDrift(input: {
   const newer: TableDrift['newer_dates'] = [];
   for (const [column, wv] of Object.entries(input.warehouse.maxDates)) {
     const pv = input.powerBi.maxDates[column];
-    const w = wv == null ? NaN : Date.parse(String(wv));
-    const p = pv == null ? NaN : Date.parse(String(pv));
-    if (Number.isFinite(w) && (!Number.isFinite(p) || w > p + 1000)) {
-      newer.push({ column, power_bi: pv == null ? null : String(pv), warehouse: String(wv) });
+    const w = dateMs(wv);
+    const p = dateMs(pv);
+    // a column Power BI returns no date for is not evidence (type or access difference)
+    if (Number.isFinite(w) && Number.isFinite(p) && w > p + 1000) {
+      newer.push({ column, power_bi: isoDay(p), warehouse: isoDay(w) });
     }
   }
   const rowsDiffer = pr !== null && wr !== null && Number.isFinite(pr) && Number.isFinite(wr) && pr !== wr;

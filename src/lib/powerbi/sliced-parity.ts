@@ -42,6 +42,9 @@ export async function loadSliceContext(orgId: string, modelId: string): Promise<
   };
 }
 
+/** Warehouse time budget of one sliced comparison (the per-member SQL is the slow part). */
+export const SLICE_SQL_BUDGET_MS = Number(process.env.PBI_SLICED_BUDGET_MS ?? 45_000);
+
 export async function runSlicedParity(
   orgId: string,
   measure: string,
@@ -90,8 +93,11 @@ export async function runSlicedParity(
     mode: 'execute',
     purpose: 'pbi_sliced_parity',
     rowLimit: SLICE_MAX_MEMBERS + 1,
+    budgetMs: SLICE_SQL_BUDGET_MS,
+    maxAttempts: 1,
     useCache: false,
   });
+  if (run.status === 'timeout') return { skipped: `time budget (${Math.round(SLICE_SQL_BUDGET_MS / 1000)}s): judged on the total` };
   if (run.status !== 'ok') return { skipped: `SQL ${run.status}: ${run.error.slice(0, 300)}` };
   const sql = run.rows.map((r) => ({ key: r[dim.column], value: r.r0 }));
   // Either side cut at the cap: only members both returned can be compared fairly.

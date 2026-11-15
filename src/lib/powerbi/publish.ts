@@ -205,10 +205,12 @@ export async function runPbiPublish(
     verifiedBy?: string | null;
   },
 ): Promise<PbiPublishResult> {
+  // Stale measures (differ only because the dataset is older than the warehouse) are published
+  // too; flagStaleDataset below marks them so the issue stays visible.
   const translations = await prisma.pbiTranslation.findMany({
     where: {
       org_id: orgId,
-      parity_verdict: 'pass',
+      parity_verdict: { in: ['pass', 'stale'] },
       sql_text: { not: null },
       ...(opts.modelIds?.length
         ? { model: { pbi_model_id: { in: opts.modelIds } } }
