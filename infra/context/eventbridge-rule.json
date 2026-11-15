@@ -141,5 +141,36 @@
       },
       "Input": "{\"containerOverrides\":[{\"name\":\"context-harvester\",\"command\":[\"npx\",\"tsx\",\"--require\",\"./scripts/context/noserver.cjs\",\"scripts/context/orchestrator.ts\",\"--kind\",\"t3_usage\"]}]}"
     }
+  },
+
+  "pbi_refresh_watch_hourly": {
+    "_deploy_note": "Not deployed. Verifies recreated Power BI measures right after each dataset refresh (Power BI values -> Compare -> Publish for models refreshed since their last check). Requires the harvester image to include pbi_refresh_watch.",
+    "Name": "aloft-pbi-refresh-watch-hourly",
+    "Description": "Power BI: verify recreated measures after dataset refreshes (hourly check)",
+    "ScheduleExpression": "cron(15 * * * ? *)",
+    "State": "DISABLED",
+    "Target": {
+      "Id": "context-harvester-pbi-refresh-watch",
+      "Arn": "arn:aws:ecs:ap-south-1:640012953890:cluster/aloft-agents-dev",
+      "RoleArn": "arn:aws:iam::640012953890:role/aloftEventBridgeEcsRole",
+      "EcsParameters": {
+        "TaskDefinitionArn": "arn:aws:ecs:ap-south-1:640012953890:task-definition/aloft-context-harvester:3",
+        "TaskCount": 1,
+        "LaunchType": "FARGATE",
+        "NetworkConfiguration": {
+          "awsvpcConfiguration": {
+            "Subnets": [
+              "subnet-06a22f51294e3e25d",
+              "subnet-0e311679fdac775f5"
+            ],
+            "SecurityGroups": [
+              "sg-0f463f6c43d56bb11"
+            ],
+            "AssignPublicIp": "ENABLED"
+          }
+        }
+      },
+      "Input": "{\"containerOverrides\":[{\"name\":\"context-harvester\",\"command\":[\"npx\",\"tsx\",\"--require\",\"./scripts/context/noserver.cjs\",\"scripts/context/orchestrator.ts\",\"--pbi-refresh-watch\"]}]}"
+    }
   }
 }

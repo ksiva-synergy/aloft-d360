@@ -5,12 +5,15 @@ import { systemPrincipal } from '@/lib/access/principal';
 import { createHeartbeat } from '@/lib/powerbi/job-health';
 import { runPbiSql } from '@/lib/powerbi/warehouse-exec';
 import { type SliceContext, loadSliceContext, runSlicedParity } from '@/lib/powerbi/sliced-parity';
+import { type StaleState, decideFreshness } from '@/lib/powerbi/freshness';
+import { DriftCache } from '@/lib/powerbi/freshness-probe';
 import { normalizePbiTableName } from '@/lib/powerbi/translate-dax-refs';
 import {
   decideTypedParity,
   extractOracleValue,
   extractSqlValue,
   type ParityRaw,
+  type ParityVerdict,
 } from '@/lib/powerbi/parity-compare';
 
 async function resolveDatabricksSourceIdForTranslation(
@@ -62,6 +65,8 @@ export interface PbiParityResult {
   failed: number;
   skipped: number;
   errors: number;
+  /** Differ from Power BI because the dataset is older than the warehouse (re-checked after refresh). */
+  stale: number;
   run_id: string;
   note?: string;
 }
@@ -104,6 +109,8 @@ export async function runPbiParity(
   let failed = 0;
   let skipped = 0;
   let errors = 0;
+  let stale = 0;
+  const driftCaches = new Map<string, DriftCache>();
   const principal = systemPrincipal('harvest', orgId);
 
   for (const tr of translations) {
@@ -199,7 +206,7 @@ export async function runPbiParity(
     await heartbeat({ checked: passed + failed + skipped + errors + 1, total: translations.length });
 
     const decision = decideTypedParity({ oracle: oracleRaw, sql: sqlRaw });
-    let verdict = sqlError ? 'error' : decision.verdict;
+    let verdict: ParityVerdict | 'stale' = sqlError ? 'error' : decision.verdict;
     let summary = sqlError ? `SQL error: ${sqlError.slice(0, 200)}` : decision.summary;
     const asJson = (v: unknown) => (v instanceof Date ? v.toISOString() : v ?? null);
 
@@ -225,6 +232,45 @@ export async function runPbiParity(
       }
     }
 
+    // Freshness: Power BI answers from its last refresh. A difference is "stale" (not a
+    // failure) when a table the measure reads has measurably changed since that refresh; it is
+    // re-checked after the next refresh and fails if it keeps differing (freshness.ts).
+    let staleState: StaleState | null = null;
+    // A known, precise cause wins: Power BI's own value depends on source row order
+    // (non-deterministic Table.Distinct) — drift would only mask it.
+    const nondeterministic =
+      ((((tr.props as Record<string, unknown> | null)?.expand_spec as { warnings?: unknown[] } | undefined)?.warnings) ?? []).length > 0;
+    if (verdict === 'fail' && tr.measure && !nondeterministic && process.env.PBI_FRESHNESS_CHECK !== '0') {
+      try {
+        let ctx = sliceContexts.get(tr.model_id);
+        if (!ctx) {
+          ctx = await loadSliceContext(orgId, tr.model_id);
+          sliceContexts.set(tr.model_id, ctx);
+        }
+        let cache = driftCaches.get(tr.model_id);
+        if (!cache) {
+          cache = new DriftCache(orgId, ctx);
+          driftCaches.set(tr.model_id, cache);
+        }
+        const prior = (((tr.props as Record<string, unknown> | null)?.parity as { stale?: StaleState } | undefined)?.stale ?? null);
+        const decided = decideFreshness({
+          drift: await cache.forMeasure(tr.measure_name),
+          prior,
+          refreshAt: oracle?.model_refresh_at?.toISOString() ?? null,
+          now: new Date().toISOString(),
+        });
+        if (decided.verdict === 'stale') {
+          verdict = 'stale';
+          staleState = decided.stale;
+          summary = `${decided.summary} Difference: ${summary}`;
+        } else if (decided.summary) {
+          summary = `${decided.summary}. Difference: ${summary}`;
+        }
+      } catch (e) {
+        console.warn(`[pbi_parity] freshness probe failed for ${tr.measure_name}: ${(e as Error).message}`);
+      }
+    }
+
     await prisma.pbiTranslation.update({
       where: { id: tr.id },
       data: {
@@ -242,6 +288,7 @@ export async function runPbiParity(
             checked_at: new Date().toISOString(),
             run_id: opts.runId,
             ...(sliced ? { sliced } : {}),
+            ...(staleState ? { stale: staleState } : {}),
           },
         },
         updated_at: new Date(),
@@ -251,6 +298,7 @@ export async function runPbiParity(
     if (verdict === 'pass') passed += 1;
     else if (verdict === 'fail') failed += 1;
     else if (verdict === 'error') errors += 1;
+    else if (verdict === 'stale') stale += 1;
     else skipped += 1;
   }
 
@@ -263,6 +311,7 @@ export async function runPbiParity(
     failed,
     skipped,
     errors,
+    stale,
     run_id: opts.runId,
   };
 }

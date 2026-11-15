@@ -46,6 +46,7 @@ import { runPbiParity } from '@/lib/powerbi/parity';
 import { runPbiPublish } from '@/lib/powerbi/publish';
 import { assertModelsFree, reapStaleJobs } from '@/lib/powerbi/job-health';
 import { copyPbiScope } from '@/lib/powerbi/pipeline-stages';
+import { findModelsRefreshedSinceVerification, markRefreshVerificationQueued } from '@/lib/powerbi/refresh-watch';
 import {
   copyPipelineChainMetadata,
   shouldAdvanceChainAfterT3,
@@ -587,6 +588,57 @@ async function dispatchSingleJob(
       return { status: 'succeeded' };
     }
 
+    case 'pbi_refresh_watch': {
+      // Verify right after Power BI refreshes: queue Power BI values → Compare → Publish for
+      // models whose dataset refreshed since they were last compared.
+      if (!job.source_id) {
+        await finalize(job.id, 'failed', {}, 'pbi_refresh_watch missing source_id');
+        return { status: 'failed', error: 'missing source_id' };
+      }
+      try {
+        const scope = (job.scope ?? {}) as Record<string, unknown>;
+        const modelIds = Array.isArray(scope.model_ids)
+          ? scope.model_ids.filter((x): x is string => typeof x === 'string')
+          : undefined;
+        const found = await findModelsRefreshedSinceVerification(orgId, { modelIds });
+        let queuedJobId: string | null = null;
+        if (found.due.length) {
+          const created = await enqueue(
+            'pbi_oracle',
+            job.source_id,
+            {
+              model_ids: found.due.map((d) => d.pbi_model_id),
+              oracle_only_translated: true,
+              chain: ['pbi_parity', 'pbi_publish'],
+              ui_surface: 'pbi_refresh_watch',
+            },
+            'scheduled',
+            orgId,
+          );
+          queuedJobId = created.id;
+          await markRefreshVerificationQueued(found.due);
+          const { taskId, error } = await launchHarvesterTask(['--kind', 'pbi_oracle']);
+          if (!taskId) {
+            console.error(`[pbi_refresh_watch] no worker for pbi_oracle (${error ?? 'none'}) — continuing in this process`);
+            inlineChainJobIds.push(created.id);
+          }
+        }
+        const stats = {
+          models_checked: found.checked,
+          models_due: found.due.map((d) => ({ name: d.name, refreshed_at: d.refreshed_at, last_verified: d.last_verified })),
+          errors: found.errors,
+          queued_job_id: queuedJobId,
+        };
+        await finalize(job.id, 'succeeded', stats);
+        console.log(`[pbi_refresh_watch] checked=${found.checked} due=${found.due.length} queued=${queuedJobId ?? 'none'}`);
+        return { status: 'succeeded' };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        await finalize(job.id, 'failed', {}, msg);
+        return { status: 'failed', error: msg };
+      }
+    }
+
     case 'pbi_inventory': {
       if (!job.source_id) {
         await finalize(job.id, 'failed', {}, 'pbi_inventory missing source_id');
@@ -1075,6 +1127,17 @@ export async function runQueuedJobById(
 async function main() {
   const sweep = process.argv.includes('--sweep');
   const processScheduled = process.argv.includes('--process-scheduled');
+  // Scheduled "verify after Power BI refresh": one watch job per active Power BI source.
+  if (process.argv.includes('--pbi-refresh-watch')) {
+    const orgIdForWatch = await resolveDefaultOrgId();
+    const sources = await prisma.platformContextSource.findMany({
+      where: { org_id: orgIdForWatch, connection_kind: 'powerbi', status: 'active' },
+      select: { id: true },
+    });
+    for (const src of sources) await enqueue('pbi_refresh_watch', src.id, null, 'scheduled', orgIdForWatch);
+    await runOrchestratorLoop(orgIdForWatch, { kindFilter: 'pbi_refresh_watch' });
+    return;
+  }
   const kindIdx = process.argv.indexOf('--kind');
   const kindFilter = kindIdx >= 0 ? process.argv[kindIdx + 1] : undefined;
   const childJobIdx = process.argv.indexOf('--child-job');

@@ -28,7 +28,9 @@ export type MeasureRecreationStage =
   | 'recreated'
   | 'published'
   /** Was verified/published, but its SQL no longer matches Power BI (guardrail: never hidden). */
-  | 'regressed';
+  | 'regressed'
+  /** Differs only because the Power BI dataset is older than the warehouse; re-checked after refresh. */
+  | 'stale';
 
 export type ModelRecreationSummary = {
   measures_total: number;
@@ -46,6 +48,8 @@ export type ModelRecreationSummary = {
   root_causes: Partial<Record<RootCauseCategory, number>>;
   /** Measures that matched Power BI before and no longer do (guardrail alert). */
   regressions: number;
+  /** Differ only because the dataset is older than the warehouse (not a recreation failure). */
+  stale: number;
   /** Not-recreated measures whose cause is precise (Phase 3 exit metric). */
   causes_precise: number;
   causes_total: number;
@@ -136,6 +140,9 @@ export function stageFromTranslation(
     return { stage: 'no_sql', reason: failure ?? (tr ? 'Translation row without SQL' : null) };
   }
   const verdict = tr.parity_verdict;
+  if (verdict === 'stale') {
+    return { stage: 'stale', reason: parityPropsSummary(tr.props) };
+  }
   const regressedAt = (tr.props as Record<string, unknown> | null)?.regressed_at;
   if ((verdict === 'fail' || verdict === 'error') && (verifiedStatus === 'verified' || typeof regressedAt === 'string')) {
     return { stage: 'regressed', reason: `Matched Power BI before, now: ${parityPropsSummary(tr.props) ?? verdict}` };
@@ -230,6 +237,7 @@ export async function buildModelRecreationSummary(
     recreated: 0,
     published: 0,
     regressed: 0,
+    stale: 0,
   };
 
   const rows: MeasureRecreationRow[] = [];
@@ -370,6 +378,7 @@ export async function buildModelRecreationSummary(
     parity_skip: byStage.parity_skip,
     published: byStage.published,
     regressions: byStage.regressed,
+    stale: byStage.stale,
     recreation_pct:
       measures.length > 0
         ? Math.round(((byStage.recreated + byStage.published) / measures.length) * 1000) / 10

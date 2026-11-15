@@ -201,6 +201,10 @@ function classifyBase(input: {
 }): RootCause | null {
   const { stage, props } = input;
   if (stage === 'recreated' || stage === 'published') return null;
+  if (stage === 'stale') {
+    const p = (props?.parity ?? null) as { summary?: string } | null;
+    return rc('data_freshness', String(p?.summary ?? 'Power BI dataset older than the warehouse').slice(0, 400));
+  }
 
   const dax = stripDaxComments(input.dax ?? '');
   if (!dax) return rc('empty_dax', 'DAX is empty after removing comments');

@@ -84,6 +84,59 @@ export async function retireStaleVerifiedQueries(
  * `candidate`, demoted_reason `parity_regression`) and the translation is marked `regressed_at`,
  * which the recreation summary reports as a regression until it matches again.
  */
+/**
+ * Measures whose only difference is a dataset older than the warehouse (parity verdict
+ * `stale`) stay published, flagged with the drift evidence. A verified query demoted earlier as
+ * a regression and now only stale is restored. The flag clears when the measure matches again
+ * (publish rewrites the verified query) and turns into a demotion if it keeps differing after
+ * refreshes (parity then returns `fail`).
+ */
+export async function flagStaleDataset(
+  orgId: string,
+  pbiModelIds: string[] | undefined,
+  runId: string,
+): Promise<{ flagged: number; restored: number }> {
+  const stale = await prisma.pbiTranslation.findMany({
+    where: {
+      org_id: orgId,
+      parity_verdict: 'stale',
+      ...(pbiModelIds?.length ? { model: { pbi_model_id: { in: pbiModelIds } } } : {}),
+    },
+    select: { id: true, measure_id: true, props: true },
+  });
+  const now = new Date();
+  let flagged = 0;
+  let restored = 0;
+  for (const tr of stale) {
+    if (!tr.measure_id) continue;
+    const vq = await prisma.kbVerifiedQuery.findFirst({
+      where: { org_id: orgId, pbi_measure_id: tr.measure_id },
+      select: { id: true, status: true, props: true },
+    });
+    if (!vq) continue;
+    const parity = ((tr.props as Record<string, unknown> | null)?.parity ?? {}) as { summary?: string; stale?: unknown };
+    const warning = { summary: parity.summary ?? null, evidence: parity.stale ?? null, at: now.toISOString(), run_id: runId };
+    const vqProps = (vq.props ?? {}) as Record<string, unknown>;
+    if (vq.status === 'verified') {
+      await prisma.kbVerifiedQuery.update({
+        where: { id: vq.id },
+        data: { props: { ...vqProps, stale_dataset_warning: warning } as object, updated_at: now },
+      });
+      flagged += 1;
+    } else if (vqProps.demoted_reason === 'parity_regression') {
+      const { demoted_reason: _d, demoted_at: _a, regression: _r, ...rest } = vqProps;
+      await prisma.kbVerifiedQuery.update({
+        where: { id: vq.id },
+        data: { status: 'verified', props: { ...rest, stale_dataset_warning: warning, restored_at: now.toISOString() } as object, updated_at: now },
+      });
+      const { regressed_at: _ra, regression: _rg, ...trRest } = (tr.props ?? {}) as Record<string, unknown>;
+      await prisma.pbiTranslation.update({ where: { id: tr.id }, data: { props: trRest as object, updated_at: now } });
+      restored += 1;
+    }
+  }
+  return { flagged, restored };
+}
+
 export async function handleRegressions(
   orgId: string,
   pbiModelIds: string[] | undefined,
@@ -295,6 +348,12 @@ export async function runPbiPublish(
   }
 
   demoted += await retireStaleVerifiedQueries(orgId, opts.modelIds);
+  const staleFlagged = await flagStaleDataset(orgId, opts.modelIds, opts.runId);
+  if (staleFlagged.flagged || staleFlagged.restored) {
+    console.log(
+      `[pbi_publish] stale dataset: ${staleFlagged.flagged} verified queries flagged, ${staleFlagged.restored} restored (demoted earlier, now only stale)`,
+    );
+  }
   const reg = await handleRegressions(orgId, opts.modelIds, opts.runId);
   demoted += reg.demoted;
   if (reg.demoted || reg.flagged) {

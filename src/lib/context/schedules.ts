@@ -122,6 +122,14 @@ export const HARVEST_SCHEDULES: ScheduleDefinition[] = [
     eventBridgeRules.t4_semantic_weekly,
     'manual',
   ),
+  buildScheduleDef(
+    'pbi_refresh_watch_hourly',
+    'Power BI: verify after refresh',
+    'Hourly: for Power BI models refreshed since their last check, re-reads Power BI values, compares and publishes — re-checks measures that were stale. Manual/on-demand until its EventBridge rule is deployed.',
+    'Every model with recreated measures (or the models in the job scope)',
+    eventBridgeRules.pbi_refresh_watch_hourly,
+    'manual',
+  ),
 ];
 
 /** Returns the next N upcoming run times for a schedule. Empty for manual (undeployed) schedules. */

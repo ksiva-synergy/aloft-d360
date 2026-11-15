@@ -42,7 +42,8 @@ export type JobKind =
   | 'pbi_oracle'
   | 'pbi_translate'
   | 'pbi_parity'
-  | 'pbi_publish';
+  | 'pbi_publish'
+  | 'pbi_refresh_watch';
 
 export type TriggerKind = 'scheduled' | 'on_demand' | 'on_connect';
 
