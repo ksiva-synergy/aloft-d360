@@ -80,6 +80,10 @@ export const routeLabels: Record<string, string> = {
 
   // Data estate
   estate: 'Data Estate',
+  entities: 'Entities',
+  lineage: 'Lineage',
+  jobs: 'Jobs',
+  powerbi: 'Power BI',
   silo: 'Silo Finder',
   mapper: 'Mapper',
   object: 'Object',

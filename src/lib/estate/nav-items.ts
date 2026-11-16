@@ -41,6 +41,7 @@ export const ESTATE_NAV_ITEMS: EstateNavItem[] = [
     icon: BarChart3,
     match: 'prefix',
     title: 'Power BI',
+    description: 'Harvested workspaces, semantic models, measures, and catalog bindings.',
   },
   { label: 'Mapper', href: '/agent-lab/estate/mapper', icon: Route, match: 'prefix' },
   { label: 'Silo Finder', href: '/agent-lab/estate/silo', icon: Server, match: 'prefix' },

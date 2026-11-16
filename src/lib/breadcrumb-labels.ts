@@ -10,12 +10,16 @@ import { create } from 'zustand';
 
 interface BreadcrumbLabelState {
   labels: Record<string, string>;
+  /** Extra crumb after the section (e.g. Power BI model name when selection is query-only). */
+  estateTail: string | null;
   setLabel: (segment: string, label: string) => void;
   clearLabel: (segment: string) => void;
+  setEstateTail: (label: string | null) => void;
 }
 
 export const useBreadcrumbLabels = create<BreadcrumbLabelState>((set) => ({
   labels: {},
+  estateTail: null,
   setLabel: (segment, label) =>
     set((s) => (s.labels[segment] === label ? s : { labels: { ...s.labels, [segment]: label } })),
   clearLabel: (segment) =>
@@ -25,6 +29,7 @@ export const useBreadcrumbLabels = create<BreadcrumbLabelState>((set) => ({
       delete next[segment];
       return { labels: next };
     }),
+  setEstateTail: (estateTail) => set((s) => (s.estateTail === estateTail ? s : { estateTail })),
 }));
 
 /** Show `label` in place of the raw `segment` while the calling component is mounted. */
@@ -36,4 +41,13 @@ export function useBreadcrumbLabel(segment: string | null | undefined, label: st
     setLabel(segment, label);
     return () => clearLabel(segment);
   }, [segment, label, setLabel, clearLabel]);
+}
+
+/** Optional trailing label in the estate header (not a URL segment). */
+export function useEstateCrumbTail(label: string | null | undefined) {
+  const setEstateTail = useBreadcrumbLabels((s) => s.setEstateTail);
+  useEffect(() => {
+    setEstateTail(label?.trim() ? label : null);
+    return () => setEstateTail(null);
+  }, [label, setEstateTail]);
 }

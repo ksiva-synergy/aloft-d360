@@ -36,22 +36,38 @@ interface BreadcrumbSegment {
   isLast: boolean
 }
 
-function buildSegments(
-  pathname: string,
-  dynamicLabels: Record<string, string>
-): BreadcrumbSegment[] {
+function segmentLabel(segment: string, dynamicLabels: Record<string, string>): string {
+  return (
+    dynamicLabels[segment] ??
+    routeLabels[segment] ??
+    segment.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+  )
+}
+
+function buildSegments(pathname: string, dynamicLabels: Record<string, string>): BreadcrumbSegment[] {
   const parts = pathname.split('/').filter(Boolean)
+
+  // Data Estate: one short trail (Data Estate / Power BI / model…) — skip Agent Lab + repeated titles.
+  if (parts[0] === 'agent-lab' && parts[1] === 'estate') {
+    const tail = parts.slice(2)
+    const segments: BreadcrumbSegment[] = [{ label: 'Data Estate', href: '/agent-lab/estate', isLast: tail.length === 0 }]
+    let href = '/agent-lab/estate'
+    for (let i = 0; i < tail.length; i++) {
+      const segment = tail[i]
+      href += `/${segment}`
+      segments.push({
+        label: segmentLabel(segment, dynamicLabels),
+        href,
+        isLast: i === tail.length - 1,
+      })
+    }
+    return segments
+  }
 
   return parts.map((segment, idx) => {
     const href = '/' + parts.slice(0, idx + 1).join('/')
-    const label =
-      dynamicLabels[segment] ??
-      routeLabels[segment] ??
-      // Capitalise unknown segments as a fallback
-      segment.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
-
     return {
-      label,
+      label: segmentLabel(segment, dynamicLabels),
       href,
       isLast: idx === parts.length - 1,
     }

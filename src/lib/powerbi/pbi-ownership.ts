@@ -9,6 +9,7 @@ import 'server-only';
  */
 
 import { powerBiGet } from '@/lib/powerbi/client';
+import { resolveReportOpenUrl } from '@/lib/powerbi/report-url';
 
 export type PbiOwnership = {
   fetched_at: string;
@@ -146,7 +147,15 @@ export async function fetchModelOwnership(workspaceId: string, datasetId: string
     }),
     reports: (reports?.value ?? [])
       .filter((r) => r.datasetId === datasetId)
-      .map((r) => ({ name: str(r.name) ?? 'report', web_url: str(r.webUrl) })),
+      .map((r) => {
+        const resolved = resolveReportOpenUrl({
+          web_url: str(r.webUrl),
+          pbi_report_id: str(r.id),
+          report_format: str(r.format),
+          workspace_pbi_id: workspaceId,
+        });
+        return { name: str(r.name) ?? 'report', web_url: resolved?.url ?? null };
+      }),
     unavailable,
   };
 }

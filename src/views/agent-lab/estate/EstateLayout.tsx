@@ -21,12 +21,12 @@ export default function EstateLayout({ children }: { children: React.ReactNode }
   const level = me && section ? (me.levels[section.id] ?? 'none') : null;
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-[var(--background)]">
+    <div className="flex h-full flex-col overflow-hidden bg-[var(--estate-bg)]">
       <EstateNav levels={me?.levels ?? null} />
       {level === 'view' ? (
         <div
           role="note"
-          className="flex shrink-0 items-center gap-2 border-b border-[var(--header-border)] bg-[var(--surface-2,var(--muted))] px-4 py-1.5 text-caption text-[var(--estate-text-secondary,var(--muted-foreground))] md:px-6"
+          className="flex shrink-0 items-center gap-2 border-b border-[var(--estate-border)] bg-[var(--estate-raised)] px-4 py-1.5 text-caption text-[var(--estate-text-secondary)] md:px-6"
         >
           <Eye aria-hidden className="size-3.5 shrink-0" />
           View only. Only platform admins can run jobs or change anything in the Data Estate.

@@ -2,6 +2,125 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-11-16 — Prisma warm-up at Next start + fixed `db:diag` pool timeouts
+
+- **What:** `src/instrumentation.ts` + `src/lib/db/warm-connection.ts` retry until first `SELECT 1` on dev RDS. `tune-database-url` shared module. `db:diag` uses same URL tuning as app, adds B0 warm-up phase (diag had used Prisma default `pool_timeout=10`, causing false FAILs while TCP needs ~21s).
+- **Why:** User home Wi‑Fi diag: TCP 2/5; phase B 2/5 at 10s pool timeout — not app stack.
+- **Verified:** Pending re-run `npm run db:diag` on user machine.
+- **Not done:** Fix internet path to Mumbai RDS (infra).
+
+## 2026-11-16 — Remote dev DB: TCP keepalives on RDS URL
+
+- **What:** `src/lib/db.ts` sets libpq `keepalives_*` when dev `DATABASE_URL` host is `*.rds.amazonaws.com`.
+- **Why:** Hold the single Windows dev connection across home Wi‑Fi / NAT idle drops after pool=1 fix.
+- **Verified:** Config only.
+
+## 2026-11-16 — RDS: diagnose script + Windows dev pool=1 (VPN cold-TCP flaps)
+
+- **What:** `scripts/db/diagnose-rds-path.mjs` + `npm run db:diag`. On `win32` dev, Prisma `connection_limit=1`, `pool_timeout=60` (`src/lib/db.ts`) so parallel APIs queue on one VPN tunnel instead of opening many TCP connects (~40% ETIMEDOUT on new sockets).
+- **Why:** User ping showed ~21s P1001; diagnosis proved raw TCP flakes while pooled Prisma is stable — network/VPN, not frontend stack.
+- **Verified:** `node --env-file=.env scripts/db/diagnose-rds-path.mjs` on Windows VPN path.
+- **Not done:** Corporate VPN fix / RDS Proxy endpoint (infra).
+
+## 2026-11-16 — Windows default dev: unified Next (production layout)
+
+- **What:** `scripts/dev/start.mjs` — `npm run dev` on `win32` runs `scripts/dev/unified.mjs` (Next `--webpack` on :3000 + `public/spa`, one process). Added `dev:unified`, `dev:split`; `docs/windows-dev.md` (WSL2, Docker, local Postgres options).
+- **Why:** Split Vite+:3001 still caused P1001 on Windows VPN; production stack already unified — no frontend/backend stack migration needed.
+- **Verified:** Scripts only.
+- **Not done:** Automatic `vite build --watch` during unified dev (run `npm run web:build` manually after UI edits).
+
+## 2026-11-14 — Windows dev: fix P1001 root causes (pool churn, not proxy retries)
+
+- **What:** `src/lib/db.ts` keeps one Prisma client across hot reload (removed per-reload `$disconnect`); dev caps `connection_limit` at 5 and slightly longer `connect_timeout`. `web/dev-all.mjs` starts API before Vite and waits for :3001. `web/vite.config.ts` uses `127.0.0.1` on Windows. New `scripts/dev/kill-dev-ports.mjs` + `npm run dev:clean`. `web/README.md` Windows P1001 section.
+- **Why:** Frequent P1001 on Windows local dev against remote RDS; same layout works on Mac — caused by pool churn and too many parallel VPN connections, not Vite proxy failure.
+- **Verified:** Script syntax; `with-prisma-read-retry` unit tests pass.
+- **Not done:** VPN or RDS SG changes; no global query auto-retry layer.
+
+## 2026-11-14 — Power BI: unparsed UX + harvest visibility
+
+- **What:** Harvest menu always visible on model detail; unparsed callout uses Harvest CTA and definition hint. **Parsed** badge when tables/measures exist but answerability missing. Detail API returns `has_definition` + `parse`. Reload list/detail after queuing harvest. Files: `powerbi.tsx`, `PbiModelHarvestMenu.tsx`, `models/[id]/route.ts`.
+- **Why:** “Not parsed” hid the Harvest control; badge disagreed with loaded measures; parse needs Definitions before Parse.
+- **Verified:** Not run in browser this session.
+- **Not done:** Auto-poll detail while a scoped PBI job is running.
+
+## 2026-11-14 — Power BI: harvest from model & reports UI
+
+- **What:** **Harvest** menu on model toolbar (`PbiModelHarvestMenu`) and per-report **Harvest** on Reports tab; launch API accepts `modelIds`, `reportIds`, `pbiFetchModels`/`pbiFetchReports` into job scope. Files: `PbiModelHarvestMenu.tsx`, `launch-scope.ts`, `jobs/launch/route.ts`, `powerbi.tsx`.
+- **Why:** Report harvest lived only on Data Estate → Jobs; no way to refresh inventory or PBIR from the model page.
+- **Verified:** Not run in browser this session.
+- **Not done:** Deep-link Jobs tab with pre-selected PBI kinds.
+
+## 2026-11-14 — Power BI: synthesize report open URLs
+
+- **What:** `resolveReportOpenUrl` builds `app.powerbi.com` links from workspace + `pbi_report_id` when `web_url` is null (paginated → `rdlreports`). Model API returns `open_url` / `open_url_synthesized`; toolbar and Reports tab use `open_url`. Ownership report list uses the same helper. Files: `report-url.ts`, `models/[id]/route.ts`, `pbi-ownership.ts`, `powerbi.tsx`, `report-url.test.ts`.
+- **Why:** Harvest often has report rows without `webUrl`; users still need to open them in the service.
+- **Verified:** `report-url.test.ts` (not run in browser).
+- **Not done:** Tenant `ctid` query param for some embedded tenants.
+
+## 2026-11-14 — Power BI: choose report to open
+
+- **What:** Model toolbar `OpenReportControl`: **report dropdown** + Open when multiple reports have `open_url`; single report shows its name; no links → **Reports** button switches to Reports tab. Reports tab shows format tag and “No link” when URL missing. File: `powerbi.tsx`.
+- **Why:** Header only opened the first report; users could not pick which report to launch.
+- **Verified:** Not run in browser this session.
+- **Not done:** —
+
+## 2026-11-14 — Power BI: model header action toolbar
+
+- **What:** Model detail header splits title/meta from a single-line **toolbar** (`ESTATE_HEADER_CHIP`): ownership (short refresh + truncated owner), recreation (`2.1% · Recreation · 1/48`, no inline blocker tag), Power BI link. Files: `powerbi.tsx`, `ModelOwnershipCard.tsx`, `ModelRecreationPanel.tsx`, `catalog-ui.tsx`.
+- **Why:** Chips wrapped beside the title and the blocker tag made the header unreadable.
+- **Verified:** Not run in browser this session.
+- **Not done:** —
+
+## 2026-11-14 — Power BI: full-page Databricks recreation
+
+- **What:** `ModelRecreationPanel` — header chip (parity %, top blocker) opens a **full-page overlay** with dashboard, stage tags, blocker/pattern tables, and a searchable measure table (Open → Measures tab). Shared labels in `recreation-labels.ts`. Inline `RecreationSummaryBar` removed from model detail. Files: `ModelRecreationPanel.tsx`, `recreation-labels.ts`, `powerbi.tsx`.
+- **Why:** Recreation detail needs full viewport like ownership, not a tall inline card.
+- **Verified:** Not run in browser this session.
+- **Not done:** Dedicated route URL for recreation deep-link.
+
+## 2026-11-14 — Power BI: recreation dashboard layout
+
+- **What:** `RecreationSummaryBar` is a small dashboard: progress ring, four pipeline mini-bars (UC → SQL → parity → published), outcome strip with skip/other segments, top blocker tags, and two-column ranked breakdown tables. Sidebar workspace/domain filters get uppercase field labels. File: `src/views/agent-lab/estate/powerbi.tsx`.
+- **Why:** Prior KPI + chip grid still felt dense and did not show the recreation funnel at a glance.
+- **Verified:** Not run in browser this session.
+- **Not done:** —
+
+## 2026-11-14 — Power BI: recreation summary + modern selects
+
+- **What:** `RecreationSummaryBar` uses KPI header, segmented parity bar with legend, metric chips, and collapsible **Blockers & patterns** chip grid (not one long paragraph). Workspace/domain filters use themed `Select` dropdown (search when 10+ workspaces). File: `src/views/agent-lab/estate/powerbi.tsx`.
+- **Why:** Recreation block and native `<select>` looked dated and hard to scan.
+- **Verified:** Not run in browser this session.
+- **Not done:** —
+
+## 2026-11-14 — Data Estate theme alignment (Power BI chrome)
+
+- **What:** Estate shell and tabs use `--estate-*` tokens (not generic `--header-bg` / nav ink). Power BI list status colors use `TONE_COLOR` + estate active state for filters; ownership dialog overlay uses estate ink mix. Files: `EstateNav.tsx`, `EstateLayout.tsx`, `powerbi.tsx`, `ModelOwnershipCard.tsx`.
+- **Why:** Compact list/nav changes used Tailwind emerald/amber and solid brand pills that looked unlike the rest of the estate page.
+- **Verified:** Not run in browser this session.
+- **Not done:** Recreation progress bar greens in `powerbi.tsx`.
+
+## 2026-11-14 — Power BI model list: compact sidebar
+
+- **What:** Denser model list rows (one line, status stripe, `48m·15t` counts); slimmer filters and 300px sidebar; stats bar drops duplicate status toggles (filter in list). File: `src/views/agent-lab/estate/powerbi.tsx`.
+- **Why:** 400+ two-line list items and repeated filters burned vertical space.
+- **Verified:** Not run in browser this session.
+- **Not done:** Virtualized list for very large inventories.
+
+## 2026-11-14 — Data Estate chrome: short breadcrumb + tabs (revised)
+
+- **What:** Reverted hiding the shell header on estate routes. `AppBreadcrumb` under `/agent-lab/estate/*` now shows **Data Estate / section / …** only (no Agent Lab prefix). `EstateNav` is tabs-only plus optional **← Section** on detail pages — no stacked eyebrow + h1 + tabs. Labels for `powerbi`, `jobs`, `entities`, `lineage` in `breadcrumb-config.ts`. Files: `EstateNav.tsx`, `app-breadcrumb.tsx`, `StagingHeader.tsx`, `breadcrumb-config.ts`.
+- **Why:** Tabs-only header removed too much context; duplicate large titles still wasted space.
+- **Verified:** Not run in browser this session.
+- **Not done:** Register Power BI model names on the breadcrumb trail.
+
+## 2026-11-14 — Power BI ownership card layout
+
+- **What:** Redesigned `ModelOwnershipCard`: two-column Refresh / Dataset panels; **Access roster** with role proportion bar, name search, role filter pills, workspace vs dataset ACL tabs, and a compact scrollable table (name / role / kind). File: `src/components/estate\ModelOwnershipCard.tsx`.
+- **Why:** Ownership detail was hard to scan — especially 30+ editors and long connection strings in a single row.
+- **Verified:** Not run in browser this session.
+- **Not done:** Export roster (CSV).
+- **Also:** Ownership summary sits in the model header corner; click opens a large dialog (Esc / backdrop to close) with full refresh, access roster, and sources.
+
 ## 2026-11-14 — Power BI model graph: larger canvas + full view
 
 - **What:** Model overview graph uses `min(72vh, 880px)` instead of a fixed 560px pane; **Expand graph** opens a full-viewport overlay (Escape to close). Tables load collapsed by default (no auto-open of measure-heavy tables). Measure dependency graph pane uses `min(60vh, 640px)` instead of 440px. Files: `src/components/estate/ModelOverviewGraph.tsx`, `src/components/estate/ModelDependencyGraph.tsx`.

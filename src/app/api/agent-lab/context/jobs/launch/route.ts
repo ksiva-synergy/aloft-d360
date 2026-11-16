@@ -39,6 +39,7 @@ import {
   type JobScopeRunnerFlags,
   mergeJobScopeRunnerFlags,
 } from '@/lib/context/job-scope-flags';
+import { mergeJobScope, pbiJobScopeFromLaunchBody } from '@/lib/powerbi/launch-scope';
 
 class NoObjectsInScopeError extends Error {
   kind: JobKind;
@@ -133,6 +134,7 @@ const VALID_KINDS: JobKind[] = [
   'pbi_translate',
   'pbi_parity',
   'pbi_publish',
+  'pbi_refresh_watch',
 ];
 
 // Kinds that support auto-splitting (have objects-per-minute rates and benefit from partitioning)
@@ -153,6 +155,7 @@ async function launchKind(
   uiSurface?: string,
   pipelineRunId?: string,
   triggeredByUserId?: string | null,
+  pbiScope: Record<string, unknown> = {},
 ): Promise<{ jobsEnqueued: number; taskArn: string | null; failures: { arn?: string; reason?: string }[] }> {
   let scope: Record<string, unknown> = {};
   if (excludeSchemas.length > 0) scope.excludeSchemas = excludeSchemas;
@@ -161,6 +164,7 @@ async function launchKind(
   scope = mergeJobScopeRunnerFlags(scope, runnerFlags);
   if (uiSurface) scope.ui_surface = uiSurface;
   if (pipelineRunId) scope.pipeline_run_id = pipelineRunId;
+  scope = mergeJobScope(scope, pbiScope);
   const scopeOrNull = Object.keys(scope).length > 0 ? scope : null;
 
   let jobsEnqueued = 0;
@@ -239,6 +243,7 @@ async function launchSplitKind(
   uiSurface?: string,
   pipelineRunId?: string,
   triggeredByUserId?: string | null,
+  pbiScope: Record<string, unknown> = {},
 ): Promise<{
   parentJobId: string;
   totalChildren: number;
@@ -256,6 +261,7 @@ async function launchSplitKind(
   baseScope = mergeJobScopeRunnerFlags(baseScope, runnerFlags);
   if (uiSurface) baseScope.ui_surface = uiSurface;
   if (pipelineRunId) baseScope.pipeline_run_id = pipelineRunId;
+  baseScope = mergeJobScope(baseScope, pbiScope);
 
   // Create parent + child job rows atomically
   const { parentJobId, childJobIds } = await enqueueWithChildren(
@@ -366,6 +372,7 @@ export async function POST(req: NextRequest) {
     const sources = await resolveLaunchSources(orgId, requestedSourceId);
 
     const pipelineRunId = sequential && kinds.length > 1 ? randomUUID() : undefined;
+    const pbiScope = pbiJobScopeFromLaunchBody(body as Record<string, unknown>);
 
     for (const src of sources) {
       const conflict = await findScopedLaunchConflict(src.id, kinds, includePatterns);
@@ -398,6 +405,7 @@ export async function POST(req: NextRequest) {
     const splitSummaries: { kind: string; parentJobId: string; totalChildren: number }[] = [];
 
     const launchOne = async (kind: JobKind, chain: JobKind[]) => {
+      const kindPbiScope = kind.startsWith('pbi_') ? pbiScope : {};
       const strippedExcludes = stripExcludeSchemasForKind(kind, excludeSchemas);
       const scope = resolveLaunchScopeFilters(strippedExcludes, includePatterns);
 
@@ -434,6 +442,7 @@ export async function POST(req: NextRequest) {
               uiSurface,
               pipelineRunId,
               triggeredByUserId,
+              kindPbiScope,
             );
             splitSummaries.push({ kind, parentJobId: result.parentJobId, totalChildren: result.totalChildren });
             totalJobsEnqueued += result.totalChildren + 1;
@@ -454,6 +463,7 @@ export async function POST(req: NextRequest) {
           uiSurface,
           pipelineRunId,
           triggeredByUserId,
+          kindPbiScope,
         );
         totalJobsEnqueued += result.jobsEnqueued;
         allFailures.push(...result.failures);

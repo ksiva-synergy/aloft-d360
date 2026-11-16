@@ -75,6 +75,10 @@ export const CATALOG_BTN =
 export const CATALOG_BTN_PRIMARY =
   'inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-ctl bg-[var(--brand-a)] px-3 text-label text-[var(--on-brand)] shadow-xs transition-opacity duration-hover hover:opacity-90 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-50';
 
+/** Single-line model header control (ownership, recreation, etc.). */
+export const ESTATE_HEADER_CHIP =
+  'inline-flex h-8 max-w-[min(100%,17rem)] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border border-[var(--estate-border)] bg-[var(--estate-surface)] px-2.5 text-caption text-[var(--estate-ink)] transition-colors hover:border-[color-mix(in_srgb,var(--brand-a)_35%,var(--estate-border))] hover:bg-[var(--estate-hover)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
+
 export const CATALOG_SELECT =
   'h-9 cursor-pointer appearance-none rounded-ctl border border-[var(--estate-border)] bg-[var(--estate-surface)] bg-[length:8px_5px] bg-[position:right_12px_center] bg-no-repeat pl-3 pr-8 text-ui text-[var(--estate-text-secondary)] outline-none focus-visible:shadow-[var(--focus-ring)]';
 

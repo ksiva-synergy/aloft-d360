@@ -22,10 +22,19 @@ import {
   X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { CATALOG_BTN, CATALOG_SELECT, CATALOG_SELECT_ARROW } from '@/components/estate/catalog-ui';
-import { Callout, CodeBlock, Tag, type Tone } from '@/components/estate/object-ui';
+import { CATALOG_BTN, CATALOG_SELECT, ESTATE_HEADER_CHIP } from '@/components/estate/catalog-ui';
+import { Select } from '@/components/form/Select';
+import { Callout, CodeBlock, Tag, TONE_COLOR, type Tone } from '@/components/estate/object-ui';
 import { MeasureDependencyGraph, ModelHealthPanel } from '@/components/estate/ModelDependencyGraph';
+import { ModelDataSources } from '@/components/estate/ModelDataSources';
+import { ModelDefinitionCard } from '@/components/estate/ModelDefinitionCard';
 import { ModelOwnershipCard } from '@/components/estate/ModelOwnershipCard';
+import { ModelRecreationPanel } from '@/components/estate/ModelRecreationPanel';
+import { PbiReportHarvestButton } from '@/components/estate/PbiModelHarvestMenu';
+import { PbiPipelineRunButton } from '@/components/estate/PbiPipelineRunButton';
+import { PATTERN_LABEL, RECREATION_STAGE_META, ROOT_CAUSE_LABEL } from '@/lib/powerbi/recreation-labels';
+import type { MeasureRecreationStage } from '@/lib/powerbi/recreation-summary';
+import type { MeasureDefinitionFlags, TableDefinitionFlags } from '@/lib/powerbi/definition-flags';
 import { useSectionLevel } from '@/lib/sections/useSectionLevels';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -80,16 +89,6 @@ type ConflictRow = {
   models?: { id: string; name: string | null }[];
 };
 
-type MeasureRecreationStage =
-  | 'no_uc'
-  | 'no_sql'
-  | 'draft_sql'
-  | 'parity_skip'
-  | 'parity_error'
-  | 'parity_fail'
-  | 'recreated'
-  | 'published';
-
 type RecreationSummary = {
   measures_total: number;
   uc_resolved: number;
@@ -101,6 +100,7 @@ type RecreationSummary = {
   published: number;
   recreation_pct: number;
   published_pct: number;
+  by_stage?: Partial<Record<MeasureRecreationStage, number>>;
   root_causes?: Record<string, number>;
   causes_precise?: number;
   causes_total?: number;
@@ -108,56 +108,22 @@ type RecreationSummary = {
   patterns?: Record<string, number>;
 };
 
-const PATTERN_LABEL: Record<string, string> = {
-  compiler_blowup: 'SQL blow-up',
-  slow_plan: 'slow Databricks planning',
-  validation_deferred: 'validated at parity',
-  pq_capability_gap: 'Power Query step not modeled',
-  dax_capability_gap: 'DAX function not modeled',
-  scale_mismatch: 'scale ×100/×1000',
-  sign_flip: 'sign flipped',
-  row_fanout: 'row fan-out',
-  empty_sql_result: 'SQL empty',
-  blank_mismatch: 'Power BI BLANK',
-  boundary_rows: 'few rows differ',
-  type_mismatch: 'text vs number',
-  cast_error: 'bad value in numeric column',
-};
-
-const ROOT_CAUSE_LABEL: Record<string, string> = {
-  empty_dax: 'empty DAX',
-  ui_slicer_helper: 'slicer helper',
-  text_result: 'text result',
-  nondeterministic_source: 'non-deterministic in PBI',
-  unsupported_dax: 'DAX not modeled',
-  harvest_gap: 'harvest gap',
-  replica_drift: 'replica schema drift',
-  rls_required: 'needs RLS identity',
-  unbound_table: 'unbound table',
-  pq_unsupported: 'Power Query step',
-  warehouse_error: 'warehouse error',
-  engine_limit: 'Spark planning limit',
-  warehouse_timeout: 'time budget exceeded',
-  warehouse_unavailable: 'warehouse unavailable',
-  llm_failed: 'LLM failed',
-  data_freshness: 'dataset stale',
-  parity_mismatch: 'value mismatch',
-  parity_no_oracle: 'no oracle value',
-  not_translated: 'not translated',
-};
-
 type ModelDetail = {
   id: string;
+  pbi_model_id: string;
   name: string;
   description: string | null;
+  has_definition?: boolean;
+  parse?: { parsed_at?: string; table_count?: number; measure_count?: number } | null;
   classification: { answerability?: string } | null;
   domain: { domain_key: string; name: string; rollout_wave: number } | null;
   domain_assignment: { domain_key?: string; confidence?: number } | null;
   workspace: { name: string | null; pbi_workspace_id: string };
-  tables: { id: string; name: string; partition_kind: string | null; binding: unknown }[];
+  tables: { id: string; name: string; partition_kind: string | null; binding: unknown; definition?: TableDefinitionFlags | null }[];
   measures: {
     id: string;
     name: string;
+    definition?: MeasureDefinitionFlags | null;
     table_name: string;
     display_folder: string | null;
     dax_preview: string;
@@ -191,7 +157,15 @@ type ModelDetail = {
       aggregation_hint: string | null;
     } | null;
   }[];
-  reports: { id: string; name: string; web_url: string | null }[];
+  reports: {
+    id: string;
+    name: string;
+    web_url: string | null;
+    open_url: string | null;
+    open_url_synthesized?: boolean;
+    pbi_report_id?: string;
+    report_format?: string | null;
+  }[];
 };
 
 type StatusFilter = 'all' | 'answerable' | 'caveated' | 'blocked' | 'unparsed';
@@ -218,6 +192,13 @@ const STATUS_META: Record<Exclude<StatusFilter, 'all'>, { label: string; tone: T
   unparsed: { label: 'Not parsed', tone: 'neutral', hint: 'Inventoried only. Run PBI Parse from Jobs to read its definition.' },
 };
 
+const STATUS_STRIPE: Record<Exclude<StatusFilter, 'all'>, string> = {
+  answerable: TONE_COLOR.green,
+  caveated: TONE_COLOR.amber,
+  blocked: TONE_COLOR.red,
+  unparsed: 'var(--estate-text-dim)',
+};
+
 function StatusTag({ status }: { status: Exclude<StatusFilter, 'all'> }) {
   const meta = STATUS_META[status];
   return (
@@ -225,6 +206,30 @@ function StatusTag({ status }: { status: Exclude<StatusFilter, 'all'> }) {
       {meta.label}
     </Tag>
   );
+}
+
+function modelHasParsedContent(detail: ModelDetail, row: ModelRow | null): boolean {
+  return (
+    detail.tables.length > 0 ||
+    detail.measures.length > 0 ||
+    Boolean(detail.parse?.parsed_at) ||
+    (row?.table_count ?? 0) > 0 ||
+    (row?.measure_count ?? 0) > 0
+  );
+}
+
+function modelDisplayStatus(
+  detail: ModelDetail,
+  row: ModelRow | null,
+): { filter: Exclude<StatusFilter, 'all'>; showParsedBadge: boolean } {
+  const answer = (detail.classification?.answerability ?? row?.answerability ?? '').toLowerCase();
+  if (answer === 'answerable' || answer === 'caveated' || answer === 'blocked') {
+    return { filter: answer, showParsedBadge: false };
+  }
+  if (modelHasParsedContent(detail, row)) {
+    return { filter: 'caveated', showParsedBadge: true };
+  }
+  return { filter: 'unparsed', showParsedBadge: false };
 }
 
 /**
@@ -250,30 +255,8 @@ function humanize(s: string | null | undefined): string {
   return t ? t.charAt(0).toUpperCase() + t.slice(1) : 'Unknown';
 }
 
-const RECREATION_STAGE: Record<
-  MeasureRecreationStage,
-  { label: string; tone: Tone; hint: string }
-> = {
-  published: {
-    label: 'Published',
-    tone: 'green',
-    hint: 'Parity passed and a verified query is in the knowledge base.',
-  },
-  recreated: {
-    label: 'Recreated',
-    tone: 'green',
-    hint: 'Databricks SQL matches Power BI oracle within tolerance; not published yet.',
-  },
-  parity_fail: { label: 'Mismatch', tone: 'red', hint: 'SQL ran but number differs from Power BI.' },
-  parity_error: { label: 'SQL error', tone: 'red', hint: 'Warehouse rejected the translated SQL (often wrong columns).' },
-  parity_skip: { label: 'Parity skipped', tone: 'amber', hint: 'Missing oracle or warehouse context.' },
-  draft_sql: { label: 'Draft SQL', tone: 'blue', hint: 'Translation exists; parity not completed.' },
-  no_sql: { label: 'No SQL', tone: 'amber', hint: 'UC bound but translate did not produce SQL.' },
-  no_uc: { label: 'No UC', tone: 'neutral', hint: 'Cannot map measure to a Unity Catalog table.' },
-};
-
 function RecreationStageTag({ stage }: { stage: MeasureRecreationStage }) {
-  const meta = RECREATION_STAGE[stage] ?? RECREATION_STAGE.no_uc;
+  const meta = RECREATION_STAGE_META[stage] ?? RECREATION_STAGE_META.no_uc;
   return (
     <Tag tone={meta.tone} title={meta.hint}>
       {meta.label}
@@ -281,84 +264,7 @@ function RecreationStageTag({ stage }: { stage: MeasureRecreationStage }) {
   );
 }
 
-function RecreationSummaryBar({ recreation }: { recreation: RecreationSummary }) {
-  const { measures_total, parity_pass, published, sql_drafted, uc_resolved, parity_error } = recreation;
-  if (measures_total === 0) return null;
-  return (
-    <div
-      className="rounded-card border border-[var(--estate-border)] bg-[var(--estate-surface)] px-4 py-3"
-      title="Databricks recreation: Power BI measure value matches warehouse SQL (parity pass)"
-    >
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-ui font-medium text-[var(--estate-ink)]">Databricks recreation</p>
-        <p className="text-caption tabular-nums text-[var(--estate-text-muted)]">
-          <span className="text-[var(--estate-ink)]">{parity_pass}</span> of {measures_total} measures match PBI (
-          {recreation.recreation_pct}%)
-          {published > 0 && (
-            <>
-              {' '}
-              · <span className="text-[var(--estate-ink)]">{published}</span> published
-            </>
-          )}
-        </p>
-      </div>
-      <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-[var(--estate-raised)]">
-        {published > 0 && (
-          <div
-            className="h-full bg-emerald-600"
-            style={{ width: `${(published / measures_total) * 100}%` }}
-            title={`${published} published`}
-          />
-        )}
-        {(parity_pass - published) > 0 && (
-          <div
-            className="h-full bg-emerald-400"
-            style={{ width: `${((parity_pass - published) / measures_total) * 100}%` }}
-            title={`${parity_pass - published} parity pass (draft)`}
-          />
-        )}
-        {parity_error > 0 && (
-          <div
-            className="h-full bg-red-400/80"
-            style={{ width: `${(parity_error / measures_total) * 100}%` }}
-            title={`${parity_error} SQL errors`}
-          />
-        )}
-      </div>
-      <p className="mt-2 text-caption text-[var(--estate-text-muted)]">
-        UC-resolved {uc_resolved} · SQL drafted {sql_drafted}
-        {recreation.parity_fail > 0 && <> · mismatch {recreation.parity_fail}</>}
-        {recreation.parity_skip > 0 && <> · parity skipped {recreation.parity_skip}</>}
-      </p>
-      {recreation.root_causes && Object.keys(recreation.root_causes).length > 0 && (
-        <p className="mt-1 text-caption text-[var(--estate-text-muted)]">
-          Not recreated:{' '}
-          {Object.entries(recreation.root_causes)
-            .sort((a, b) => b[1] - a[1])
-            .map(([k, n]) => `${ROOT_CAUSE_LABEL[k] ?? k} ${n}`)
-            .join(' · ')}
-        </p>
-      )}
-      {recreation.causes_total !== undefined && recreation.causes_total > 0 && (
-        <p
-          className="mt-1 text-caption text-[var(--estate-text-muted)]"
-          title="Share of not-recreated measures whose cause names a specific defect (Phase 3 target: 90%)"
-        >
-          Precise causes: {recreation.causes_precise}/{recreation.causes_total} ({recreation.cause_precision_pct}%)
-          {recreation.patterns && Object.keys(recreation.patterns).length > 0 && (
-            <>
-              {' · patterns: '}
-              {Object.entries(recreation.patterns)
-                .sort((a, b) => b[1] - a[1])
-                .map(([k, n]) => `${PATTERN_LABEL[k] ?? k} ${n}`)
-                .join(' · ')}
-            </>
-          )}
-        </p>
-      )}
-    </div>
-  );
-}
+const ESTATE_SELECT = cn(CATALOG_SELECT, 'h-8 w-full min-w-0 text-caption');
 
 const INPUT =
   'h-8 w-full rounded-ctl border border-[var(--estate-border)] bg-[var(--estate-surface)] pl-8 pr-7 text-ui-regular text-[var(--estate-ink)] outline-none placeholder:text-[var(--estate-text-dim)] focus-visible:shadow-[var(--focus-ring)]';
@@ -478,10 +384,10 @@ function ConflictsPanel({
   return (
     <section
       aria-label="Measure conflicts"
-      className="mt-3 overflow-hidden rounded-card border border-amber-500/30 bg-[var(--estate-surface)]"
+      className="mt-3 overflow-hidden rounded-card border border-[var(--estate-status-warning-border)] bg-[var(--estate-surface)]"
     >
-      <header className="flex items-center gap-2 border-b border-amber-500/20 bg-amber-500/5 px-4 py-2">
-        <AlertTriangle className="size-4 text-amber-600 dark:text-amber-300" aria-hidden />
+      <header className="flex items-center gap-2 border-b border-[var(--estate-status-warning-border)] bg-[var(--estate-status-warning-bg)] px-4 py-2">
+        <AlertTriangle className="size-4" style={{ color: TONE_COLOR.amber }} aria-hidden />
         <h3 className="text-ui font-medium text-[var(--estate-ink)]">Measure conflicts</h3>
         <span className="text-caption text-[var(--estate-text-muted)]">
           Same measure name, different DAX across models. Pick a model to compare definitions.
@@ -557,57 +463,43 @@ function ModelListItem({
 }) {
   const status = statusOf(model);
   const parsed = status !== 'unparsed';
+  const meta = STATUS_META[status];
+  const stripeColor = selected ? 'var(--brand-a)' : STATUS_STRIPE[status];
+  const countHint = `${model.measure_count} measures · ${model.table_count} tables`;
   return (
     <li>
       <button
         type="button"
         onClick={onSelect}
         aria-current={selected ? 'true' : undefined}
+        title={[model.name, meta.label, parsed ? countHint : meta.hint, model.rls_required ? 'RLS required' : '']
+          .filter(Boolean)
+          .join(' · ')}
         className={cn(
-          'relative flex w-full flex-col gap-1 rounded-ctl px-3 py-2 text-left transition-colors duration-hover',
+          'relative flex w-full items-center gap-2 rounded-ctl py-1 pl-2.5 pr-2 text-left transition-colors duration-hover',
           'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
           selected ? 'bg-[var(--estate-active-bg)]' : 'hover:bg-[var(--estate-hover)]',
         )}
       >
-        {selected && (
-          <span aria-hidden className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-[var(--brand-a)]" />
-        )}
+        <span aria-hidden className="absolute inset-y-1 left-0 w-0.5 rounded-full" style={{ background: stripeColor }} />
         <span
           className={cn(
-            'truncate text-ui',
+            'min-w-0 flex-1 truncate text-caption leading-snug',
             parsed ? 'font-medium text-[var(--estate-ink)]' : 'text-[var(--estate-text-secondary)]',
           )}
-          title={model.name}
         >
           {model.name}
         </span>
-        <span className="flex min-w-0 items-center gap-2 text-caption text-[var(--estate-text-muted)]">
-          {parsed ? (
-            <>
-              <span
-                aria-hidden
-                className={cn(
-                  'size-1.5 shrink-0 rounded-full',
-                  status === 'answerable' && 'bg-emerald-500',
-                  status === 'caveated' && 'bg-amber-500',
-                  status === 'blocked' && 'bg-red-500',
-                )}
-              />
-              <span className="shrink-0">{STATUS_META[status].label}</span>
-              <span aria-hidden>·</span>
-              <span className="shrink-0 tabular-nums">
-                {model.measure_count} measures, {model.table_count} tables
-              </span>
-            </>
-          ) : (
-            <span className="shrink-0 italic">Not parsed</span>
-          )}
-          {model.rls_required && (
-            <span className="inline-flex shrink-0 items-center gap-0.5" title="Row-level security required">
-              <Shield className="size-3" aria-hidden /> RLS
-            </span>
-          )}
-        </span>
+        {parsed ? (
+          <span className="shrink-0 font-mono text-[10px] tabular-nums text-[var(--estate-text-muted)]" title={countHint}>
+            {model.measure_count}m·{model.table_count}t
+          </span>
+        ) : (
+          <span className="shrink-0 text-[10px] italic text-[var(--estate-text-dim)]">—</span>
+        )}
+        {model.rls_required && (
+          <Shield className="size-3 shrink-0" style={{ color: TONE_COLOR.violet }} aria-label="RLS required" />
+        )}
       </button>
     </li>
   );
@@ -624,6 +516,293 @@ function partitionTone(kind: string | null): Tone {
 }
 
 type Binding = { uc_full_path?: string; bind_status?: string; context_object_id?: string } | null;
+
+/** Small marks after a measure name: hidden, dynamic format, quick measure, KPI. */
+function MeasureFlagMarks({ flags }: { flags?: MeasureDefinitionFlags | null }) {
+  if (!flags) return null;
+  const marks: { label: string; title: string }[] = [];
+  if (flags.hidden) marks.push({ label: 'hidden', title: 'Hidden in the Power BI field list (a building block for other measures)' });
+  if (flags.displayHelper) marks.push({ label: 'label helper', title: 'Constant that exists for its dynamic format string — not published' });
+  else if (flags.dynamicFormat) marks.push({ label: 'dynamic format', title: `Format string: ${flags.dynamicFormat}` });
+  if (flags.quickMeasure) marks.push({ label: 'quick measure', title: `Quick measure template: ${flags.quickMeasure}` });
+  if (flags.kpi) marks.push({ label: 'KPI', title: 'Has a KPI (target / status) in the model' });
+  if (!marks.length) return null;
+  return (
+    <>
+      {marks.map((m) => (
+        <span key={m.label} title={m.title} className="ml-1.5 align-middle text-[10px] font-normal text-[var(--estate-text-dim)]">
+          {m.label}
+        </span>
+      ))}
+    </>
+  );
+}
+
+type MeasureRow = ModelDetail['measures'][number];
+
+const REGRESSED_PREFIX = 'Matched Power BI before, now: ';
+
+function sentenceCase(s: string): string {
+  return s ? s[0].toUpperCase() + s.slice(1) : s;
+}
+
+function clip(list: string[], n: number): string {
+  return list.slice(0, n).join(', ') + (list.length > n ? ` +${list.length - n}` : '');
+}
+
+/** Eyebrow label for a section of the opened measure. */
+function MeasureSectionLabel({ children, aside }: { children: React.ReactNode; aside?: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--estate-text-muted)]">{children}</span>
+      {aside}
+    </div>
+  );
+}
+
+/**
+ * Opened measure: diagnosis → evidence → facts → DAX.
+ * One message per idea — the parity summary appears once, not in detail, reason and regression note.
+ */
+function MeasureDetail({
+  modelId,
+  measure: m,
+  graphOpen,
+  onToggleGraph,
+}: {
+  modelId: string;
+  measure: MeasureRow;
+  graphOpen: boolean;
+  onToggleGraph: () => void;
+}) {
+  const text = useMeasureText(modelId, m.id);
+  const rc = m.root_cause ?? null;
+  const stageMeta = m.recreation_stage ? RECREATION_STAGE_META[m.recreation_stage] : null;
+  const regressed = m.recreation_stage === 'regressed';
+
+  let reason = m.recreation_reason?.trim() || null;
+  if (reason?.startsWith(REGRESSED_PREFIX)) reason = reason.slice(REGRESSED_PREFIX.length).trim() || null;
+  const headline = rc?.detail?.trim() || reason;
+  const extraReason =
+    reason && headline && reason !== headline && !headline.includes(reason) && !reason.includes(headline) ? reason : null;
+
+  const showDiagnosis = Boolean(rc || headline);
+  const tone: Tone = stageMeta?.tone ?? 'neutral';
+  const title = rc ? sentenceCase(ROOT_CAUSE_LABEL[rc.category] ?? rc.category) : stageMeta?.label ?? 'Status';
+
+  const flags = m.definition;
+  const logic = m.measure_logic;
+  const cols = m.column_resolution;
+
+  const facts: [string, React.ReactNode][] = [];
+  if (m.uc_source_table) {
+    facts.push([
+      'Source',
+      <span key="src" className="inline-flex flex-wrap items-center gap-1.5">
+        <code className="font-mono text-[var(--estate-ink)]">{m.uc_source_table}</code>
+        {m.translation_tier && <Tag title="Translation tier">{m.translation_tier} tier</Tag>}
+      </span>,
+    ]);
+  }
+  if (logic) {
+    facts.push([
+      'Logic',
+      <span key="logic" className="font-mono">
+        {logic.complexity_class} <span className="text-[var(--estate-text-dim)]">→</span> {logic.reproduction_strategy}
+      </span>,
+    ]);
+    if (logic.aggregation_hint) facts.push(['Aggregation', <span key="agg" className="font-mono">{logic.aggregation_hint}</span>]);
+    if (logic.calc_columns.length) facts.push(['Calc columns', <span key="calc" className="font-mono">{clip(logic.calc_columns, 3)}</span>]);
+    if (logic.pq_filter_count > 0) facts.push(['Power Query', `${logic.pq_filter_count} filter step${logic.pq_filter_count === 1 ? '' : 's'}`]);
+  }
+  if (cols && cols.ref_count > 0) {
+    facts.push([
+      'Catalog columns',
+      <span key="cols">
+        {cols.mapped_count} of {cols.ref_count} DAX refs mapped
+        {cols.unmapped.length > 0 && (
+          <span className="text-[var(--estate-text-muted)]">
+            {' '}· unmapped <span className="font-mono">{clip(cols.unmapped, 4)}</span>
+          </span>
+        )}
+      </span>,
+    ]);
+  }
+  if (flags?.dynamicFormat) {
+    facts.push([
+      'Dynamic format',
+      <span key="fmt">
+        <code className="font-mono">{flags.dynamicFormat}</code>
+        {flags.displayHelper && <span className="text-[var(--estate-text-muted)]"> · label helper, not published</span>}
+      </span>,
+    ]);
+  }
+  if (flags?.synonyms?.length) {
+    facts.push([
+      'Also asked as',
+      <span key="syn" className="inline-flex flex-wrap gap-1">
+        {flags.synonyms.map((s) => (
+          <Tag key={s}>{s}</Tag>
+        ))}
+      </span>,
+    ]);
+  }
+
+  const harvestGap = logic?.harvest_gap_refs?.length ? logic.harvest_gap_refs : null;
+  const blockReason = logic?.block_automated_sql ? logic.block_reason : null;
+
+  return (
+    <div className="space-y-4 border-t border-dashed border-[var(--estate-border)] bg-[var(--estate-hover)] px-4 pb-4 pl-10 pt-3">
+      {flags?.description && <p className="max-w-[72ch] text-ui-regular text-[var(--estate-ink)]">{flags.description}</p>}
+
+      {showDiagnosis && (
+        <Callout
+          tone={tone}
+          icon={tone === 'red' ? <AlertCircle className="size-4" /> : tone === 'amber' ? <AlertTriangle className="size-4" /> : undefined}
+          title={
+            <span className="inline-flex flex-wrap items-center gap-2">
+              {title}
+              {regressed && (
+                <span className="text-caption font-normal text-[var(--estate-text-muted)]">· matched Power BI before</span>
+              )}
+            </span>
+          }
+        >
+          <div className="space-y-1.5">
+            {headline && <p className="break-words text-[var(--estate-ink)]">{headline}</p>}
+            {extraReason && <p className="break-words">{extraReason}</p>}
+            {rc?.fix && (
+              <p className="text-caption">
+                <span className="font-semibold text-[var(--estate-text-secondary)]">What to check: </span>
+                {rc.fix}
+              </p>
+            )}
+          </div>
+        </Callout>
+      )}
+
+      {(harvestGap || blockReason) && (
+        <Callout tone="amber" icon={<AlertTriangle className="size-4" />} title={harvestGap ? 'Harvest gap' : 'SQL blocked'}>
+          {harvestGap && (
+            <p>
+              Not captured: <span className="font-mono">{clip(harvestGap, 4)}</span>
+            </p>
+          )}
+          {blockReason && <p>{blockReason}</p>}
+        </Callout>
+      )}
+
+      {rc?.evidence?.length ? (
+        <section className="space-y-2">
+          <MeasureSectionLabel>Evidence</MeasureSectionLabel>
+          <ul className="divide-y divide-[var(--estate-border)] overflow-hidden rounded-lg border border-[var(--estate-border)] bg-[var(--estate-raised)]">
+            {rc.evidence.map((f) => (
+              <li key={f.detector} className="grid gap-x-4 gap-y-1 px-3 py-2.5 sm:grid-cols-[180px_1fr]">
+                <span>
+                  <Tag tone="amber">{PATTERN_LABEL[f.detector] ?? f.detector}</Tag>
+                </span>
+                <div className="min-w-0 space-y-1">
+                  <p className="break-words text-caption text-[var(--estate-ink)]">{f.evidence}</p>
+                  {f.action && (
+                    <p className="flex gap-1.5 text-caption text-[var(--estate-text-muted)]">
+                      <ChevronRight className="mt-0.5 size-3 shrink-0" aria-hidden />
+                      <span>{f.action}</span>
+                    </p>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {facts.length > 0 && (
+        <section className="space-y-2">
+          <MeasureSectionLabel>Recreation</MeasureSectionLabel>
+          <dl className="grid grid-cols-[max-content_1fr] items-baseline gap-x-6 gap-y-1.5 text-caption">
+            {facts.map(([k, v]) => (
+              <React.Fragment key={k}>
+                <dt className="text-[var(--estate-text-muted)]">{k}</dt>
+                <dd className="m-0 min-w-0 break-words text-[var(--estate-ink)]">{v}</dd>
+              </React.Fragment>
+            ))}
+          </dl>
+        </section>
+      )}
+
+      <section className="space-y-2">
+        <div className="flex justify-end">
+          <button
+            type="button"
+            aria-expanded={graphOpen}
+            onClick={onToggleGraph}
+            className={cn(CATALOG_BTN, 'inline-flex items-center gap-1.5')}
+          >
+            <GitBranch className="size-3.5" aria-hidden />
+            {graphOpen ? 'Hide dependency graph' : 'Show dependency graph'}
+          </button>
+        </div>
+        <div className="grid gap-3 xl:grid-cols-2">
+          <div className="min-w-0 space-y-1.5">
+            <MeasureSectionLabel>Power BI DAX</MeasureSectionLabel>
+            <CodeBlock code={text.data?.dax || m.dax_preview || '— no DAX captured —'} maxHeight={360} />
+          </div>
+          <div className="min-w-0 space-y-1.5">
+            <MeasureSectionLabel
+              aside={
+                text.data?.sql && m.translation_tier ? (
+                  <span className="text-[10px] text-[var(--estate-text-muted)]">{m.translation_tier} tier</span>
+                ) : undefined
+              }
+            >
+              Databricks SQL
+            </MeasureSectionLabel>
+            {text.loading ? (
+              <p className="flex items-center gap-1.5 rounded-lg border border-[var(--estate-border)] bg-[var(--estate-bg)] px-3 py-2.5 text-caption text-[var(--estate-text-muted)]">
+                <Loader2 className="size-3 animate-spin" aria-hidden /> Loading SQL…
+              </p>
+            ) : text.error ? (
+              <p className="rounded-lg border border-[var(--estate-border)] bg-[var(--estate-bg)] px-3 py-2.5 text-caption text-[var(--estate-text-muted)]">
+                Couldn’t load SQL: {text.error}
+              </p>
+            ) : text.data?.sql ? (
+              <CodeBlock code={text.data.sql} maxHeight={360} />
+            ) : (
+              <p className="rounded-lg border border-dashed border-[var(--estate-border)] px-3 py-2.5 text-caption text-[var(--estate-text-muted)]">
+                No Databricks SQL yet{m.recreation_stage === 'no_uc' ? ' — the measure has no Unity Catalog binding.' : ' — run Translate for this model.'}
+              </p>
+            )}
+          </div>
+        </div>
+        {graphOpen && <MeasureDependencyGraph modelId={modelId} measure={m.name} />}
+      </section>
+    </div>
+  );
+}
+
+type MeasureText = { dax: string; sql: string | null; tier: string | null; translated_at: string | null };
+
+/** Full DAX + translated Databricks SQL for one measure, fetched when it is opened. */
+function useMeasureText(modelId: string, measureId: string) {
+  const [state, setState] = useState<{ key: string; data: MeasureText | null; error: string | null } | null>(null);
+  const key = `${modelId}/${measureId}`;
+  useEffect(() => {
+    let alive = true;
+    fetch(`/api/agent-lab/powerbi/models/${encodeURIComponent(modelId)}/measures/${encodeURIComponent(measureId)}`)
+      .then(async (res) => {
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error((json as { error?: string }).error ?? `HTTP ${res.status}`);
+        return json as MeasureText;
+      })
+      .then((data) => alive && setState({ key, data, error: null }))
+      .catch((err: unknown) => alive && setState({ key, data: null, error: err instanceof Error ? err.message : String(err) }));
+    return () => {
+      alive = false;
+    };
+  }, [key, modelId, measureId]);
+  const current = state?.key === key ? state : null;
+  return { loading: !current, data: current?.data ?? null, error: current?.error ?? null };
+}
 
 function MeasuresTab({
   modelId,
@@ -699,8 +878,12 @@ function MeasuresTab({
                     ) : (
                       <ChevronRight className="size-3.5 shrink-0 text-[var(--estate-text-dim)]" aria-hidden />
                     )}
-                    <span className="w-[32%] min-w-[140px] shrink-0 truncate text-ui font-medium text-[var(--estate-ink)]" title={m.name}>
+                    <span
+                      className="w-[32%] min-w-[140px] shrink-0 truncate text-ui font-medium text-[var(--estate-ink)]"
+                      title={m.definition?.description ? `${m.name}\n\n${m.definition.description}` : m.name}
+                    >
                       {m.name}
+                      <MeasureFlagMarks flags={m.definition} />
                     </span>
                     <span className="w-[22%] min-w-[100px] shrink-0 truncate text-caption text-[var(--estate-text-muted)]">
                       {m.table_name}
@@ -716,100 +899,19 @@ function MeasuresTab({
                     )}
                   </button>
                   {open && (
-                    <div className="space-y-2 px-4 pb-3 pl-10">
-                      {m.root_cause && (
-                        <p className="text-caption text-[var(--estate-text-secondary)]">
-                          <span className="text-[var(--estate-ink)]">
-                            {ROOT_CAUSE_LABEL[m.root_cause.category] ?? m.root_cause.category}:
-                          </span>{' '}
-                          {m.root_cause.fix}
-                        </p>
-                      )}
-                      {m.root_cause?.evidence?.map((f) => (
-                        <p key={f.detector} className="text-caption text-[var(--estate-text-secondary)]">
-                          <span className="text-[var(--estate-ink)]">{PATTERN_LABEL[f.detector] ?? f.detector}:</span>{' '}
-                          {f.evidence}. <span className="text-[var(--estate-text-muted)]">{f.action}</span>
-                        </p>
-                      ))}
-                      {m.recreation_reason && (
-                        <p className="text-caption text-[var(--estate-text-secondary)]">
-                          {m.recreation_reason}
-                          {m.uc_source_table && (
-                            <span className="text-[var(--estate-text-muted)]">
-                              {' '}
-                              · UC via {m.uc_source_table}
-                              {m.translation_tier && ` · ${m.translation_tier} tier`}
-                            </span>
-                          )}
-                        </p>
-                      )}
-                      {m.column_resolution && m.column_resolution.ref_count > 0 && (
-                        <p className="text-caption text-[var(--estate-text-muted)]">
-                          Catalog columns: {m.column_resolution.mapped_count}/
-                          {m.column_resolution.ref_count} DAX refs mapped
-                          {m.column_resolution.unmapped.length > 0 && (
-                            <span className="text-[var(--estate-text-secondary)]">
-                              {' '}
-                              · unmapped: {m.column_resolution.unmapped.slice(0, 4).join(', ')}
-                              {m.column_resolution.unmapped.length > 4 ? '…' : ''}
-                            </span>
-                          )}
-                        </p>
-                      )}
-                      {m.measure_logic && (
-                        <p className="text-caption text-[var(--estate-text-secondary)]">
-                          Logic: {m.measure_logic.complexity_class} → {m.measure_logic.reproduction_strategy}
-                          {m.measure_logic.aggregation_hint && (
-                            <span className="text-[var(--estate-text-muted)]">
-                              {' '}
-                              · agg {m.measure_logic.aggregation_hint}
-                            </span>
-                          )}
-                          {m.measure_logic.calc_columns.length > 0 && (
-                            <span className="text-[var(--estate-text-muted)]">
-                              {' '}
-                              · calc: {m.measure_logic.calc_columns.slice(0, 3).join(', ')}
-                              {m.measure_logic.calc_columns.length > 3 ? '…' : ''}
-                            </span>
-                          )}
-                          {m.measure_logic.pq_filter_count > 0 && (
-                            <span className="text-[var(--estate-text-muted)]">
-                              {' '}
-                              · {m.measure_logic.pq_filter_count} PQ filter(s)
-                            </span>
-                          )}
-                          {m.measure_logic.harvest_gap_refs?.length > 0 && (
-                            <span className="block text-amber-700/90 dark:text-amber-400/90">
-                              Harvest gap: {m.measure_logic.harvest_gap_refs.slice(0, 4).join(', ')}
-                              {m.measure_logic.harvest_gap_refs.length > 4 ? '…' : ''}
-                            </span>
-                          )}
-                          {m.measure_logic.block_automated_sql && m.measure_logic.block_reason && (
-                            <span className="block text-[var(--estate-text-muted)]">
-                              {m.measure_logic.block_reason}
-                            </span>
-                          )}
-                        </p>
-                      )}
-                      <CodeBlock code={m.dax_preview || '— no DAX captured —'} maxHeight={320} />
-                      <button
-                        type="button"
-                        aria-expanded={graphOpen.has(m.id)}
-                        onClick={() =>
-                          setGraphOpen((prev) => {
-                            const next = new Set(prev);
-                            if (next.has(m.id)) next.delete(m.id);
-                            else next.add(m.id);
-                            return next;
-                          })
-                        }
-                        className={cn(CATALOG_BTN, 'inline-flex items-center gap-1.5')}
-                      >
-                        <GitBranch className="size-3.5" aria-hidden />
-                        {graphOpen.has(m.id) ? 'Hide dependency graph' : 'Show dependency graph'}
-                      </button>
-                      {graphOpen.has(m.id) && <MeasureDependencyGraph modelId={modelId} measure={m.name} />}
-                    </div>
+                    <MeasureDetail
+                      modelId={modelId}
+                      measure={m}
+                      graphOpen={graphOpen.has(m.id)}
+                      onToggleGraph={() =>
+                        setGraphOpen((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(m.id)) next.delete(m.id);
+                          else next.add(m.id);
+                          return next;
+                        })
+                      }
+                    />
                   )}
                 </li>
               );
@@ -840,7 +942,24 @@ function TablesTab({ tables }: { tables: ModelDetail['tables'] }) {
             const b = t.binding as Binding;
             return (
               <tr key={t.id} className="hover:bg-[var(--estate-hover)]">
-                <td className="px-4 py-2 font-medium text-[var(--estate-ink)]">{t.name}</td>
+                <td className="px-4 py-2 font-medium text-[var(--estate-ink)]">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span title={t.definition?.description}>{t.name}</span>
+                    {t.definition?.hidden && <Tag title="Hidden in the Power BI field list">hidden</Tag>}
+                    {t.definition?.incrementalRefresh && (
+                      <Tag tone="amber" title={`Incremental refresh: ${t.definition.incrementalRefresh}. Power BI holds only this window; recreated SQL applies it.`}>
+                        incremental refresh
+                      </Tag>
+                    )}
+                    {t.definition?.fieldParameter && <Tag tone="violet" title="Field parameter: lets report users switch fields; not data">field parameter</Tag>}
+                    {t.definition?.calculationGroup != null && (
+                      <Tag tone="violet" title="Calculation group: its items rewrite measures in visuals">{t.definition.calculationGroup} calc items</Tag>
+                    )}
+                  </div>
+                  {t.definition?.description && (
+                    <p className="mt-0.5 text-caption font-normal text-[var(--estate-text-muted)]">{t.definition.description}</p>
+                  )}
+                </td>
                 <td className="px-4 py-2">
                   <Tag tone={partitionTone(t.partition_kind)}>{humanize(t.partition_kind)}</Tag>
                 </td>
@@ -870,7 +989,13 @@ function TablesTab({ tables }: { tables: ModelDetail['tables'] }) {
   );
 }
 
-function ReportsTab({ reports }: { reports: ModelDetail['reports'] }) {
+function ReportsTab({
+  reports,
+  pbiModelId,
+}: {
+  reports: ModelDetail['reports'];
+  pbiModelId: string;
+}) {
   if (reports.length === 0) {
     return <p className="py-6 text-ui-regular text-[var(--estate-text-muted)]">No reports use this model.</p>;
   }
@@ -879,15 +1004,121 @@ function ReportsTab({ reports }: { reports: ModelDetail['reports'] }) {
       {reports.map((r) => (
         <li key={r.id} className="flex items-center gap-3 px-4 py-2.5">
           <FileBarChart className="size-4 shrink-0 text-[var(--estate-text-dim)]" aria-hidden />
-          <span className="min-w-0 flex-1 truncate text-ui text-[var(--estate-ink)]">{r.name}</span>
-          {r.web_url && (
-            <a href={r.web_url} target="_blank" rel="noopener noreferrer" className={cn(CATALOG_BTN, 'shrink-0')}>
-              Open in Power BI <ExternalLink className="size-3" aria-hidden />
-            </a>
+          <span className="min-w-0 flex-1 truncate text-ui text-[var(--estate-ink)]" title={r.name}>
+            {r.name}
+          </span>
+          {r.report_format && (
+            <Tag tone="neutral" mono>
+              {humanize(r.report_format)}
+            </Tag>
           )}
+          <div className="flex shrink-0 items-center gap-1">
+            {r.pbi_report_id && (
+              <PbiReportHarvestButton
+                pbiModelId={pbiModelId}
+                pbiReportId={r.pbi_report_id}
+                reportName={r.name}
+              />
+            )}
+            {r.open_url ? (
+              <a
+                href={r.open_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(CATALOG_BTN, 'shrink-0')}
+                title={r.open_url_synthesized ? 'Link built from workspace + report id (not from Power BI webUrl)' : undefined}
+              >
+                Open in Power BI <ExternalLink className="size-3" aria-hidden />
+                {r.open_url_synthesized && <span className="sr-only"> (synthesized link)</span>}
+              </a>
+            ) : (
+              <span className="text-caption text-[var(--estate-text-dim)]" title="Run Refresh PBI inventory to load webUrl from Power BI">
+                No link
+              </span>
+            )}
+          </div>
         </li>
       ))}
     </ul>
+  );
+}
+
+/** Pick any harvested report with a Power BI URL and open it. */
+function OpenReportControl({
+  reports,
+  onBrowseReports,
+}: {
+  reports: ModelDetail['reports'];
+  onBrowseReports?: () => void;
+}) {
+  const openable = useMemo(
+    () => reports.filter((r): r is typeof r & { open_url: string } => Boolean(r.open_url)),
+    [reports],
+  );
+  const [reportId, setReportId] = useState('');
+
+  useEffect(() => {
+    setReportId((prev) => (prev && openable.some((r) => r.id === prev) ? prev : (openable[0]?.id ?? '')));
+  }, [openable]);
+
+  const selected = openable.find((r) => r.id === reportId) ?? openable[0];
+
+  if (openable.length === 0) {
+    if (reports.length > 0) {
+      return (
+        <button
+          type="button"
+          onClick={onBrowseReports}
+          className={cn(ESTATE_HEADER_CHIP, 'ml-auto max-w-none text-[var(--estate-text-secondary)]')}
+        >
+          Reports <span className="tabular-nums text-[var(--estate-text-muted)]">{reports.length}</span>
+        </button>
+      );
+    }
+    return null;
+  }
+
+  if (openable.length === 1) {
+    const r = openable[0];
+    return (
+      <a
+        href={r.open_url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={cn(ESTATE_HEADER_CHIP, 'ml-auto min-w-0 max-w-[min(100%,20rem)] text-[var(--estate-text-secondary)]')}
+        title={r.name}
+      >
+        <span className="truncate">Open · {r.name}</span>
+        <ExternalLink className="size-3 shrink-0 opacity-70" aria-hidden />
+      </a>
+    );
+  }
+
+  return (
+    <div className="ml-auto flex min-w-0 max-w-full shrink-0 items-center gap-1.5">
+      <Select
+        aria-label="Report"
+        className={cn(ESTATE_SELECT, 'h-8 w-[min(13.5rem,38vw)] min-w-[8rem]')}
+        value={reportId}
+        onChange={(e) => setReportId(e.target.value)}
+      >
+        {openable.map((r) => (
+          <option key={r.id} value={r.id}>
+            {r.name}
+          </option>
+        ))}
+      </Select>
+      <a
+        href={selected?.open_url ?? '#'}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={cn(ESTATE_HEADER_CHIP, 'max-w-none shrink-0 text-[var(--estate-text-secondary)]')}
+        title={selected ? `Open “${selected.name}” in Power BI` : undefined}
+        aria-disabled={!selected}
+      >
+        Open <ExternalLink className="size-3 shrink-0 opacity-70" aria-hidden />
+      </a>
+    </div>
   );
 }
 
@@ -899,6 +1130,7 @@ function ModelDetailView({
   setMeasureQuery,
   tab,
   setTab,
+  onAfterHarvest,
 }: {
   detail: ModelDetail;
   recreation: RecreationSummary | null;
@@ -907,17 +1139,16 @@ function ModelDetailView({
   setMeasureQuery: (q: string) => void;
   tab: DetailTab;
   setTab: (t: DetailTab) => void;
+  onAfterHarvest?: () => void;
 }) {
-  const answer = (detail.classification?.answerability ?? row?.answerability ?? '').toLowerCase();
-  const parsed = detail.tables.length > 0 || detail.measures.length > 0 || Boolean(answer);
-  const status: Exclude<StatusFilter, 'all'> =
-    answer === 'answerable' || answer === 'caveated' || answer === 'blocked' ? answer : 'unparsed';
+  const parsed = modelHasParsedContent(detail, row) || Boolean(detail.classification?.answerability ?? row?.answerability);
+  const { filter: status, showParsedBadge } = modelDisplayStatus(detail, row);
+  const reportPbiIds = detail.reports.map((r) => r.pbi_report_id).filter(Boolean) as string[];
   const bound = detail.tables.filter((t) => {
     const b = t.binding as Binding;
     return Boolean(b?.context_object_id || b?.uc_full_path);
   }).length;
   const score = domainScoreLabel(detail.domain_assignment?.confidence ?? row?.domain_confidence);
-  const firstReportUrl = detail.reports.find((r) => r.web_url)?.web_url ?? null;
 
   const [measureFocus, setMeasureFocus] = useState<{ name: string; seq: number } | null>(null);
   const openMeasure = (name: string) => {
@@ -935,11 +1166,17 @@ function ModelDetailView({
 
   return (
     <div className="mx-auto max-w-6xl space-y-4">
-      <header className="flex flex-wrap items-start gap-3">
-        <div className="min-w-0 flex-1">
+      <header className="space-y-3 border-b border-[var(--estate-border)] pb-3">
+        <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <h3 className="text-title-section text-[var(--estate-ink)]">{detail.name}</h3>
-            <StatusTag status={status} />
+            {showParsedBadge ? (
+              <Tag tone="blue" dot title="Semantic model loaded from TMDL (measures and tables in estate DB)">
+                Parsed
+              </Tag>
+            ) : (
+              <StatusTag status={status} />
+            )}
             {detail.domain?.name && (
               <Tag tone="brand" title={score ? `Domain assignment, ${score}` : 'Business domain'}>
                 {detail.domain.name}
@@ -967,35 +1204,50 @@ function ModelDetailView({
             <p className="mt-1 max-w-3xl text-ui-regular text-[var(--estate-text-secondary)]">{detail.description}</p>
           )}
         </div>
-        {firstReportUrl && (
-          <a href={firstReportUrl} target="_blank" rel="noopener noreferrer" className={cn(CATALOG_BTN, 'shrink-0')}>
-            Open in Power BI <ExternalLink className="size-3" aria-hidden />
-          </a>
-        )}
+        <div
+          className="flex items-center gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          role="toolbar"
+          aria-label="Model actions"
+        >
+          {parsed && <ModelOwnershipCard key={detail.id} modelId={detail.id} compact />}
+          {parsed && recreation && recreation.sql_drafted > 0 && (
+            <ModelRecreationPanel
+              modelName={detail.name}
+              recreation={recreation}
+              measures={detail.measures}
+              onOpenMeasure={openMeasure}
+            />
+          )}
+          {parsed && <OpenReportControl reports={detail.reports} onBrowseReports={() => setTab('reports')} />}
+          <PbiPipelineRunButton
+            key={`${detail.pbi_model_id}:${parsed}`}
+            pbiModelId={detail.pbi_model_id}
+            reportPbiIds={reportPbiIds}
+            parsed={parsed}
+            hasDefinition={detail.has_definition !== false}
+            onQueued={onAfterHarvest}
+            className={parsed ? undefined : 'ml-0'}
+          />
+        </div>
       </header>
-
-      {parsed && <ModelOwnershipCard key={detail.id} modelId={detail.id} />}
-
-      {recreation && recreation.sql_drafted > 0 && (
-        <RecreationSummaryBar recreation={recreation} />
-      )}
 
       {!parsed ? (
         <Callout
           tone="neutral"
           icon={<AlertCircle className="size-4" />}
           title="This model has not been parsed yet"
-          action={
-            <Link href="/agent-lab/estate/jobs" className={CATALOG_BTN}>
-              Open Jobs
-            </Link>
-          }
         >
-          Only inventory metadata is available. Run <strong>PBI Parse</strong> to read its tables, measures and
-          Unity Catalog bindings.
+          Only inventory metadata is in the estate DB. Use <strong>Run pipeline</strong> above (harvest stages are added automatically) to fetch TMDL
+          from Fabric and load tables and measures.
+          {detail.has_definition === false && (
+            <span className="mt-1 block text-caption text-[var(--estate-text-muted)]">
+              No model definition on disk yet — run that flow (not Parse alone).
+            </span>
+          )}
         </Callout>
       ) : (
         <>
+          <ModelDataSources key={`notice:${detail.id}`} modelId={detail.id} variant="notice" onShowSources={() => setTab('tables')} />
           <div>
             <div role="tablist" aria-label="Model contents" className="mb-3 flex gap-1 border-b border-[var(--estate-border)]">
               {tabs.map((t) => (
@@ -1033,8 +1285,16 @@ function ModelDetailView({
                   focus={measureFocus}
                 />
               )}
-              {tab === 'tables' && <TablesTab tables={detail.tables} />}
-              {tab === 'reports' && <ReportsTab reports={detail.reports} />}
+              {tab === 'tables' && (
+                <div className="space-y-3">
+                  <ModelDataSources key={`sources:${detail.id}`} modelId={detail.id} />
+                  <ModelDefinitionCard key={`definition:${detail.id}`} modelId={detail.id} />
+                  <TablesTab tables={detail.tables} />
+                </div>
+              )}
+              {tab === 'reports' && (
+                <ReportsTab reports={detail.reports} pbiModelId={detail.pbi_model_id} />
+              )}
               {tab === 'health' && <ModelHealthPanel modelId={detail.id} onOpenMeasure={openMeasure} />}
             </div>
           </div>
@@ -1140,36 +1400,30 @@ export default function EstatePowerBiPage() {
     return parsed[0]?.id ?? null;
   }, [selectedId, models]);
 
+  const loadDetail = useCallback(async (modelId: string) => {
+    setDetailLoading(true);
+    try {
+      const res = await fetch(`/api/agent-lab/powerbi/models/${encodeURIComponent(modelId)}`);
+      if (!res.ok) throw new Error(`Detail ${res.status}`);
+      const json = (await res.json()) as { model: ModelDetail; recreation?: RecreationSummary };
+      setDetail(json.model);
+      setRecreation(json.recreation ?? null);
+    } catch {
+      setDetail(null);
+      setRecreation(null);
+    } finally {
+      setDetailLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!activeId) {
       setDetail(null);
       setRecreation(null);
       return;
     }
-    let cancelled = false;
-    (async () => {
-      setDetailLoading(true);
-      try {
-        const res = await fetch(`/api/agent-lab/powerbi/models/${encodeURIComponent(activeId)}`);
-        if (!res.ok) throw new Error(`Detail ${res.status}`);
-        const json = (await res.json()) as { model: ModelDetail; recreation?: RecreationSummary };
-        if (!cancelled) {
-          setDetail(json.model);
-          setRecreation(json.recreation ?? null);
-        }
-      } catch {
-        if (!cancelled) {
-          setDetail(null);
-          setRecreation(null);
-        }
-      } finally {
-        if (!cancelled) setDetailLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [activeId]);
+    void loadDetail(activeId);
+  }, [activeId, loadDetail]);
 
   /** Counts per status for the current workspace/domain scope (before search + status filter). */
   const statusCounts = useMemo(() => {
@@ -1243,57 +1497,46 @@ export default function EstatePowerBiPage() {
   }
 
   const parsedPct = summary && summary.models > 0 ? (summary.models_parsed / summary.models) * 100 : 0;
-  const toggleStatus = (s: StatusFilter) => setStatusFilter((cur) => (cur === s ? 'all' : s));
   const filtersActive = statusFilter !== 'all' || Boolean(query) || Boolean(workspaceFilter) || Boolean(domainFilter);
 
   return (
     <div className="flex h-full w-full min-w-0 flex-col overflow-hidden bg-[var(--estate-bg)]">
       {/* ── Stats bar (the estate layout already shows the page title) ── */}
-      <div className="shrink-0 border-b border-[var(--estate-border)] px-6 py-2">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+      <div className="shrink-0 border-b border-[var(--estate-border)] px-4 py-1.5 md:px-6">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption">
           {summary && (
             <>
-              <Stat value={summary.workspaces} label={summary.workspaces === 1 ? 'workspace' : 'workspaces'} />
-              <Stat value={summary.models} label="models" />
-              <Stat value={summary.reports} label="reports" />
+              <Stat value={summary.models} label="models" title={`${summary.workspaces} workspaces · ${summary.reports} reports`} />
               <StatDivider />
               <span
                 className="inline-flex items-center gap-2 whitespace-nowrap"
                 title="Models whose definition has been read by PBI Parse"
               >
-                <Stat value={`${summary.models_parsed} / ${summary.models}`} label="parsed" />
-                <span className="block h-1 w-16 overflow-hidden rounded-full bg-[var(--estate-border)]">
+                <Stat value={`${summary.models_parsed}/${summary.models}`} label="parsed" />
+                <span className="block h-1 w-14 overflow-hidden rounded-full bg-[var(--estate-border)]">
                   <span
                     className="block h-full rounded-full bg-[var(--brand-a)]"
                     style={{ width: `${Math.max(parsedPct > 0 ? 3 : 0, Math.min(100, parsedPct))}%` }}
                   />
                 </span>
               </span>
-              <StatToggle
-                dot="bg-emerald-500"
-                value={summary.models_answerable}
-                label="answerable"
-                active={statusFilter === 'answerable'}
-                onClick={() => toggleStatus('answerable')}
-                title="Show only answerable models"
-              />
-              <StatToggle
-                dot="bg-amber-500"
-                value={summary.models_caveated}
-                label="caveated"
-                active={statusFilter === 'caveated'}
-                onClick={() => toggleStatus('caveated')}
-                title="Show only caveated models"
-              />
-              <StatDivider />
-              <Stat value={summary.measures} label="measures" />
-              <Stat value={summary.tables} label="tables" />
+              <span className="text-[var(--estate-text-muted)]" title="Use list filters for answerable / caveated / unparsed">
+                <span className="inline-flex items-center gap-1">
+                  <span aria-hidden className="size-1.5 rounded-full" style={{ background: TONE_COLOR.green }} />
+                  {summary.models_answerable}
+                </span>
+                {' · '}
+                <span className="inline-flex items-center gap-1">
+                  <span aria-hidden className="size-1.5 rounded-full" style={{ background: TONE_COLOR.amber }} />
+                  {summary.models_caveated}
+                </span>
+              </span>
             </>
           )}
           <div className="ml-auto flex items-center gap-2">
             {conflicts.length > 0 && (
               <StatToggle
-                icon={<AlertTriangle className="size-3.5 text-amber-600 dark:text-amber-300" aria-hidden />}
+                icon={<AlertTriangle className="size-3.5" style={{ color: TONE_COLOR.amber }} aria-hidden />}
                 value={conflicts.length}
                 label="measure conflicts"
                 active={conflictsOpen}
@@ -1321,93 +1564,115 @@ export default function EstatePowerBiPage() {
 
       {/* ── Body ── */}
       <div className="flex min-h-0 min-w-0 flex-1">
-        <aside className="flex w-[340px] shrink-0 flex-col border-r border-[var(--estate-border)] bg-[var(--estate-raised)]">
-          <div className="space-y-2.5 border-b border-[var(--estate-border)] p-3">
-            <SearchInput value={query} onChange={setQuery} placeholder="Search models" label="Search models" />
-            <div className="grid grid-cols-2 gap-2">
-              <select
-                aria-label="Workspace"
-                className={cn(CATALOG_SELECT, 'h-8 w-full min-w-0 text-ui-regular')}
-                style={CATALOG_SELECT_ARROW}
-                value={workspaceFilter ?? ''}
-                onChange={(e) => {
-                  setWorkspaceFilter(e.target.value || null);
-                  setSelectedId(null);
-                }}
-              >
-                <option value="">All workspaces</option>
-                {workspaces.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name} ({w.model_count})
-                  </option>
-                ))}
-              </select>
-              <select
-                aria-label="Business domain"
-                className={cn(CATALOG_SELECT, 'h-8 w-full min-w-0 text-ui-regular')}
-                style={CATALOG_SELECT_ARROW}
-                value={domainFilter ?? ''}
-                onChange={(e) => {
-                  setDomainFilter(e.target.value || null);
-                  setSelectedId(null);
-                }}
-              >
-                <option value="">All domains</option>
-                {domains.map((d) => (
-                  <option key={d.id} value={d.domain_key}>
-                    {d.name} ({d.model_count})
-                  </option>
-                ))}
-              </select>
+        <aside className="flex w-[min(100%,300px)] shrink-0 flex-col border-r border-[var(--estate-border)] bg-[var(--estate-raised)] sm:w-[300px]">
+          <div className="space-y-2 border-b border-[var(--estate-border)] p-2">
+            <SearchInput
+              value={query}
+              onChange={setQuery}
+              placeholder={filtersActive ? `Search ${visibleModels.length} shown…` : `Search ${models.length} models…`}
+              label="Search models"
+            />
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <label className="flex min-w-0 flex-col gap-1">
+                <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--estate-text-muted)]">
+                  Workspace
+                </span>
+                <Select
+                  aria-label="Workspace"
+                  className={ESTATE_SELECT}
+                  value={workspaceFilter ?? ''}
+                  onChange={(e) => {
+                    setWorkspaceFilter(e.target.value || null);
+                    setSelectedId(null);
+                  }}
+                >
+                  <option value="">All workspaces</option>
+                  {workspaces.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name} ({w.model_count})
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              <label className="flex min-w-0 flex-col gap-1">
+                <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--estate-text-muted)]">
+                  Domain
+                </span>
+                <Select
+                  aria-label="Business domain"
+                  className={ESTATE_SELECT}
+                  value={domainFilter ?? ''}
+                  onChange={(e) => {
+                    setDomainFilter(e.target.value || null);
+                    setSelectedId(null);
+                  }}
+                >
+                  <option value="">All domains</option>
+                  {domains.map((d) => (
+                    <option key={d.id} value={d.domain_key}>
+                      {d.name} ({d.model_count})
+                    </option>
+                  ))}
+                </Select>
+              </label>
             </div>
-            <div role="group" aria-label="Filter by status" className="flex flex-wrap gap-1">
-              {(['all', 'answerable', 'caveated', 'blocked', 'unparsed'] as StatusFilter[])
-                .filter((s) => s === 'all' || s === statusFilter || statusCounts[s] > 0)
-                .map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    aria-pressed={statusFilter === s}
-                    onClick={() => setStatusFilter(s)}
-                    title={s === 'all' ? undefined : STATUS_META[s].hint}
-                    className={cn(
-                      'inline-flex h-6 items-center gap-1 rounded-full border px-2 text-caption transition-colors duration-hover',
-                      statusFilter === s
-                        ? 'border-[var(--brand-a)] bg-[var(--brand-a)] text-[var(--on-brand)]'
-                        : 'border-[var(--estate-border)] bg-[var(--estate-surface)] text-[var(--estate-text-secondary)] hover:text-[var(--estate-ink)]',
-                    )}
-                  >
-                    {s === 'all' ? 'All' : STATUS_META[s].label}
-                    <span className="tabular-nums opacity-75">{statusCounts[s]}</span>
-                  </button>
-                ))}
+            <div className="flex flex-wrap items-center gap-1">
+              <div role="group" aria-label="Filter by status" className="flex min-w-0 flex-1 flex-wrap gap-0.5">
+                {(['all', 'answerable', 'caveated', 'blocked', 'unparsed'] as StatusFilter[])
+                  .filter((s) => s === 'all' || s === statusFilter || statusCounts[s] > 0)
+                  .map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      aria-pressed={statusFilter === s}
+                      onClick={() => setStatusFilter(s)}
+                      title={s === 'all' ? undefined : STATUS_META[s].hint}
+                      className={cn(
+                        'inline-flex h-6 items-center gap-0.5 rounded-md border px-1.5 text-[11px] transition-colors duration-hover',
+                        statusFilter === s
+                          ? 'border-[color-mix(in_srgb,var(--brand-a)_35%,var(--estate-border))] bg-[var(--estate-active-bg)] text-[var(--estate-ink)]'
+                          : 'border-[var(--estate-border)] bg-[var(--estate-surface)] text-[var(--estate-text-muted)] hover:bg-[var(--estate-hover)] hover:text-[var(--estate-ink)]',
+                      )}
+                    >
+                      {s !== 'all' && (
+                        <span
+                          aria-hidden
+                          className="size-1.5 rounded-full"
+                          style={{ background: STATUS_STRIPE[s] }}
+                        />
+                      )}
+                      {s === 'all'
+                        ? 'All'
+                        : s === 'answerable'
+                          ? 'Ans'
+                          : s === 'caveated'
+                            ? 'Cav'
+                            : s === 'blocked'
+                              ? 'Blk'
+                              : 'Unparsed'}
+                      <span className="tabular-nums opacity-80">{statusCounts[s]}</span>
+                    </button>
+                  ))}
+              </div>
+              {filtersActive && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStatusFilter('all');
+                    setQuery('');
+                    setWorkspaceFilter(null);
+                    setDomainFilter(null);
+                  }}
+                  className="shrink-0 text-[11px] text-[var(--brand-a)] hover:underline"
+                >
+                  Clear
+                </button>
+              )}
+              {listLoading && <Loader2 className="size-3 shrink-0 animate-spin text-[var(--estate-text-dim)]" aria-hidden />}
             </div>
           </div>
 
-          <div className="flex items-center gap-2 px-4 pb-1 pt-2 text-caption text-[var(--estate-text-muted)]">
-            {listLoading && <Loader2 className="size-3 animate-spin" aria-hidden />}
-            <span>
-              {visibleModels.length === models.length
-                ? `${models.length} models`
-                : `${visibleModels.length} of ${models.length} models`}
-            </span>
-            {filtersActive && (
-              <button
-                type="button"
-                onClick={() => {
-                  setStatusFilter('all');
-                  setQuery('');
-                  setWorkspaceFilter(null);
-                  setDomainFilter(null);
-                }}
-                className="ml-auto text-[var(--brand-a)] hover:underline"
-              >
-                Clear filters
-              </button>
-            )}
-          </div>
-
-          <ul className={cn('min-h-0 flex-1 overflow-y-auto px-2 pb-2', listLoading && 'opacity-60')}>
+          <ul className={cn('min-h-0 flex-1 overflow-y-auto px-1 pb-1', listLoading && 'opacity-60')}>
             {models.length === 0 ? (
               <li className="p-4 text-ui-regular text-[var(--estate-text-muted)]">
                 No models in inventory. Run <strong>PBI Inventory</strong> and <strong>PBI Parse</strong> from Jobs.
@@ -1446,6 +1711,10 @@ export default function EstatePowerBiPage() {
                 setMeasureQuery={setMeasureQuery}
                 tab={tab}
                 setTab={setTab}
+                onAfterHarvest={() => {
+                  void loadList();
+                  if (activeId) void loadDetail(activeId);
+                }}
               />
             </div>
           ) : (
