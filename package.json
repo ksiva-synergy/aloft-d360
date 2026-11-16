@@ -25,6 +25,7 @@
     "db:resolve:data-access": "node scripts/db/prisma-rds-retry.mjs migrate resolve --applied 20261105_data_access",
     "web:dev": "vite --config web/vite.config.ts",
     "web:build": "vite build --config web/vite.config.ts",
+    "web:spa": "node web/scripts/prepare-spa.mjs",
     "web:preview": "vite preview --config web/vite.config.ts",
     "web:typecheck": "tsc -p web/tsconfig.json --noEmit",
     "web:e2e": "node web/e2e/smoke.mjs",

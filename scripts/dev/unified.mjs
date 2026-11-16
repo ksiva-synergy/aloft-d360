@@ -6,7 +6,8 @@
  * No Vite dev server, no :3001 proxy, one Prisma pool. Recommended on Windows
  * when remote RDS over VPN flakes with the split dev setup.
  *
- * After editing UI code: `npm run web:build` then refresh (or set WEB_FORCE_BUILD=1).
+ * After editing UI code: `npm run web:spa` (build + copy to public/spa) then refresh,
+ * or restart with WEB_FORCE_BUILD=1. `npm run web:build` alone only writes web/dist.
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -36,7 +37,7 @@ const nextAuth =
   `http://${host}:${port}`;
 
 console.log(`[dev:unified] Next.js (webpack) at http://${host}:${port} — API + SPA, one process`);
-console.log('[dev:unified] UI hot reload: run `npm run web:build` in another terminal, then refresh');
+console.log('[dev:unified] UI is the prebuilt public/spa — after UI changes run `npm run web:spa`, then refresh');
 
 const child = spawn('npx', ['next', 'dev', '--webpack', '-p', port], {
   cwd: root,
