@@ -67,3 +67,6 @@ powerbi_semantic_models.json
 
 # Power BI investigator case files (exported for coding agents; metadata + aggregates only)
 .cases/
+
+# Python bytecode from helper scripts
+__pycache__/

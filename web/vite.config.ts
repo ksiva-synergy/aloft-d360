@@ -2,6 +2,7 @@ import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import os from 'node:os';
 import { APPEARANCE_BOOT_SCRIPT } from '../src/lib/theme/appearance-boot-script';
 import { THEME_COOKIE_NAME } from '../src/lib/theme/cookie';
 
@@ -46,7 +47,10 @@ const processEnv = {
 
 // Dev layout: the Vite UI owns :3000 (so NEXTAUTH_URL / the Azure AD redirect URI already point at it) and the Next.js
 // API runs on :3001 (`npm run dev:api`). Override with WEB_PORT / WEB_API_TARGET.
-const API_TARGET = process.env.WEB_API_TARGET ?? 'http://localhost:3001';
+const isWin = os.platform() === 'win32';
+/** On Windows, stick to IPv4 loopback — mixed ::1 / 127.0.0.1 `localhost` breaks the dev proxy often. */
+const API_TARGET =
+  process.env.WEB_API_TARGET ?? (isWin ? 'http://127.0.0.1:3001' : 'http://localhost:3001');
 
 export default defineConfig(({ mode, command }) => ({
   root: webDir,
@@ -76,6 +80,7 @@ export default defineConfig(({ mode, command }) => ({
   optimizeDeps: { esbuildOptions: { define: { ...processEnv } } },
   css: { postcss: repoRoot },
   server: {
+    host: isWin ? '127.0.0.1' : true,
     port: Number(process.env.WEB_PORT ?? 3000),
     strictPort: true,
     // `public/spa` is production UI output (`npm run build` → prepare-spa). Watching it on Windows

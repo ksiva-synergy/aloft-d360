@@ -6,7 +6,9 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "node web/dev-all.mjs",
+    "dev": "node scripts/dev/start.mjs",
+    "dev:unified": "node scripts/dev/unified.mjs",
+    "dev:split": "node web/dev-all.mjs",
     "dev:webpack": "next dev --webpack -p 3001",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -18,6 +20,7 @@
     "db:generate": "prisma generate --schema=./prisma/schema.prisma",
     "db:migrate": "prisma migrate dev --schema=./prisma/schema.prisma",
     "db:validate": "prisma validate --schema=./prisma/schema.prisma",
+    "db:diag": "node --env-file=.env scripts/db/diagnose-rds-path.mjs",
     "db:seed": "node scripts/db/prisma-rds-retry.mjs db seed",
     "db:resolve:data-access": "node scripts/db/prisma-rds-retry.mjs migrate resolve --applied 20261105_data_access",
     "web:dev": "vite --config web/vite.config.ts",
@@ -29,6 +32,7 @@
     "web:check-bundle": "node web/e2e/check-bundle.mjs",
     "web:e2e:next": "node web/e2e/next-integration.mjs",
     "dev:all": "node web/dev-all.mjs",
+    "dev:clean": "node scripts/dev/kill-dev-ports.mjs",
     "dev:api": "next dev -p 3001",
     "prebuild": "node web/scripts/prepare-spa.mjs"
   },

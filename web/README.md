@@ -12,8 +12,14 @@ History and evidence: [../docs/vite-migration/PROGRESS.md](../docs/vite-migratio
 Always run scripts from the **repo root** (Tailwind resolves its config and `content` globs from the working directory).
 
 ```bash
-npm run dev          # starts the API (Next.js, :3001) and the UI (Vite, :3000) together; open http://localhost:3000
+npm run dev          # starts the API (Next.js, :3001) and the UI (Vite, :3000) together; open http://127.0.0.1:3000
 ```
+
+### Windows + remote RDS
+
+On **Windows**, `npm run dev` uses **unified mode** (one Next on :3000, same as Docker/prod) — not the Vite+:3001 split. Full guide: [docs/windows-dev.md](../docs/windows-dev.md).
+
+Mac/Linux still use split dev for UI HMR. Override: `npm run dev:split` or `DEV_SPLIT=1 npm run dev`.
 
 or in two terminals: `npm run dev:api` (API on :3001) and `npm run web:dev` (UI on :3000, proxies `/api` to :3001).
 
