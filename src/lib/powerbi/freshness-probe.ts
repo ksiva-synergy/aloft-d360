@@ -99,9 +99,13 @@ export async function probeTableDrift(orgId: string, table: string, ctx: SliceCo
   return tableDrift({ table, powerBi: { rows: pick(pbi, 'n'), maxDates: pbiDates }, warehouse: { rows: wRows, maxDates: whDates } });
 }
 
-/** Per-run cache: each table of a model is probed at most once. */
+/** A probe result is reused for this long: sources change during long runs (a view was reloaded
+ *  to 0 rows overnight while a 7 h run kept using its 18:19 "no drift" result). */
+const PROBE_TTL_MS = Number(process.env.PBI_FRESHNESS_PROBE_TTL_MS ?? 10 * 60_000);
+
+/** Per-run cache: each table of a model is probed at most once per PROBE_TTL_MS. */
 export class DriftCache {
-  private readonly byTable = new Map<string, Promise<TableDrift>>();
+  private readonly byTable = new Map<string, { at: number; drift: Promise<TableDrift> }>();
   constructor(
     private readonly orgId: string,
     private readonly ctx: SliceContext,
@@ -111,12 +115,11 @@ export class DriftCache {
     return Promise.all(
       tablesReadBy(measure, this.ctx).map((t) => {
         const k = tkey(t);
-        let p = this.byTable.get(k);
-        if (!p) {
-          p = probeTableDrift(this.orgId, t, this.ctx);
-          this.byTable.set(k, p);
-        }
-        return p;
+        const hit = this.byTable.get(k);
+        if (hit && Date.now() - hit.at < PROBE_TTL_MS) return hit.drift;
+        const drift = probeTableDrift(this.orgId, t, this.ctx);
+        this.byTable.set(k, { at: Date.now(), drift });
+        return drift;
       }),
     );
   }
