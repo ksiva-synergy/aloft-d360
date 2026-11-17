@@ -3841,11 +3841,31 @@ model PbiReport {
   updated_at      DateTime     @default(now()) @updatedAt @db.Timestamptz(6)
   workspace       PbiWorkspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
   model           PbiModel?    @relation(fields: [model_id], references: [id], onDelete: SetNull)
+  lineageSnapshot PbiReportLineage?
 
   @@unique([org_id, pbi_report_id], map: "uq_pbi_report_org")
   @@index([org_id], map: "idx_pbi_reports_org")
   @@index([model_id], map: "idx_pbi_reports_model")
   @@map("pbi_reports")
+}
+
+model PbiReportLineage {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id        String
+  report_id     String    @unique(map: "uq_pbi_report_lineage_report") @db.Uuid
+  model_id      String?   @db.Uuid
+  run_id        String?
+  status        String    @default("partial")
+  measure_count Int       @default(0)
+  uc_paths      String[]  @default([])
+  lineage       Json      @default("{}")
+  warnings      Json      @default("[]")
+  generated_at  DateTime  @default(now()) @db.Timestamptz(6)
+  report        PbiReport @relation(fields: [report_id], references: [id], onDelete: Cascade)
+
+  @@index([org_id, status], map: "idx_pbi_report_lineage_status")
+  @@index([org_id, model_id], map: "idx_pbi_report_lineage_model")
+  @@map("pbi_report_lineage")
 }
 
 model PbiUsage {

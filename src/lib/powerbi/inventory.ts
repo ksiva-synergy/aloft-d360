@@ -51,7 +51,7 @@ export interface PbiInventoryResult {
 export async function runPbiInventory(
   orgId: string,
   sourceId: string,
-  opts: { runId: string; workspaceIds?: string[]; fetchDatasources?: boolean },
+  opts: { runId: string; workspaceIds?: string[]; fetchDatasources?: boolean; allWorkspaces?: boolean },
 ): Promise<PbiInventoryResult> {
   const source = await prisma.platformContextSource.findFirst({
     where: { id: sourceId, org_id: orgId, connection_kind: 'powerbi', status: 'active' },
@@ -65,7 +65,7 @@ export async function runPbiInventory(
     : [];
 
   let workspaces = await listWorkspaces();
-  const filterIds = opts.workspaceIds?.length ? opts.workspaceIds : scopeInclude;
+  const filterIds = opts.allWorkspaces ? [] : opts.workspaceIds?.length ? opts.workspaceIds : scopeInclude;
   if (filterIds.length > 0) {
     const allow = new Set(filterIds);
     workspaces = workspaces.filter((w) => allow.has(w.id));

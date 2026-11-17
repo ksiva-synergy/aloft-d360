@@ -69,3 +69,12 @@ export type CapabilityGap = {
   name: string;
   arity?: number;
 };
+
+/**
+ * A scalar DAX function the compiler does not implement and that rule synthesis can learn.
+ * Iterators, table expressions and Power Query steps are not scalar templates, so they stay gaps.
+ */
+export function daxFunctionGap(gap: CapabilityGap | undefined): { name: string; arity: number } | null {
+  if (!gap || gap.kind !== 'dax_fn' || typeof gap.arity !== 'number' || !gap.name.trim()) return null;
+  return { name: gap.name.toUpperCase(), arity: gap.arity };
+}

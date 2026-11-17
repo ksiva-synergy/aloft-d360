@@ -78,7 +78,7 @@ function RecreationRing({ pct, size = 'md' }: { pct: number; size?: 'sm' | 'md' 
   const clamped = Math.min(100, Math.max(0, pct));
   const ring = `conic-gradient(${TONE_COLOR.green} ${clamped * 3.6}deg, var(--estate-raised) 0)`;
   const box = size === 'sm' ? 'size-8 p-[2px]' : size === 'lg' ? 'size-24 p-[4px]' : 'size-[4.25rem] p-[3px]';
-  const text = size === 'sm' ? 'text-[10px]' : size === 'lg' ? 'text-title-section' : 'text-ui';
+  const text = size === 'sm' ? 'text-size-eyebrow' : size === 'lg' ? 'text-title-section' : 'text-ui';
   return (
     <div
       className={cn('relative shrink-0 rounded-full', box)}
@@ -114,7 +114,7 @@ function RecreationPipelineStep({
         <div className="w-full max-w-9 rounded-sm" style={{ height: `${Math.max(6, pct)}%`, background: fill }} />
       </div>
       <p className="text-center text-ui-regular font-semibold tabular-nums text-[var(--estate-ink)]">{value}</p>
-      <p className="text-center text-[10px] leading-tight text-[var(--estate-text-muted)]">{label}</p>
+      <p className="text-center text-size-eyebrow leading-tight text-[var(--estate-text-muted)]">{label}</p>
     </div>
   );
 }
@@ -199,7 +199,7 @@ function RecreationDashboard({ recreation }: { recreation: ModelRecreationSummar
               {recreation.published_pct}% published to knowledge base
             </p>
             {recreation.causes_total != null && recreation.causes_total > 0 && (
-              <p className="mt-1 text-[11px] text-[var(--estate-text-muted)]">
+              <p className="mt-1 text-size-eyebrow text-[var(--estate-text-muted)]">
                 Root-cause precision {recreation.causes_precise}/{recreation.causes_total} (
                 {recreation.cause_precision_pct}%)
               </p>
@@ -272,7 +272,7 @@ function RecreationDashboard({ recreation }: { recreation: ModelRecreationSummar
           )}
         </div>
         {legend.length > 0 && (
-          <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-[var(--estate-text-muted)]">
+          <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-size-eyebrow text-[var(--estate-text-muted)]">
             {legend.map((item) => (
               <li key={item.label} className="inline-flex items-center gap-1">
                 <span className="size-1.5 rounded-full" style={{ background: item.color }} aria-hidden />
@@ -299,7 +299,7 @@ function RecreationDashboard({ recreation }: { recreation: ModelRecreationSummar
         <div className="grid gap-4 md:grid-cols-2">
           {recreation.root_causes && Object.keys(recreation.root_causes).length > 0 && (
             <div className="rounded-lg border border-[var(--estate-border)] bg-[var(--estate-bg)] p-3">
-              <h4 className="mb-2 text-[11px] font-medium uppercase tracking-wide text-[var(--estate-text-muted)]">
+              <h4 className="mb-2 text-size-eyebrow font-medium uppercase tracking-wide text-[var(--estate-text-muted)]">
                 Not recreated
               </h4>
               <BreakdownTable items={recreation.root_causes} labels={ROOT_CAUSE_LABEL} />
@@ -307,7 +307,7 @@ function RecreationDashboard({ recreation }: { recreation: ModelRecreationSummar
           )}
           {recreation.patterns && Object.keys(recreation.patterns).length > 0 && (
             <div className="rounded-lg border border-[var(--estate-border)] bg-[var(--estate-bg)] p-3">
-              <h4 className="mb-2 text-[11px] font-medium uppercase tracking-wide text-[var(--estate-text-muted)]">
+              <h4 className="mb-2 text-size-eyebrow font-medium uppercase tracking-wide text-[var(--estate-text-muted)]">
                 Patterns
               </h4>
               <BreakdownTable items={recreation.patterns} labels={PATTERN_LABEL} />
@@ -394,7 +394,7 @@ function RecreationMeasureExplorer({
           aria-pressed={stageFilter === 'all'}
           onClick={() => setStageFilter('all')}
           className={cn(
-            'inline-flex h-7 items-center rounded-md border px-2 text-[11px]',
+            'inline-flex h-7 items-center rounded-md border px-2 text-size-eyebrow',
             stageFilter === 'all'
               ? 'border-[color-mix(in_srgb,var(--brand-a)_35%,var(--estate-border))] bg-[var(--estate-active-bg)] text-[var(--estate-ink)]'
               : 'border-[var(--estate-border)] bg-[var(--estate-surface)] text-[var(--estate-text-muted)] hover:bg-[var(--estate-hover)]',
@@ -408,7 +408,7 @@ function RecreationMeasureExplorer({
             aria-pressed={stageFilter === 'blocked'}
             onClick={() => setStageFilter('blocked')}
             className={cn(
-              'inline-flex h-7 items-center gap-1 rounded-md border px-2 text-[11px]',
+              'inline-flex h-7 items-center gap-1 rounded-md border px-2 text-size-eyebrow',
               stageFilter === 'blocked'
                 ? 'border-[color-mix(in_srgb,var(--brand-a)_35%,var(--estate-border))] bg-[var(--estate-active-bg)] text-[var(--estate-ink)]'
                 : 'border-[var(--estate-border)] bg-[var(--estate-surface)] text-[var(--estate-text-muted)] hover:bg-[var(--estate-hover)]',
@@ -425,7 +425,7 @@ function RecreationMeasureExplorer({
             onClick={() => setStageFilter(s)}
             title={RECREATION_STAGE_META[s].hint}
             className={cn(
-              'inline-flex h-7 items-center gap-1 rounded-md border px-2 text-[11px]',
+              'inline-flex h-7 items-center gap-1 rounded-md border px-2 text-size-eyebrow',
               stageFilter === s
                 ? 'border-[color-mix(in_srgb,var(--brand-a)_35%,var(--estate-border))] bg-[var(--estate-active-bg)] text-[var(--estate-ink)]'
                 : 'border-[var(--estate-border)] bg-[var(--estate-surface)] text-[var(--estate-text-muted)] hover:bg-[var(--estate-hover)]',
@@ -440,7 +440,7 @@ function RecreationMeasureExplorer({
       <div className="overflow-hidden rounded-lg border border-[var(--estate-border)] bg-[var(--estate-surface)]">
         <div className="max-h-[min(42vh,480px)] overflow-y-auto">
           <table className="w-full text-left text-caption">
-            <thead className="sticky top-0 z-[1] border-b border-[var(--estate-border)] bg-[var(--estate-raised)] text-[11px] font-medium uppercase tracking-wide text-[var(--estate-text-muted)]">
+            <thead className="sticky top-0 z-[1] border-b border-[var(--estate-border)] bg-[var(--estate-raised)] text-size-eyebrow font-medium uppercase tracking-wide text-[var(--estate-text-muted)]">
               <tr>
                 <th className="px-3 py-2 font-medium">Measure</th>
                 <th className="hidden px-3 py-2 font-medium sm:table-cell">Table</th>
@@ -478,7 +478,7 @@ function RecreationMeasureExplorer({
                         <button
                           type="button"
                           onClick={() => onOpenMeasure(m.name)}
-                          className="text-[11px] font-medium text-[var(--estate-text-secondary)] underline-offset-2 hover:text-[var(--estate-ink)] hover:underline"
+                          className="text-size-eyebrow font-medium text-[var(--estate-text-secondary)] underline-offset-2 hover:text-[var(--estate-ink)] hover:underline"
                         >
                           Open
                         </button>
@@ -567,7 +567,7 @@ function RecreationFullPage({
       />
       <header className="flex shrink-0 flex-wrap items-start gap-3 border-b border-[var(--estate-border)] bg-[var(--estate-surface)] px-4 py-3 sm:px-6">
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--estate-text-muted)]">
+          <p className="text-size-eyebrow font-medium uppercase tracking-wide text-[var(--estate-text-muted)]">
             Databricks recreation
           </p>
           <h2 id="recreation-full-title" className="text-title-section text-[var(--estate-ink)]">
@@ -602,7 +602,7 @@ function RecreationFullPage({
         </div>
       </div>
 
-      <footer className="shrink-0 border-t border-[var(--estate-border)] bg-[var(--estate-surface)] px-4 py-2 text-center text-[11px] text-[var(--estate-text-dim)] sm:px-6">
+      <footer className="shrink-0 border-t border-[var(--estate-border)] bg-[var(--estate-surface)] px-4 py-2 text-center text-size-eyebrow text-[var(--estate-text-dim)] sm:px-6">
         Esc to close · Power BI measure values compared to warehouse SQL (parity)
       </footer>
     </div>

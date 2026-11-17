@@ -85,6 +85,11 @@ export type HarvestLlmCompleteParams = {
   messages: ChatMessage[];
   maxTokens: number;
   temperature?: number;
+  /**
+   * Per-request cap for OpenAI-compatible providers. The SDK default is 10 minutes with two
+   * retries, so one stalled request can hold a translate run for a very long time.
+   */
+  timeoutMs?: number;
 };
 
 export type HarvestLlmCompleteResult = {
@@ -132,6 +137,8 @@ function chatCompletionOmitsTemperature(modelId: string): boolean {
   const id = modelId.toLowerCase();
   // LLM Lite → Bedrock routes for Grok reject `temperature` in the request body.
   if (id.includes('grok')) return true;
+  // GPT-6 Luna (Bedrock / LLM Lite) returns 400 "doesn't support the temperature field".
+  if (id.includes('luna')) return true;
   if (process.env.HARVEST_LLM_OMIT_TEMPERATURE === '1') return true;
   return false;
 }
@@ -156,7 +163,10 @@ async function completeViaOpenAiCompatible(
     body.temperature = params.temperature ?? 0.2;
   }
 
-  const resp = await client.chat.completions.create(body);
+  const resp = await client.chat.completions.create(
+    body,
+    params.timeoutMs ? { timeout: params.timeoutMs, maxRetries: 1 } : undefined,
+  );
 
   const text = resp.choices[0]?.message?.content ?? '';
   return {

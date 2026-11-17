@@ -39,7 +39,7 @@ import {
   type JobScopeRunnerFlags,
   mergeJobScopeRunnerFlags,
 } from '@/lib/context/job-scope-flags';
-import { mergeJobScope, pbiJobScopeFromLaunchBody } from '@/lib/powerbi/launch-scope';
+import { mergeJobScope, PBI_LINEAGE_KINDS, pbiJobScopeFromLaunchBody } from '@/lib/powerbi/launch-scope';
 
 class NoObjectsInScopeError extends Error {
   kind: JobKind;
@@ -328,15 +328,16 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
 
-  const rawKinds: string[] = body.kinds
+  const allReports = body.pbiAllReports === true;
+  const rawKinds: string[] = allReports ? [...PBI_LINEAGE_KINDS] : body.kinds
     ? (Array.isArray(body.kinds) ? body.kinds : [body.kinds])
     : body.kind
       ? [body.kind]
       : [];
 
-  const excludeSchemas: string[] = Array.isArray(body.excludeSchemas) ? body.excludeSchemas : [];
-  const includePatterns: string[] = Array.isArray(body.includePatterns) ? body.includePatterns : [];
-  const sequential: boolean = body.sequential === true;
+  const excludeSchemas: string[] = !allReports && Array.isArray(body.excludeSchemas) ? body.excludeSchemas : [];
+  const includePatterns: string[] = !allReports && Array.isArray(body.includePatterns) ? body.includePatterns : [];
+  const sequential: boolean = allReports || body.sequential === true;
   const runnerFlags: JobScopeRunnerFlags = {
     forceReprofile: body.forceReprofile === true,
     forceReEnrich: body.forceReEnrich === true,
@@ -369,7 +370,22 @@ export async function POST(req: NextRequest) {
 
   try {
     const orgId = await getOrgId();
-    const sources = await resolveLaunchSources(orgId, requestedSourceId);
+    const resolvedSources = await resolveLaunchSources(orgId, allReports ? undefined : requestedSourceId);
+    const sources = allReports ? filterSourcesForJobKind(resolvedSources, 'pbi_inventory').slice(0, 1) : resolvedSources;
+    if (allReports && sources.length === 0) {
+      return NextResponse.json({ error: 'NO_POWERBI_SOURCE', message: 'No active Power BI source is configured.' }, { status: 400 });
+    }
+    if (allReports) {
+      try {
+        await prisma.pbiReportLineage.count({ where: { org_id: orgId } });
+      } catch (error) {
+        if ((error as { code?: string }).code !== 'P2021') throw error;
+        return NextResponse.json({
+          error: 'LINEAGE_STORAGE_NOT_READY',
+          message: 'Apply the 20261116_pbi_report_lineage migration before running all-reports lineage.',
+        }, { status: 409 });
+      }
+    }
 
     const pipelineRunId = sequential && kinds.length > 1 ? randomUUID() : undefined;
     const pbiScope = pbiJobScopeFromLaunchBody(body as Record<string, unknown>);

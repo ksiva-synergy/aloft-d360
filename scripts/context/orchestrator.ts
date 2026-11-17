@@ -46,6 +46,8 @@ import { runPbiParity } from '@/lib/powerbi/parity';
 import { runPbiPublish } from '@/lib/powerbi/publish';
 import { assertModelsFree, reapStaleJobs } from '@/lib/powerbi/job-health';
 import { copyPbiScope } from '@/lib/powerbi/pipeline-stages';
+import { pbiHarvestLimits } from '@/lib/powerbi/launch-scope';
+import { persistReportLineage } from '@/lib/powerbi/report-lineage-store';
 import { findModelsRefreshedSinceVerification, markRefreshVerificationQueued } from '@/lib/powerbi/refresh-watch';
 import {
   copyPipelineChainMetadata,
@@ -645,7 +647,8 @@ async function dispatchSingleJob(
         return { status: 'failed', error: 'missing source_id' };
       }
       try {
-        const inv = await runPbiInventory(orgId, job.source_id, { runId: job.id });
+        const scope = (job.scope ?? {}) as Record<string, unknown>;
+        const inv = await runPbiInventory(orgId, job.source_id, { runId: job.id, allWorkspaces: scope.all_reports === true });
         await finalize(job.id, 'succeeded', inv as unknown as Record<string, unknown>);
         console.log(
           `[pbi_inventory] source=${job.source_id} workspaces=${inv.workspaces} models=${inv.models} reports=${inv.reports}`,
@@ -679,8 +682,7 @@ async function dispatchSingleJob(
           reportIds,
           fetchModels: scope.fetch_models !== false,
           fetchReports: scope.fetch_reports !== false,
-          maxModels: typeof scope.max_models === 'number' ? scope.max_models : undefined,
-          maxReports: typeof scope.max_reports === 'number' ? scope.max_reports : undefined,
+          ...pbiHarvestLimits(scope),
         });
         await finalize(job.id, 'succeeded', stats as unknown as Record<string, unknown>);
         console.log(
@@ -714,8 +716,7 @@ async function dispatchSingleJob(
           runId: job.id,
           modelIds,
           reportIds,
-          maxModels: typeof scope.max_models === 'number' ? scope.max_models : undefined,
-          maxReports: typeof scope.max_reports === 'number' ? scope.max_reports : undefined,
+          ...pbiHarvestLimits(scope),
           forceReparse: scope.force_parse === true,
         });
         await finalize(job.id, 'succeeded', stats as unknown as Record<string, unknown>);
@@ -743,13 +744,18 @@ async function dispatchSingleJob(
           ? scope.model_ids.filter((x): x is string => typeof x === 'string')
           : undefined;
         const stats = await runPbiCatalogLink(orgId, job.source_id, { runId: job.id, modelIds });
-        await finalize(job.id, 'succeeded', stats as unknown as Record<string, unknown>);
+        const reportLineage = await persistReportLineage(orgId, {
+          runId: job.id, modelIds,
+          reportIds: Array.isArray(scope.report_ids) ? scope.report_ids.filter((id): id is string => typeof id === 'string') : undefined,
+        });
+        const status = reportLineage.failed > 0 ? 'partial' : 'succeeded';
+        await finalize(job.id, status, { ...stats, report_lineage: reportLineage });
         console.log(
           `[pbi_catalog_link] matched=${stats.matched} unscanned=${stats.unscanned} ambiguous=${stats.ambiguous}`,
         );
         // Run pipeline chains Power BI stages like the other tiers: start the next stage.
         await advancePbiChain(orgId, job);
-        return { status: 'succeeded' };
+        return { status };
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         await finalize(job.id, 'failed', {}, msg);
@@ -865,7 +871,7 @@ async function dispatchSingleJob(
         });
         await finalize(job.id, 'succeeded', stats as unknown as Record<string, unknown>);
         console.log(
-          `[pbi_translate] rule=${stats.rule_translated} expand=${stats.pattern_expanded ?? 0} expand_fail=${stats.expand_compile_failed ?? 0}c/${stats.expand_warehouse_failed ?? 0}w skipped_unchanged=${stats.skipped_unchanged ?? 0} fidelity_blocked=${stats.skipped_fidelity ?? 0} errored=${stats.measures_errored ?? 0} ${Math.round((stats.duration_ms ?? 0) / 1000)}s orphans_removed=${stats.orphan_translations_removed ?? 0} llm=${stats.llm_translated}/${stats.measures_scanned} dax_uc=${stats.uc_via_dax_refs ?? 0} no_bind=${stats.skipped_no_binding} logic_gate=${stats.skipped_logic_gate ?? 0} unsupported=${stats.skipped_unsupported_dax} cost_usd=${stats.cost_usd.toFixed(4)}`,
+          `[pbi_translate] rule=${stats.rule_translated} expand=${stats.pattern_expanded ?? 0} expand_fail=${stats.expand_compile_failed ?? 0}c/${stats.expand_warehouse_failed ?? 0}w rule_synth=${stats.rules_synthesized ?? 0} verified/${stats.rules_synthesis_failed ?? 0} failed skipped_unchanged=${stats.skipped_unchanged ?? 0} fidelity_blocked=${stats.skipped_fidelity ?? 0} errored=${stats.measures_errored ?? 0} ${Math.round((stats.duration_ms ?? 0) / 1000)}s orphans_removed=${stats.orphan_translations_removed ?? 0} llm=${stats.llm_translated}/${stats.measures_scanned} dax_uc=${stats.uc_via_dax_refs ?? 0} no_bind=${stats.skipped_no_binding} logic_gate=${stats.skipped_logic_gate ?? 0} unsupported=${stats.skipped_unsupported_dax} cost_usd=${stats.cost_usd.toFixed(4)}`,
         );
         // Run pipeline chains Power BI stages like the other tiers: start the next stage.
         await advancePbiChain(orgId, job);

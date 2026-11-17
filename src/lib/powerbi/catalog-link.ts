@@ -9,6 +9,7 @@ import {
   describeSourceOrigins,
   isOutsideWarehouse,
   readModelExpressions,
+  warehouseNavigationPath,
 } from '@/lib/powerbi/source-origin';
 
 export interface PbiCatalogLinkResult {
@@ -69,6 +70,7 @@ export async function runPbiCatalogLink(
       connection_host: true,
       bind_status: true,
       source_m_hash: true,
+      table: { select: { source_m: true } },
     },
   });
 
@@ -82,6 +84,7 @@ export async function runPbiCatalogLink(
       sql: b.native_sql,
       pathIndex,
       databricksSourceId: dbSourceId,
+      fallbackPath: b.native_sql?.trim() ? null : warehouseNavigationPath(b.table.source_m),
     });
 
     await prisma.pbiSourceBinding.update({

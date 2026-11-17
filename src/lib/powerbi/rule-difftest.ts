@@ -59,7 +59,14 @@ function cartesian<T>(lists: T[][]): T[][] {
 }
 
 /** Deterministic row generation; when the full product is too large every value still appears. */
-export function buildDiffTestPlan(spec: FunctionTestSpec, maxRows = 64, maxCombos = 12): DiffTestPlan {
+export function buildDiffTestPlan(input: FunctionTestSpec, maxRows = 64, maxCombos = 12): DiffTestPlan {
+  // An empty `literals` list (what the LLM returns for a free argument) means "varies", not
+  // "constant with no values". Treating it as a constant gave zero combinations and an ADDCOLUMNS
+  // with no columns (found 2026-11-16, CEILING synthesis).
+  const spec: FunctionTestSpec = {
+    ...input,
+    args: input.args.map((a) => (a.literals?.length ? a : { kind: a.kind })),
+  };
   const columnArgs = spec.args.map((a, i) => (a.literals ? -1 : i)).filter((i) => i >= 0);
   const valueLists = columnArgs.map((i) => EDGE_VALUES[spec.args[i]!.kind]);
   let tuples: (string | null)[][];
@@ -93,7 +100,12 @@ export function buildDiffTestPlan(spec: FunctionTestSpec, maxRows = 64, maxCombo
     const args = spec.args.map((a, i) => (a.literals ? combo[li++]! : colRef(i)));
     return `${spec.name}(${args.join(', ')})`;
   };
-  const pbiCols = literalCombos.map((combo, k) => `"r${k}", ${call((i) => `[a${i}]`, combo)}`);
+  // Power BI fails the whole query on one bad input (e.g. CEILING with mixed signs), so each result
+  // is wrapped: the value becomes BLANK on error and an error flag marks the row as not comparable.
+  const pbiCols = literalCombos.flatMap((combo, k) => {
+    const expr = call((i) => `[a${i}]`, combo);
+    return [`"r${k}", IFERROR(${expr}, BLANK())`, `"e${k}", ISERROR(${expr})`];
+  });
   const powerBiQuery = `EVALUATE ADDCOLUMNS(${datatableDax}, ${pbiCols.join(', ')})`;
   const rowExpressions = literalCombos.map((combo) => call((i) => `'${DIFFTEST_TABLE}'[a${i}]`, combo));
 
@@ -174,6 +186,8 @@ export type DiffTestResult = {
   pass: boolean;
   compared: number;
   mismatches: DiffTestMismatch[];
+  /** Input combinations where Power BI itself raises an error; excluded from the comparison. */
+  powerBiErrors?: number;
   error?: string;
 };
 
@@ -186,10 +200,17 @@ export function compareDiffTest(
   const byIdSql = new Map(sqlRows.map((r) => [Number(r[ID]), r]));
   const mismatches: DiffTestMismatch[] = [];
   let compared = 0;
+  let powerBiErrors = 0;
   for (const row of plan.rows) {
     const p = byIdPbi.get(row.id);
     const s = byIdSql.get(row.id);
     plan.literalCombos.forEach((combo, k) => {
+      // Power BI raised an error for this input: the function's result is undefined here, so
+      // there is nothing to compare. Every other row still has to match.
+      if (p && asBool(p[`[e${k}]`] ?? p[`e${k}`]) === true) {
+        powerBiErrors += 1;
+        return;
+      }
       compared += 1;
       const pv = p ? (p[`[r${k}]`] ?? p[`r${k}`] ?? null) : undefined;
       const sv = s ? (s[`r${k}`] ?? null) : undefined;
@@ -203,5 +224,13 @@ export function compareDiffTest(
       }
     });
   }
-  return { name: plan.spec.name, pass: mismatches.length === 0, compared, mismatches };
+  // A test where Power BI errored on every input compared nothing and proves nothing.
+  return {
+    name: plan.spec.name,
+    pass: mismatches.length === 0 && compared > 0,
+    compared,
+    mismatches,
+    powerBiErrors,
+    ...(compared === 0 ? { error: 'no input could be compared: Power BI errored on every case' } : {}),
+  };
 }

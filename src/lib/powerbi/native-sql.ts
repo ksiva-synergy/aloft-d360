@@ -58,17 +58,22 @@ export function resolveCatalogBind(input: {
   sql: string | null;
   pathIndex: Map<string, { id: string; source_id: string }[]>;
   databricksSourceId: string | null;
+  /** catalog.schema.table from Databricks navigation when the partition has no native SQL. */
+  fallbackPath?: string | null;
 }): {
   status: CatalogBindStatus;
   ucPath: string | null;
   contextObjectId: string | null;
 } {
-  if (!input.sql?.trim()) {
-    return { status: 'non_uc', ucPath: null, contextObjectId: null };
-  }
-  const paths = extractTablePathsFromSql(input.sql);
+  const fromSql = input.sql?.trim() ? extractTablePathsFromSql(input.sql) : [];
+  const fallback = input.fallbackPath?.trim().toLowerCase() ?? '';
+  const paths = fromSql.length ? fromSql : fallback ? [fallback] : [];
   if (paths.length === 0) {
-    return { status: 'ambiguous', ucPath: null, contextObjectId: null };
+    return {
+      status: input.sql?.trim() ? 'ambiguous' : 'non_uc',
+      ucPath: null,
+      contextObjectId: null,
+    };
   }
   const primary = paths[0];
   let candidates = input.pathIndex.get(primary) ?? [];

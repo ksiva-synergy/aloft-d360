@@ -353,6 +353,21 @@ const keyOf = (o: SourceOrigin) =>
  * Origins of one table: its M plus every helper query it reaches (depth-limited, cycle-safe).
  * `queries` maps query name → M (shared expressions and other tables' partition M).
  */
+/**
+ * `catalog.schema.table` when Power Query navigates a warehouse catalog
+ * (`Databricks.Catalogs` … `{[Name=…,Kind="Table"]}`) and does not send SQL.
+ * Native-query partitions are left to `extractTablePathsFromSql`.
+ */
+export function warehouseNavigationPath(sourceM: string | null | undefined): string | null {
+  for (const o of describeSourceOrigins(sourceM)) {
+    if (o.query || (o.system !== 'databricks' && o.system !== 'fabric')) continue;
+    if (!o.database || !o.object) continue;
+    const parts = `${o.database}.${o.object}`.replace(/[`"[\]]/g, '').split('.').filter(Boolean);
+    if (parts.length === 3 && parts.every((p) => /^[\w#$]+$/.test(p))) return parts.join('.').toLowerCase();
+  }
+  return null;
+}
+
 export function describeSourceOrigins(
   sourceM: string | null | undefined,
   queries: Map<string, string> = new Map(),
@@ -540,4 +555,9 @@ export function parseTmdlExpressions(text: string): { name: string; m: string }[
   }
   flush();
   return out;
+}
+
+/** Display name for a source system, e.g. `sql_server` → "SQL Server". */
+export function systemLabel(system: OriginSystem): string {
+  return SYSTEM_LABEL[system] ?? system;
 }

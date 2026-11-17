@@ -66,6 +66,31 @@ function catalog(): MeasureLogicCatalog {
   };
 }
 
+describe('compiler: MEDIAN / MEDIANX', () => {
+  it('compiles MEDIANX over a table to a Spark median', () => {
+    const out = compileMeasureToSql({
+      measureDax: 'MEDIANX(VALUES(Ships[IMO_NO]), [Audit_Count])',
+      catalog: catalog(),
+    });
+    expect(out.ok).toBe(true);
+    if (out.ok) expect(out.sql).toMatch(/\bmedian\(/i);
+  });
+
+  it('compiles MEDIAN over a column, and a measure built on it', () => {
+    const cat = catalog();
+    cat.columnsByTable.get('ships')!.set('AGE', { source_column: 'AGE', calculated_dax: null, data_type: 'int64' });
+    cat.columnsByTable.get('ships')!.set('age', { source_column: 'AGE', calculated_dax: null, data_type: 'int64' });
+    const out = compileMeasureToSql({ measureDax: 'MEDIAN(Ships[AGE])', catalog: cat });
+    expect(out.ok).toBe(true);
+    if (out.ok) expect(out.sql).toMatch(/median\(.*`AGE`\)/i);
+  });
+
+  it('refuses MEDIAN over a date column instead of guessing', () => {
+    const out = compileMeasureToSql({ measureDax: 'MEDIAN(Ships[TAKE_OVER_DATE])', catalog: catalog() });
+    expect(out.ok).toBe(false);
+  });
+});
+
 describe('compiler: measures, calculated tables, iterators', () => {
   it('compiles a measure built only from other measures', () => {
     const out = compileMeasureToSql({ measureDax: 'DIVIDE([Audit_Count], [Ship_Count], 0)', catalog: catalog() });
@@ -92,11 +117,36 @@ describe('compiler: measures, calculated tables, iterators', () => {
     if (!out.ok) return;
     // Decorrelated: Audit is aggregated once per Ships.IMO_NO (joined through Audit.Key2 = Ships.KEY)
     // and each iterated value looks its result up.
-    expect(out.sql).toMatch(/LEFT JOIN t\d+ a\d+ ON CAST\(a\d+\.`Key2` AS STRING\) = CAST\(a\d+\.`KEY` AS STRING\)/);
+    expect(out.sql).toMatch(/LEFT JOIN t\d+ a\d+ ON rtrim\(CAST\(a\d+\.`Key2` AS STRING\)\) = rtrim\(CAST\(a\d+\.`KEY` AS STRING\)\)/);
     expect(out.sql).toMatch(/GROUP BY 1/);
     // the grouped result is joined into the iterator (no correlated lookup left)
     expect(out.sql).toMatch(/LEFT JOIN grp\d+ x\d+ ON x\d+\.k = coalesce\(CAST\(g\d+\.`IMO_NO` AS STRING\), '__blank__'\)/);
     expect(out.result_kind).toBe('number');
+  });
+
+  it('grouped evaluation by a calculated column joins the stage that defines it', () => {
+    // Regression (Vessel Opex FY23-26): grouping by a calculated column of the dimension joined the
+    // base CTE, which has no such column -> UNRESOLVED_COLUMN. The join must read the staged CTE.
+    const cat = catalog();
+    const code = { source_column: null, calculated_dax: 'LEFT(Ships[IMO_NO], 3)', data_type: null };
+    cat.columnsByTable.get('ships')!.set('Code', code);
+    cat.columnsByTable.get('ships')!.set('code', code);
+    const out = compileMeasureToSql({
+      measureDax: "SUMX(VALUES(Ships[Code]), CALCULATE(MEDIANX('Audit', LEN('Audit'[imono]))))",
+      catalog: cat,
+    });
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.sql).toMatch(/AS `Code`/);
+    expect(out.sql).toMatch(/LEFT JOIN t\d+_\d+ a\d+ ON rtrim\(CAST\(a\d+\.`Key2` AS STRING\)\) = rtrim\(CAST\(a\d+\.`KEY` AS STRING\)\)/);
+    expect(out.sql).not.toMatch(/LEFT JOIN t\d+ a\d+ ON rtrim\(CAST\(a\d+\.`Key2` AS STRING\)\) = rtrim\(CAST\(a\d+\.`KEY` AS STRING\)\)/);
+  });
+
+  it('compares relationship keys ignoring trailing spaces, like Power BI', () => {
+    // Power BI matched dim key "X " with fact key "X"; plain string equality in SQL does not.
+    const out = compileMeasureToSql({ measureDax: "CALCULATE(COUNTROWS('Audit'), 'Ships'[IMO_NO] = \"A\")", catalog: catalog() });
+    expect(out.ok).toBe(true);
+    if (out.ok) expect(out.sql).toMatch(/rtrim\(CAST\(a\d+\.`Key2` AS STRING\)\) IN \(SELECT rtrim\(CAST\(r\d+\.`KEY` AS STRING\)\)/);
   });
 
   it('TOPN(1) keeps the max row (ties included)', () => {
@@ -216,7 +266,7 @@ describe('date arithmetic and multi-hop filters', () => {
     });
     expect(out.ok).toBe(true);
     if (!out.ok) return;
-    expect(out.sql).toMatch(/CAST\(a\d+\.`Key2` AS STRING\) IN \(SELECT CAST\(r\d+\.`KEY` AS STRING\) FROM t\d+ r\d+ WHERE r\d+\.`TAKE_OVER_DATE` IN \(SELECT r\d+\.`Date`/);
+    expect(out.sql).toMatch(/rtrim\(CAST\(a\d+\.`Key2` AS STRING\)\) IN \(SELECT rtrim\(CAST\(r\d+\.`KEY` AS STRING\)\) FROM t\d+ r\d+ WHERE r\d+\.`TAKE_OVER_DATE` IN \(SELECT r\d+\.`Date`/);
   });
 });
 

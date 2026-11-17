@@ -443,7 +443,7 @@ Function library (scalar): IF, SWITCH, DIVIDE, COALESCE, ISBLANK, date/text/math
 | **Rule registry (data)** | LLM-synthesized, machine-verified, human-promoted | Scalar DAX functions and Power Query functions/steps as SQL templates with typed parameters, e.g. `WEEKNUM(d: date, t: int) → (floor((dayofyear({0}) - 1 + …) / 7) + 1)`. Today's hand-written functions are seeded here and go through the same tests. |
 | **LLM diagnostician** | LLM proposes, parity decides | For parity mismatches: hypotheses from DAX + SQL + lineage notes + total and sliced differences → candidate compiler option or rule → accepted only if parity passes on the total **and** every slice |
 
-**Compiler lookup order:** core built-ins → `verified`/`promoted` registry rule → otherwise request synthesis. The measure becomes `capability_gap` until the rule verifies.
+**Compiler lookup order:** core built-ins → `verified`/`promoted` registry rule → otherwise request synthesis. The measure becomes `capability_gap` until the rule verifies. Translate requests that synthesis itself when a compile failure is a scalar `dax_fn` gap (`rule-gap-fill.ts`): one LLM call per function per run, kept only after differential tests match Power BI, then the measure is compiled again. Iterators, table expressions and Power Query steps are not sent to this path. Whole-measure LLM SQL stays the last resort and still does not see Power Query.
 
 **Rule lifecycle:** `candidate` (synthesized) → `verified` (differential tests pass) → `promoted` (human glance; usable estate-wide). If tests fail, the LLM retries with the failing cases as feedback (bounded N); after that the gap is recorded with its evidence.
 
@@ -489,7 +489,7 @@ A wrong rename, filter, type cast or merge shows up as a fingerprint difference.
 |---|---|---|
 | 1 | Harvest fixes: quoted measure names, measure-only table source, fenced sources for all partitions, TMDL leaks | **Done** (`d8a1a9c0`) |
 | 2 | Cheap capabilities: compiler crash, IFERROR / WEEKNUM / COMBINEVALUES / ISINSCOPE, `Number.Round*`, M `if`, date levels | **Done** (`d8a1a9c0`) |
-| 2b | **Rule registry + differential test harness + LLM synthesis** (§7.2–7.3) | **Built** (§3.27); first synthesis round pending |
+| 2b | **Rule registry + differential test harness + LLM synthesis** (§7.2–7.3) | **Built** (§3.27). Translate requests synthesis on a scalar `dax_fn` gap (2026-11-16). No estate synthesis round has been run yet |
 | v2 | Architecture v2 phases 1–5 ([powerbi-recreation-architecture.md](./powerbi-recreation-architecture.md) §7) | **Phase 1 done; Phase 2 built** (§3.28) |
 | 3 | Fidelity gate (source-system check, replica confirmation, dead measures) | **Built** in v2 Phase 2 (§3.28). Still to do: nightly compile-only estate sweep job |
 | 4 | Definitions + parse for all 451 models (pilot scope off); RLS strategy for 54 models | Planned |

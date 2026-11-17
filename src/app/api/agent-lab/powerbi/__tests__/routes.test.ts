@@ -9,9 +9,14 @@ const ROUTES = [
   'workspaces/route.ts',
   'models/route.ts',
   'models/[id]/route.ts',
+  'models/[id]/lineage/route.ts',
+  'reports/route.ts',
+  'reports/[id]/lineage/route.ts',
   'domains/route.ts',
   'conflicts/route.ts',
   'conflicts/[id]/route.ts',
+  'sources/route.ts',
+  'sources/impact/route.ts',
 ];
 
 describe('powerbi API routes', () => {

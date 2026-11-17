@@ -1,3 +1,19 @@
+## 2026-11-17 — Source impact: browse sources by system hierarchy
+
+- **What:** Source impact now starts from the source system and drills down each system's hierarchy (Databricks workspace → catalog → schema → table; SQL Server/Oracle server → database → schema → table; SharePoint site → folder → file → sheet; and so on). Impact can be shown for any level, with a clickable path and the levels inside it; a system overview appears when nothing is selected. `GET /api/agent-lab/powerbi/sources/impact` returns the counted tree and accepts `?node=` (any level) or `?key=` (one source). Paths: `src/lib/powerbi/source-impact.ts`, the impact route, `src/views/agent-lab/estate/powerbi-source-impact.tsx`, tests, `docs/jobs/powerbi-report-lineage.md`.
+- **Why:** Engineers look for a source the way it is organised, and often need impact for a whole schema or site, not one table.
+- **Verified:** After the merge and stash restore: all 55 restored untracked files match the stash; merged tracked files keep the stashed lineage changes; no conflict markers. `tsc` (app and web) clean; ESLint clean on lineage files; 345 of 346 Power BI/estate/route/typography tests pass. The failing `typography-guard` count comes from 55 arbitrary font sizes in other files (none in lineage files). Rendered with sample data on a local Vite server with mocked API responses (overview, schema, SharePoint sheet; light and dark).
+- **Prisma client:** `prisma generate` updated the generated client JS and types for the merged schema (needed for `tsc`). The Windows engine DLL was locked by the running Next process and left unchanged; it is tied to the Prisma version, not the schema. The running server keeps its loaded client until restart.
+- **Not done:** No commit, push, database operation or service restart. `stash@{0}` left in place.
+
+## 2026-11-17 — Merge automate-runs into Power BI bridge
+
+- **What:** Merged `feature/automate-runs` into `feature/powerbi-bridge` as `7bc732c3`; reapplied the pre-merge worktree stash and combined the conflicting Jobs status history. The stash remains as a recovery copy. No push.
+- **Paths:** `.vscode/tasks.json`, `docs/jobs/current-status.md`, `docs/jobs/session-log.md`, plus the preserved worktree changes.
+- **Why:** Integrate both feature branches without losing the latest local work.
+- **Verified:** Merge validation reported 31 focused tests passing, Prisma schema validation passing, and ESLint with no errors. After stash restoration, the conflict-marker/staging task passed and Git reports no unmerged paths. Full TypeScript validation remains blocked by stale generated Prisma client types; Prisma generation was deferred to avoid disturbing running Next processes.
+- **Not done:** Restored work remains uncommitted; stash remains in place; no push, live database operation, or service restart.
+
 ## 2026-11-13 — Account menu: compact layout
 
 - **What:** User menu panel is denser — narrower width, merged preferences block (theme, developer mode, colors), smaller swatches, role badge beside name, tighter nav rows and footer.
@@ -1721,6 +1737,211 @@ Validation: all 3 chat-presentation tests passed. Frontend typecheck still repor
 - **Why:** User asked to take latest `dev` and merge with the local branch.
 - **Verified:** `git fetch origin dev`, `git merge origin/dev`; conflict markers removed. No full test suite run for the merge step alone.
 - **Not done:** The backup stash `stash@{0}` (“WIP before merge origin/dev into main”) is still listed; drop it with `git stash drop` when you no longer need that snapshot.
+
+## 2026-11-17 - Verify active Definitions worker liveness
+
+- **What:** Added `Check Definitions worker liveness` to `.vscode/tasks.json`; it reads the running job, local PID liveness, successful fetch counts, and latest definition fetch timestamps in a read-only transaction.
+- **Why:** Distinguish a genuinely active long-running model export from a stale job status.
+- **Verified:** At 01:27 UTC, worker `local-48740` was alive; it had recorded 161 model fetches and the latest successful model fetch was `01:27:26.727Z`. No report fetches yet. Task JSON/editor validation passed.
+- **Not done:** No DB writes, worker restart/stop, or runtime behavior change. Report definitions are processed only after the model loop completes.
+
+## 2026-11-17 - Consolidated Power BI/Fabric API usage reference
+
+- **What:** Added `docs/powerbi-api-usage.md`, cataloging external Power BI/Fabric/Entra endpoints, async definition polling, endpoint callers, purposes, retained information, other optional API features, and internal ALOFT routes. Linked it from `docs/jobs/powerbi-report-lineage.md` and recorded the Jobs session.
+- **Why:** User requested one document listing all APIs, where the application uses them, and why.
+- **Verified:** Cross-checked the endpoint inventory against `client.ts`, `fabric.ts`, `inventory.ts`, `definitions.ts`, `pbi-ownership.ts`, `oracle.ts`, `execute-dax.ts`, and `report-lineage-build.ts`; documentation editor diagnostics clear.
+- **Not done:** Documentation only; no code behavior, API calls, migration, or database changes.
+
+## 2026-11-17 - Read-only live pipeline status task
+
+- **What:** Added `Inspect Power BI pipeline status` to `.vscode/tasks.json`; it reads recent harvest jobs, recorded definition totals, successful fetch counts for the newest Definitions job, and snapshot status totals in a read-only transaction. Existing tasks preserved.
+- **Why:** Provide current status reliably without the terminal's unfinished shell command or endpoints that can launch queued work.
+- **Verified:** At 00:14 UTC / 05:44 IST, the new inventory job succeeded; Definitions job `b3bcab65-7b9a-4c3a-ab84-3cb3879e59cb` was running with 4 model fetches and 0 report fetches recorded. Estate definition metadata: 43/507 models, 14/498 reports. Snapshot totals: 5 ready, 8 partial, 485 blocked. Task completed; JSON/editor validation passed.
+- **Not done:** No DB writes, provider requests, worker launch, or runtime changes. Counts are point-in-time recorded metadata, not on-disk verification or final success/failure statistics for the running job.
+
+## 2026-11-17 - Verify completed definition exports after provider recovery
+
+- **What:** Updated the retained `Check Power BI definition access` task in `.vscode/tasks.json` to use the app's Fabric export polling helper and wait for completed model/report results, not just HTTP 202 acceptance. Updated the lineage runbook and Jobs status/session log.
+- **Why:** Establish whether previously blocked definition downloads can actually complete before retrying estate-wide harvest.
+- **Verified:** At 00:04 UTC / 05:34 IST, workspace listing completed (3 workspaces); the Available Data Sources model export completed with 16 parts and its report export with 7 parts. Task JSON/editor validation passed.
+- **Not done:** Export contents were retrieved in memory only. No raw-store/DB writes or bulk retry/pipeline launch. Recovery is confirmed for this sample, not all remaining models/reports.
+
+## 2026-11-16 - Report lineage redesign: flow view, readiness, estate filters and source impact
+
+- **What:** Report lineage page rebuilt as four lanes (original sources → model tables → measures → report) with click-to-trace, lines coloured by source kind, solid/dashed/red edges for detected/model-wide/unresolved, a readiness checklist with **Show**, an inspector with copy buttons, and a Table lens (TSV copy). The all-reports hub gains a pipeline strip with stage drop-offs, status split, saved questions (`?filter=`), estate source mix, and per-row source mix / Unity Catalog meters. New **Source impact** page and `GET /api/agent-lab/powerbi/sources/impact` give reverse lineage from stored snapshots. The report lineage GET now also returns the stored snapshot's status/time/run. Estate nav highlights the nested page (Report lineage, Source impact) instead of Power BI.
+- **Why:** Engineers and report developers needed to see where a report's data comes from, why it is partial, and what breaks if a source changes, without reading long lists.
+- **Verified:** New pure modules (`report-lineage-graph`, `report-lineage-snapshot-summary`, `source-impact`) with unit tests; UI tests for the report view, hub and impact page; 318 Power BI/estate tests pass; `tsc` (app and web) and ESLint clean. Rendered with sample data against a local Vite server with mocked API responses (light and dark).
+- **Not done:** Not run against a live database or pipeline. No schema change: hub facts and impact read the existing `pbi_report_lineage.lineage` JSONB, so snapshots written before the original-source payload extension show no source facts until Catalog Link refreshes them. Per-visual/page lineage is still future work.
+
+## 2026-11-16 - Distinguish model-source coverage from report-definition coverage
+
+- **What:** Added read-only `Inspect lineage for harvested models` process task in `.vscode/tasks.json`; documented broader verified coverage in Jobs status/session log.
+- **Why:** The earlier 13-report figure covered downloaded report definitions only and understated source lineage already derived from the additional downloaded semantic models.
+- **Verified:** At 17:40 UTC: 42 on-disk model definitions, 37 with parsed table rows, 36 linked active reports; all 36 have source tables in their stored snapshots. Of these, 23 lack a downloaded report definition and remain blocked for report-specific lineage while retaining model-wide source details. Six downloaded models have no linked active reports. Task completed; JSON/editor validation passed.
+- **Not done:** No DB writes, definition fetch, pipeline/backfill run, status change, or new model-level snapshot table. No claim that model-wide sources are proven report/visual dependencies.
+
+## 2026-11-16 - Verify lineage for definitions already harvested
+
+- **What:** Added read-only `Inspect harvested lineage coverage` process task in `.vscode/tasks.json`; it compares definition directories on disk, parse freshness, and stored original-source payloads without provider requests. Recorded verified coverage in Jobs status/session log.
+- **Why:** Establish lineage coverage for the raw definitions already available independently of Fabric download failures.
+- **Verified:** At 17:36 UTC, all 42 available model definitions and all 13 available report definitions had current parses. All 13 reports had refreshed original-source payloads: 5 ready, 8 partial, no stored unknown-system source tables. Examples include SharePoint-backed BlueLink and Fleet Strength. Task completed; JSON/editor validation passed.
+- **Not done:** No database writes, harvest, backfill, pipeline launch, or provider calls. Partial status and incomplete report/visual dependencies are not resolved by this diagnostic.
+
+## 2026-11-16 - Shell-free Power BI definition access check
+
+- **What:** Added `Check Power BI definition access` to `.vscode/tasks.json`; it uses fresh tokens and reads Power BI workspace access plus a harvested model/report definition response, printing only status/error metadata and part counts.
+- **Why:** Recheck whether the provider recovered without starting a pipeline, saving definitions, or relying on broken PowerShell here-string execution.
+- **Verified:** Task completed at 17:15 UTC: workspace listing returned 401 `TenantMigrationInProgress`; model and report definitions returned 401 `Unauthorized`. Task JSON/editor validation passed.
+- **Not done:** No database writes, raw-store changes, pipeline launch, auth/configuration changes, or secrets printed. Provider access has not recovered.
+
+## 2026-11-16 - Read-only lineage snapshot samples task
+
+- **What:** Added `Inspect Power BI lineage samples` to `.vscode/tasks.json`, preserving existing tasks. It reads three organization-scoped snapshots in a read-only transaction and prints selected report/measure/path metadata.
+- **Why:** Show actual stored records despite PowerShell mangling the direct diagnostic command.
+- **Verified:** Task completed successfully: 498 active-report snapshots; three samples returned. Sampled rows predate the original-source payload extension and lack `sources`. Task JSON/editor validation passed.
+- **Not done:** No database writes, snapshot backfill, pipeline launch, migration, or provider calls. No application behavior change.
+
+## 2026-11-16 - Original-source report lineage beyond Unity Catalog
+
+- **What:** Expanded `report-lineage-types.ts`, `report-lineage.ts`, `report-lineage-build.ts`, and `report-lineage-store.ts` with original per-table/per-measure sources and model-level inventory connections; added report-only enrichment/redaction in `src/lib/powerbi/report-lineage-sources.ts`. `ReportLineageExplorer.tsx` shows Fabric/Direct Lake, database, file/folder/sheet, helper-query/navigation, unknown-source and optional UC details. Extended resolver/storage/DOM tests and the retained verification task's lint coverage. Added source JSONB SQL examples and updated Jobs status/logs.
+- **Why:** Data source/table/file paths must be visible and stored regardless of whether a Unity Catalog mapping exists; model-wide sources must not be presented as confirmed report dependencies.
+- **Verified:** `Verify Power BI report lineage` passed all gates: 52 focused tests, focused ESLint, and full `tsc --noEmit --pretty false`. Mocked desktop/mobile screenshots (1365x900, 390x844) showed no horizontal page or source-field overflow; changed-file editor diagnostics clear.
+- **Not done:** No live data writes, pipeline launch, provider/auth changes, or snapshot backfill. Existing snapshot JSON is refreshed by Catalog Link; no new migration required. Missing harvest metadata stays unknown. Complete visual/page/field lineage remains outside scope.
+
+## 2026-11-16 - Source filter on the Power BI estate model list (specific sources)
+
+- **What:** Added a **Source** dropdown under Workspace/Domain in `src/views/agent-lab/estate/powerbi.tsx`. It filters models by the specific sources they read, classified as category → type → server/site/folder → database/catalog. Categories: Databricks; Databases & warehouses (Snowflake, Microsoft Fabric, SQL Server, PostgreSQL, …); SharePoint & OneDrive (per site / personal site); Local & network files (per folder); Web, APIs & apps; Power BI (semantic models, dataflows, calculated / entered tables). Any level can be picked, and counts follow the workspace/domain scope. The new pure module `src/lib/powerbi/estate-sources.ts` merges the Power BI service datasource list (`pbi_model_datasources`, which has parameters already resolved) with Power Query tracing (`describeSourceOrigins`, which adds Databricks catalogs, Snowflake databases and dataflows). Fabric SQL endpoints are split out from SQL Server, `host,1433` is merged with `host`, and GUID suffixes are dropped from Fabric database labels. New `GET /api/agent-lab/powerbi/sources` route; `systemLabel` is exported from `source-origin.ts`.
+- **Why:** Narrow the estate to models fed by a particular database, catalog, site or folder, not just a connector type.
+- **Verified:** `estate-sources` tests (new, 10), `source-origin` tests and the route section-guard test pass (30 total). No tsc errors in changed files. ESLint shows only 3 `set-state-in-effect` errors that already existed in `powerbi.tsx`. A read-only dry run against the live inventory classified 488 of 507 active models in 130 ms (e.g. 3 Databricks workspaces / 5 catalogs, 2 Snowflake accounts / 9 databases, 37 SharePoint sites).
+- **Not done:** Not opened in the running app. Snowflake databases and dataflow names appear only where Power Query names them literally. The endpoint is not cached.
+
+## 2026-11-16 - Repair lineage verification task without deleting it
+
+- **What:** Preserved `.vscode/tasks.json` and the `Verify Power BI report lineage` label; replaced its PowerShell-quoted inline JavaScript with sequential process tasks for tests, lint, and full typecheck. Adjusted the report hub's fetch helpers so effect-triggered state updates occur in asynchronous response handlers, preserved Prisma's search-mode literal type in the reports API, and documented the task in `docs/jobs/powerbi-report-lineage.md`.
+- **Why:** The shell task failed before verification because nested JavaScript quotes were lost. The working task then exposed two React effect lint errors in the hub.
+- **Verified:** The repaired task completed all three gates: 40 focused tests passed, focused ESLint passed, and full `tsc --noEmit --pretty false` passed. Task, hub, reports API, and documentation editor diagnostics clear.
+- **Not done:** No files deleted, migration applied, live pipeline launched, or Azure/auth configuration changed. Existing snapshot-table migration and client-generation/restart prerequisites remain.
+
+## 2026-11-16 - All-reports lineage action and persisted report snapshots
+
+- **What:** Added the operator-only all-reports action/coverage strip in `src/views/agent-lab/estate/powerbi-report-lineage-hub.tsx`; enforced lineage-only stage order in `src/app/api/agent-lab/context/jobs/launch/route.ts`; added all-estate inventory/harvest scope handling in `src/lib/powerbi/{inventory,launch-scope,pipeline-stages}.ts` and `scripts/context/orchestrator.ts`; added coverage reporting in the reports API and `report-lineage-coverage.ts`. Added `PbiReportLineage`/`pbi_report_lineage` in `prisma/schema.prisma`, migration `20261116_pbi_report_lineage`, and snapshot writes in `report-lineage-store.ts` using the existing builder with per-model catalog reuse. Added focused scope, inventory, coverage, launch API, persistence and DOM tests; runbook/SQL in `docs/jobs/powerbi-report-lineage.md`; Jobs status/session log updated.
+- **Why:** Run lineage for every accessible report from the UI without recreation stages, bypass harvest caps explicitly, expose coverage gaps, and retain queryable report/measure/table/UC snapshots in Postgres.
+- **Verified:** Focused Vitest checks for scope, inventory, coverage, persistence, API and UI; Prisma schema validation; mocked desktop/mobile browser preview (1365x900 and 390x844), no horizontal overflow. React effect lint issues repaired in the touched hub.
+- **Not done:** Migration not applied; no live job, Azure/auth configuration, or database changes. Client generation wrote the new model types but encountered a Windows query-engine DLL lock; repeat after stopping its owning dev process. Storage migration is required before all-reports launch; per-visual/page/field lineage and snapshot history remain outside scope.
+
+## 2026-11-16 - Fix webpack build error from bundling tsx/esbuild
+
+- `src/lib/context/launch-harvester.ts`: `require.resolve('tsx/cli')` made webpack bundle `tsx/node_modules/esbuild/lib/main.d.ts` (parse failure). Now resolved through a runtime-only `eval('require')`.
+- Verified: not run (build not executed); re-run `next build`/dev to confirm.
+
+## 2026-11-16 - Local harvest worker startup and queued-job recovery
+
+- **What:** `src/lib/context/launch-harvester.ts` launches the resolved tsx CLI with `process.execPath`, without a Windows shell, and reports spawn errors or exits within a one-second startup window. `src/lib/context/kick-queued-workers.ts` recognizes old queued jobs with confirmed-dead local PIDs. Added launcher tests, extended recovery tests, and updated `docs/jobs/current-status.md` and `docs/jobs/session-log.md`.
+- **Why:** A recorded `local-<pid>` previously prevented queued parity jobs from recovering even after their detached worker exited.
+- **Verified:** `node.exe node_modules/vitest/vitest.mjs run src/lib/context/kick-queued-workers.test.ts src/lib/context/launch-harvester.test.ts --reporter=verbose` (13 passed); focused ESLint and editor diagnostics for the four touched TypeScript files.
+- **Not done:** No live database reads/writes or worker launch; queued parity job not cleared. Startup survival is not proof of job claim. RDS reachability, model bindings, ECS task health, and PID reuse remain outside this fix.
+
+## 2026-11-16 — Report lineage: all reports (PBIR parse + hub pagination)
+
+- **What:** `pbi_parse` now writes `props.parse.measure_refs` for **PBIR** report folders (not only legacy `report.json`). Report hub API paginates (`offset`/`total`, limit 500) and counts measures via props + on-disk definition. Model high-level lineage default cap raised to 500 reports (`PBI_LINEAGE_MAX_REPORTS`).
+- **Why:** User needs lineage for every harvested report; modern PBIR reports were skipped in parse and hub listed only first N rows.
+- **Verified:** `vitest` `report-lineage.test.ts` PBIR folder case.
+- **Not done:** Run **PBI Definitions** until `reports_with_definition` = all reports, then **PBI Parse** (raise `PBI_DEFINITIONS_MAX_REPORTS` / `PBI_PARSE_MAX_REPORTS` per job batch).
+
+## 2026-11-16 — Unified dev: auto-rebuild stale public/spa
+
+- **What:** `scripts/dev/unified.mjs` compares UI source mtimes to `public/spa/index.html` and runs `web:spa` when newer (Windows default `npm run dev`).
+- **Why:** New Estate routes (e.g. Report lineage) shipped in source but were invisible until manual `npm run web:spa`.
+- **Verified:** `npm run web:spa` produces `powerbi-report-lineage-hub` chunk; grep `report-lineage` under `public/spa/assets`.
+- **Not done:** Split dev (`DEV_SPLIT=1`) still uses Vite HMR — no change.
+
+## 2026-11-16 — Report lineage explorer (hub + dedicated page)
+
+- **What:** Estate nav **Report lineage** (`/agent-lab/estate/powerbi/report-lineage`) lists harvested reports; each opens `/agent-lab/estate/powerbi/reports/{id}/lineage` with full measure → UC table. `GET /api/agent-lab/powerbi/reports?q=` backs search. Power BI stats bar links to the hub; Reports tab **Lineage** unchanged.
+- **Why:** Direct in-app check of the same Postgres stitch as the notebook/API, without Databricks.
+- **Verified:** Routes in `web/src/router.tsx`; hub + `ReportLineageExplorer` call `GET …/reports/{id}/lineage`.
+- **Not done:** Phase B visual/page field lineage.
+
+## 2026-11-16 — Single-report lineage notebook (Postgres stitch)
+
+- **What:** `notebooks/powerbi/single_report_lineage_from_postgres.ipynb` (Databricks import), `.py` source sync, `notebooks/powerbi/README.md`, and `docs/sql/single-report-lineage.sql` — one report: `measure_refs` JSON → measures → bindings → UC; model summary, all bindings, relationships.
+- **Why:** Stewards wanted one Databricks notebook to view stitched report lineage without UC system tables.
+- **Verified:** Notebook/SQL reviewed against schema; full DAX multi-table closure still app-only (`GET …/reports/{id}/lineage`).
+- **Not done:** On-disk measure names not in SQL unless also in `props.parse.measure_refs`.
+
+## 2026-11-16 — Power BI high-level model lineage card
+
+- **What:** `GET /api/agent-lab/powerbi/models/{id}/lineage` returns rollup (reports → measures → semantic tables → UC). `ModelHighLevelLineage` on parsed model detail in Estate Power BI; links to Reports tab for detail.
+- **Why:** Stewards asked for a summary layer distinct from the full PQ/DAX dependency graph.
+- **Verified:** `vitest` extension in `report-lineage.test.ts`; route guard test for `models/[id]/lineage/route.ts`.
+- **Not done:** Does not replace measure-level graph or Phase B visual fields.
+
+## 2026-11-16 — Report lineage Phase A (API + Estate UI)
+
+- **What:** `GET /api/agent-lab/powerbi/reports/{id}/lineage` resolves harvested report measure names → model DAX closure → UC paths (`report-lineage.ts`, `report-measure-refs.ts`). Graph route reuses shared report measure discovery. Estate Power BI **Reports** tab expands each report to show UC rollup, measure list, and **Dependency graph** jump.
+- **Why:** Report-first lineage without new tables or Databricks `system.access.*`; builds on existing parse + catalog bindings.
+- **Verified:** `vitest run src/lib/powerbi/__tests__/report-lineage.test.ts src/app/api/agent-lab/powerbi/__tests__/routes.test.ts`.
+- **Not done:** Per-page/visual field lineage (`pbi_visuals` — build plan Phase B).
+
+## 2026-11-16 — PBI bridge lineage: Databricks notebook + SQL
+
+- **What:** Added `notebooks/powerbi/view_pbi_bridge_lineage_from_postgres.py` (JDBC reads of `pbi_source_bindings`, relationships, measures, optional T3 `co_objects` from Postgres only — no `system.access.*`) and `docs/sql/pbi-bridge-lineage-from-postgres.sql` for local psql/DBeaver.
+- **Why:** Stewards asked where Power BI bridge lineage lives vs Estate UC lineage and how to view the crosswalk from a SQL warehouse.
+- **Verified:** Doc + notebook structure aligned with `docs/powerbi-data-formats-and-fields.md` and `prisma` PBI models; not run against live JDBC from this session.
+- **Not done:** Does not replicate `buildModelGraph` DAX/PQ dependency edges in SQL (still app/API only).
+
+## 2026-11-16 — Power BI data formats & fields reference
+
+- **What:** `docs/powerbi-data-formats-and-fields.md` documents the three harvest channels (REST JSON, Fabric TMDL/PBIR, executeQueries oracle), on-disk layouts, TMDL→Aurora field mapping, and end-to-end measure example. Embedded in `powerbi-module-layered-guide.html` via updated `build-pbi-layered-guide-html.mjs`.
+- **Why:** Clarify file formats vs database fields vs how translate/Inspector consume them.
+- **Verified:** HTML regen; content aligned with `inventory.ts`, `definitions.ts`, `parse.ts`, `raw-store.ts`.
+- **Not done:** PBIR visual-level filter normalization still future work.
+
+## 2026-11-16 — Power BI module layered guide (HTML)
+
+- **What:** Added `docs/powerbi-module-layered-guide.html` (browser guide with sidebar, Mermaid layer diagram, tables, and code examples) and generator `scripts/docs/build-pbi-layered-guide-html.mjs` from `docs/powerbi-module-layered-guide.md`. Markdown source links to the HTML.
+- **Why:** HTML documentation alongside the existing `powerbi-harvest-overview.html` design spec; easier to share with stewards and engineers.
+- **Verified:** `node scripts/docs/build-pbi-layered-guide-html.mjs` → 47k-char HTML; Mermaid + same styling as harvest overview.
+- **Not done:** Does not auto-run in CI; regenerate after markdown edits.
+
+## 2026-11-16 — Power BI module layered architecture guide
+
+- **What:** Added `docs/powerbi-module-layered-guide.md`: end-to-end architecture (UI → APIs → harvest jobs → `src/lib/powerbi` → Aurora/`kb_verified_queries`), Microsoft REST/Fabric calls we use vs skipped APIs and why, database tables, job launch examples, Inspector path, configuration, and debugging walkthroughs.
+- **Why:** Single onboarding doc for what was built on the Power BI bridge without reading the full build plan, recreation history, and tracker separately.
+- **Verified:** Doc-only; cross-checked against existing routes, orchestrator job kinds, `pipeline-stages.ts`, and tracker status.
+- **Not done:** No code or runtime changes.
+
+## 2026-11-16 — Translate synthesizes a missing scalar DAX function, then recompiles
+
+- **What:** When compile fails with a scalar `dax_fn` gap and LLM translate is on, translate calls the existing rule synthesizer once per function per run. The template is kept only after differential tests match Power BI, installed into every model catalog in the run, and the measure is compiled again. A rejection is stored on the translation as `rule_synthesis` and the old whole-measure LLM path still runs afterwards. Files: `src/lib/powerbi/rule-gap-fill.ts`, `rule-registry.ts` (`daxFunctionGap`), `translate.ts`, `scripts/context/orchestrator.ts`.
+- **Why:** The registry and the synthesizer already existed, but translate never requested a rule, so the next unknown function (the MEDIANX case, before it was a built-in) stayed No SQL.
+- **Also:** `harvestLlmComplete` takes an optional `timeoutMs` (OpenAI-compatible providers, `maxRetries: 1` when set). Synthesis passes 240 s, because the SDK default is 10 min with two retries. `rule-synthesize.ts` logs each attempt (`[rule-synth] … attempt N: pass|fail`, or the LLM error). Files: `src/lib/context/harvest-llm.ts`, `src/lib/powerbi/rule-synthesize.ts`.
+- **Verified:** `vitest run src/lib/powerbi/__tests__/`: 38 files, 202 tests passed. `rule-gap-fill.test.ts` covers install-on-verify, reject-without-install, and one synthesis per function per run. No linter errors.
+- **Synthesis model:** `PBI_RULE_SYNTH_PROVIDER` / `PBI_RULE_SYNTH_MODEL` select the model for synthesis only (`getRuleSynthRouting`). Set to `llmlite` + `aws_bedrock/Gpt-6-Luna` for the test. Translate keeps its own model. The `harvest-llm` helper omits `temperature` for Luna ids, because Luna returns 400 on that field.
+- **Harness fixes found by the live test:** (1) an empty `literals` list from the LLM was treated as a constant with no values, which produced `ADDCOLUMNS` with no columns. (2) Power BI fails the whole test query on one input it cannot evaluate (`CEILING` with mixed signs). Each result is now `IFERROR(expr, BLANK())` with an `ISERROR` flag. Flagged rows are excluded and counted in `powerBiErrors`, and a test where nothing could be compared never passes. Files: `src/lib/powerbi/rule-difftest.ts`, `__tests__/rule-registry.test.ts`.
+- **Live test (2026-11-16, `CEILING/2`, GPT-6 Luna):** three attempts, LLM replies 7–15 s, 56 inputs compared each time, mismatches 20 → 8 → 4. Rejected, nothing installed as verified. A `rejected` row is saved to `pbi_translation_rules` as the audit record. Power BI's `CEILING` rounds negative numbers toward +∞: `CEILING(-1, 2.5)` = 0. The model used Excel's away-from-zero rule (-2.5). The gate caught that.
+- **Not done:** Estate has no scalar `dax_fn` gap today (current gaps: unbound tables, `SUMMARIZE`, context transitions, Power Query steps), so translate does not reach this path on the current data. Whole-measure LLM prompts still do not include Power Query. Synthesis does not yet feed the Power BI result back as a worked example for the next attempt beyond the mismatch list.
+
+## 2026-11-16 — Compiler: MEDIAN/MEDIANX, grouped calc-column keys, relationship keys ignore trailing spaces
+
+- **What:** (1) `MEDIAN` and `MEDIANX` compile to Spark `median()` (NULL skipped, even count averaged, same as DAX); date/text/bool operands throw `CompileError`. (2) Grouped evaluation (`SUMX(VALUES(col), …)`) joined the base CTE even when the grouping key was a calculated column defined in a later stage, which gave `UNRESOLVED_COLUMN`; hops now resolve the key first and join `.latest`. (3) Relationship keys compare as `rtrim(CAST(x AS STRING))` (`relKeyText`) in filter propagation, grouped joins and the blank-row anti-join; date keys are unchanged. `COMPILER_VERSION` = `2026-11-16.median-calc-key-rtrim-rel`, lock refreshed. Files: `src/lib/powerbi/dax-sql-compile.ts`, `__tests__/dax-compile-extended.test.ts`, `__tests__/fixtures/compiler-version.lock.json`.
+- **Why:** Vessel Opex Model - FY23-26 had 17 of 22 measures at No SQL after the catalog bind fix. Four used `MEDIANX`, six hit the grouped calc-column bug. Two (`Pxy Median`, `Pxy Median/day`) failed parity because 3 of 100 `DIM_SCHEDULES[SCH_ACC_KEY]` values end in a space, and Power BI matches them to the fact key without it.
+- **Verified:** `vitest run src/lib/powerbi/__tests__/` 198 passed. Re-ran `pbi_translate`, `pbi_oracle`, `pbi_parity` on the Opex model: expand 22/22, parity pass=22 fail=0. `golden-check.ts`: Opex 22 identical; Vessel Internal Audit 51 identical, 7 same value on fresh warehouse runs, 0 changed, 0 no longer compile.
+- **Not done:** Case-insensitive relationship matching is not assumed and not verified. `pbi_publish` not run. Oracle ran in sample mode (8 measures freshly), the rest rely on earlier oracle rows.
+
+## 2026-11-16 — Bind Databricks navigation partitions that have no native SQL
+
+- **What:** Catalog link now resolves `catalog.schema.table` from `Databricks.Catalogs` navigation (`{[Name=…,Kind="Database|Schema|Table"]}`) when the partition has no `Value.NativeQuery` SQL. `resolveCatalogBind` takes that path as `fallbackPath`. Parse stores the same path on a new or reset binding. Files: `source-origin.ts`, `native-sql.ts`, `catalog-link.ts`, `parse.ts`.
+- **Why:** Warehouse tables browsed in the navigator (no SQL text) were stored as `non_uc` even when the Unity Catalog object was already harvested, so their measures stayed "No SQL".
+- **Verified:** `vitest run` on `native-sql.test.ts` and `source-origin.test.ts` (14 passed). Re-ran `pbi_catalog_link` job `d4eb00ef-554a-40c7-893f-838d2e67b336` for model `c8ddec64-165b-49ea-984b-86b50ac7920b`: matched=11, unscanned=0, ambiguous=0. All 11 warehouse tables on Vessel Opex Model - FY23-26 are `matched`.
+- **Not done:** Translate has not been re-run, so the 17 measures still show No SQL until `pbi_translate`. `MEDIANX` is still unsupported.
+
+## 2026-11-16 — Power BI measure graph: source, every M step, report consumers
+
+- **What:** A measure's dependency graph now starts at the external source (`describeSourceOrigins`, or the Unity Catalog path when that is all we have), then every Power Query step in order, including steps `m-lineage.ts` does not compile (`pq_unsupported` on that node). DAX dependencies are unchanged. Reports whose harvested visuals name the measure sit downstream. Report parsing reads any `Measure.Property`, not only `CII_Measures`. The graph API also scans the harvested report folder when it is on disk. Files: `m-lineage.ts`, `model-graph-view.ts`, `ModelDependencyGraph.tsx`, `report-parse-legacy.ts`, `app/api/agent-lab/powerbi/models/[id]/graph/route.ts`.
+- **Why:** The graph stopped at warehouse columns for modeled steps and did not show where the table came from or which reports use the measure.
+- **Verified:** `vitest run` — 42 tests passed in `fidelity-gate.test.ts`, `powerbi-parse.test.ts`, `tmdl-complete.test.ts`. The Estate page in the browser stopped at the login screen, so the graph was not clicked.
+- **Not done:** Dataflow mashup column lineage. Tenant scanner lineage (admin API 401). Reports with no harvested definition still have no visual names.
 
 ## 2026-11-16 — Prisma warm-up at Next start + fixed `db:diag` pool timeouts
 

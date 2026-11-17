@@ -31,6 +31,8 @@ import { validateSqlAgainstAllowlist } from '@/lib/powerbi/translate-llm-validat
 import { createHash } from 'node:crypto';
 
 import { COMPILER_VERSION } from '@/lib/powerbi/dax-sql-compile';
+import { createDaxGapFiller } from '@/lib/powerbi/rule-gap-fill';
+import { daxFunctionGap, ruleKey } from '@/lib/powerbi/rule-registry';
 import { blockingIssuesFor, buildFidelityReport, type FidelityReport } from '@/lib/powerbi/fidelity-gate';
 import { buildModelGraph, measureNodeId, type ModelGraph } from '@/lib/powerbi/model-graph';
 import {
@@ -202,6 +204,10 @@ export interface PbiTranslateResult {
   skipped_unsupported_dax: number;
   skipped_logic_gate: number;
   pattern_expanded: number;
+  /** Scalar DAX functions synthesized and verified against Power BI during this run. */
+  rules_synthesized: number;
+  /** Synthesis attempts that did not verify (the measure stays a capability gap). */
+  rules_synthesis_failed: number;
   expand_compile_failed: number;
   expand_warehouse_failed: number;
   orphan_translations_removed: number;
@@ -281,7 +287,8 @@ export async function runPbiTranslate(
     }
   }
 
-  const llmRouting = isPbiTranslateLlmAvailable() ? getPbiTranslateLlmRouting() : null;
+  const llmEnabled = opts.llmEnabled !== false && isPbiTranslateLlmAvailable();
+  const llmRouting = llmEnabled ? getPbiTranslateLlmRouting() : null;
   if (llmRouting) {
     console.log(
       `[pbi_translate] llm routing provider=${llmRouting.provider} model=${llmRouting.modelId}`,
@@ -331,15 +338,21 @@ export async function runPbiTranslate(
   // measure reprocesses only it and the measures that use it. Measures absent from the graph
   // fall back to the model-level fingerprint.
   const rulesHashByModel = new Map<string, string>();
-  for (const [modelId, cat] of logicCatalogByModel) {
-    rulesHashByModel.set(
-      modelId,
-      [...(cat?.rules?.values() ?? [])]
-        .map((r) => `${r.kind}:${r.name}/${r.arity}=${r.sqlTemplate}`)
-        .sort()
-        .join('|'),
-    );
-  }
+  const refreshRulesHash = () => {
+    for (const [modelId, cat] of logicCatalogByModel) {
+      rulesHashByModel.set(
+        modelId,
+        [...(cat?.rules?.values() ?? [])]
+          .map((r) => `${r.kind}:${r.name}/${r.arity}=${r.sqlTemplate}`)
+          .sort()
+          .join('|'),
+      );
+    }
+  };
+  refreshRulesHash();
+  // One LLM synthesis per missing scalar function, shared by every measure in this run.
+  // A verified rule is installed into every model catalog so later measures compile with it.
+  const gapFiller = createDaxGapFiller({ orgId });
   const measureFingerprint = (measure: MeasureRow) => {
     const graph = graphByModel.get(measure.model_id);
     const node = graph?.nodes.get(measureNodeId(measure.name));
@@ -433,14 +446,40 @@ export async function runPbiTranslate(
         hasUc: true,
       });
       const t0 = Date.now();
-      const outcome = await expandAndTestMeasure({
+      const compileInput = {
         orgId,
         modelId: measure.model_id,
         measureDax: measure.dax,
         measureLogic: compileLogic,
         catalog: logicCatalogForCompile,
-        anyStrategy: true,
-      });
+        anyStrategy: true as const,
+      };
+      let outcome = await expandAndTestMeasure(compileInput);
+      let ruleSynthesis: { status: string; detail: string } | null = null;
+      if (!outcome.ok && outcome.stage === 'compile' && llmEnabled && logicCatalogForCompile.rules) {
+        const gap = daxFunctionGap(outcome.gap);
+        if (gap) {
+          const fill = await gapFiller.request({
+            name: gap.name,
+            arity: gap.arity,
+            usageExample: measure.dax,
+            rules: logicCatalogForCompile.rules,
+          });
+          ruleSynthesis = { status: fill.status, detail: fill.detail };
+          if (fill.filled) {
+            const key = ruleKey('dax_fn', gap.name, gap.arity);
+            const installed = logicCatalogForCompile.rules.get(key);
+            if (installed) {
+              for (const cat of logicCatalogByModel.values()) {
+                if (!cat.rules) cat.rules = new Map();
+                cat.rules.set(key, installed);
+              }
+              refreshRulesHash();
+            }
+            outcome = await expandAndTestMeasure(compileInput);
+          }
+        }
+      }
       const totalMs = Date.now() - t0;
       const testMs = outcome.attempts.reduce((n, a) => n + (a.ms ?? 0), 0);
       const sqlText = outcome.ok ? outcome.expanded.sql : (outcome.sql ?? '');
@@ -505,6 +544,7 @@ export async function runPbiTranslate(
           notes: outcome.notes,
           gap: outcome.gap ?? null,
           attempts: outcome.attempts,
+          ...(ruleSynthesis ? { rule_synthesis: ruleSynthesis } : {}),
         };
       }
     }
@@ -733,7 +773,6 @@ export async function runPbiTranslate(
     await heartbeat(progress, processed === measures.length);
   });
 
-  const llmEnabled = opts.llmEnabled !== false && isPbiTranslateLlmAvailable();
   const maxLlm = opts.maxLlmMeasures ?? defaultMaxLlmMeasures(opts.pilot);
 
   let llmTranslated = 0;
@@ -906,6 +945,8 @@ export async function runPbiTranslate(
     skipped_unsupported_dax: skippedUnsupported,
     skipped_logic_gate: skippedLogicGate,
     pattern_expanded: patternExpanded,
+    rules_synthesized: gapFiller.counts().synthesized,
+    rules_synthesis_failed: gapFiller.counts().failed,
     expand_compile_failed: expandCompileFailed,
     expand_warehouse_failed: expandWarehouseFailed,
     orphan_translations_removed: orphanCleanup.count,

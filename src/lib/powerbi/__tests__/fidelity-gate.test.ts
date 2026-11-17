@@ -138,6 +138,57 @@ describe('graph views (Estate UI)', () => {
     expect(sg.nodes.some((n) => n.kind === 'table')).toBe(false); // plain tables hidden unless they carry an issue
   });
 
+  it('draws the external source, every Power Query step, and reports that name the measure', () => {
+    const cat = catalog();
+    const graph = buildModelGraph(cat);
+    const sg = measureSubgraph({
+      catalog: cat,
+      graph,
+      report: buildFidelityReport(cat, { graph }),
+      measure: 'Fuel Share',
+      reports: [
+        { id: 'r1', name: 'CII SDK', measures: ['Fuel Share'] },
+        { id: 'r2', name: 'Other report', measures: ['Region Count'] },
+      ],
+    })!;
+    const source = sg.nodes.find((n) => n.kind === 'source')!;
+    expect(source.label).toBe('Snowflake');
+    expect(source.detail.summary).toMatch(/native query|SALES/i);
+    const steps = sg.nodes.filter((n) => n.kind === 'pq_step');
+    expect(steps.map((s) => s.label)).toEqual(['Source', 'Renamed Columns', 'Filtered Rows']);
+    expect(sg.edges).toContainEqual({ from: source.id, to: steps[0]!.id });
+    expect(sg.edges).toContainEqual({ from: steps[0]!.id, to: steps[1]!.id });
+    expect(sg.edges).toContainEqual({ from: steps[1]!.id, to: steps[2]!.id });
+    expect(sg.edges).toContainEqual({ from: steps[2]!.id, to: 'w:sales/fuel_heating_or_discharging_mt' });
+    expect(sg.nodes.some((n) => n.kind === 'report' && n.label === 'CII SDK')).toBe(true);
+    expect(sg.nodes.some((n) => n.label === 'Other report')).toBe(false);
+    expect(sg.edges).toContainEqual({ from: measureNodeId('Fuel Share'), to: 'rep:r1' });
+  });
+
+  it('keeps an unmodeled Power Query step on the chain', () => {
+    const cat = catalog();
+    const sales = cat.tableMeta.get('sales')!;
+    cat.tableMeta.set('sales', {
+      ...sales,
+      source_m: `let
+    Source = Value.NativeQuery(Snowflake.Databases("acct","WH",[]){[Name="DB"]}[Data], "SELECT * FROM DB.S.SALES", null, [EnableFolding=true]),
+    Combined = Table.Combine({Source})
+in
+    Combined`,
+    });
+    const graph = buildModelGraph(cat);
+    const sg = measureSubgraph({
+      catalog: cat,
+      graph,
+      report: buildFidelityReport(cat, { graph }),
+      measure: 'Total Amount',
+    })!;
+    const combined = sg.nodes.find((n) => n.label === 'Combined');
+    expect(combined?.kind).toBe('pq_step');
+    expect(combined?.issues[0]?.kind).toBe('pq_unsupported');
+    expect(sg.edges.some((e) => e.from === combined!.id || e.to === combined!.id)).toBe(true);
+  });
+
   it('model overview groups every object by table, and impact walks the dependency edges', () => {
     const cat = catalog();
     const graph = buildModelGraph(cat);

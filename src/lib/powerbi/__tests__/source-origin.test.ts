@@ -8,6 +8,7 @@ import {
   isOutsideWarehouse,
   originTitle,
   parseTmdlExpressions,
+  warehouseNavigationPath,
 } from '@/lib/powerbi/source-origin';
 
 const SITE = 'https://contoso.sharepoint.com/sites/Ops/';
@@ -87,6 +88,12 @@ describe('source origin', () => {
       'let Source = Databricks.Catalogs("adb-1.azuredatabricks.net", "/sql/1.0/warehouses/x", []), c = Source{[Name="main",Kind="Database"]}[Data], s = c{[Name="sales",Kind="Schema"]}[Data], t = s{[Name="orders",Kind="Table"]}[Data] in t',
     );
     expect(dbx).toMatchObject({ system: 'databricks', database: 'main', object: 'sales.orders' });
+    expect(warehouseNavigationPath(
+      'let Source = Databricks.Catalogs("adb-1.azuredatabricks.net", "/sql/1.0/warehouses/x", []), c = Source{[Name="main",Kind="Database"]}[Data], s = c{[Name="sales",Kind="Schema"]}[Data], t = s{[Name="orders",Kind="Table"]}[Data] in t',
+    )).toBe('main.sales.orders');
+    expect(warehouseNavigationPath(
+      'let Source = Value.NativeQuery(Databricks.Catalogs("h","/w"){[Name="reporting_layer",Kind="Database"]}[Data], "SELECT * FROM reporting_layer.qhse.t", null) in Source',
+    )).toBeNull();
   });
 
   it('reads web, OneDrive, CSV, folder, dataflow and embedded sources', () => {

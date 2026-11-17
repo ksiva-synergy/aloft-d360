@@ -27,7 +27,7 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
 }
 
 const Code = ({ children }: { children: React.ReactNode }) => (
-  <code className="break-words rounded bg-[var(--estate-raised)] px-1 py-0.5 font-mono text-[11px]">{children}</code>
+  <code className="break-words rounded bg-[var(--estate-raised)] px-1 py-0.5 font-mono text-size-eyebrow">{children}</code>
 );
 
 const CARDINALITY: Record<string, string> = {

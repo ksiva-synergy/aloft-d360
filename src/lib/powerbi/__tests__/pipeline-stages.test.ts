@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { copyPbiScope, lockedStages, resolveStages, stageKinds } from '@/lib/powerbi/pipeline-stages';
+import { PBI_LINEAGE_KINDS, pbiHarvestLimits, pbiJobScopeFromLaunchBody } from '@/lib/powerbi/launch-scope';
 
 describe('Run pipeline stage selection', () => {
   it('adds the stages that must run together, in run order, with reasons', () => {
@@ -42,5 +43,20 @@ describe('Run pipeline stage selection', () => {
   it('keeps the model scope on every chained stage', () => {
     const child = copyPbiScope({ model_ids: ['m1'], oracle_only_translated: true, includePatterns: ['x'] }, {});
     expect(child).toEqual({ model_ids: ['m1'], oracle_only_translated: true });
+  });
+
+  it('runs estate lineage without recreation stages or inherited model/report filters', () => {
+    expect(PBI_LINEAGE_KINDS).toEqual(['pbi_inventory', 'pbi_definitions', 'pbi_parse', 'pbi_catalog_link']);
+    const scope = pbiJobScopeFromLaunchBody({
+      pbiAllReports: true, modelIds: ['m1'], reportIds: ['r1'], pbiFetchReports: false,
+    });
+    expect(scope).toEqual({ all_reports: true, fetch_models: true, fetch_reports: true });
+    expect(copyPbiScope(scope, {})).toEqual(scope);
+    expect(pbiHarvestLimits(scope)).toEqual({ maxModels: Number.MAX_SAFE_INTEGER, maxReports: Number.MAX_SAFE_INTEGER });
+  });
+
+  it('keeps default and explicit limits for ordinary harvest runs', () => {
+    expect(pbiHarvestLimits({})).toEqual({ maxModels: undefined, maxReports: undefined });
+    expect(pbiHarvestLimits({ max_models: 12, max_reports: 30 })).toEqual({ maxModels: 12, maxReports: 30 });
   });
 });

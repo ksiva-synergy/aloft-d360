@@ -141,6 +141,7 @@ module.exports = {
       fontSize: {
         // Size-only utilities (size + line height, weight/tracking untouched) for places where the
         // element inherits its weight. Full styles are the token classes below.
+        'size-eyebrow':       ['var(--type-eyebrow-size)',       { lineHeight: 'var(--type-eyebrow-lh)' }],
         'size-caption':       ['var(--type-caption-size)',       { lineHeight: 'var(--type-caption-lh)' }],
         'size-ui':            ['var(--type-ui-regular-size)',    { lineHeight: 'var(--type-ui-regular-lh)' }],
         'size-body':          ['var(--type-body-size)',          { lineHeight: 'var(--type-body-lh)' }],

@@ -24,6 +24,8 @@
   --line-1:#E3E5EE; --line-2:#C9CDDC;
   --ink-1:#111322; --ink-2:#3A3F55; --ink-3:#5C627A;
   --ok:#0F7A3D; --ok-bg:#E2F6E9; --warn:#93520A; --warn-bg:#FFF1DB; --bad:#C02626; --bad-bg:#FDE7E7;
+  /* Report lineage: kind of original source (warehouse, other database, file/feed, in-model, unknown). */
+  --lineage-warehouse:#0B7A84; --lineage-database:#3557D6; --lineage-file:#A86B12; --lineage-model:#667085; --lineage-unknown:#9AA1AE; --lineage-lane:rgba(91,61,245,.035);
   --rail-bg:#1A1540; --rail-bg-top:#241E52; --rail-ink:#D4D1EC; --rail-ink-strong:#FFFFFF; --rail-muted:#A9A5CC; --rail-line:rgba(255,255,255,.12); --rail-accent:#5BB8EE;
   --radius-card:18px; --radius-ctl:12px;
   --shadow-card:0 1px 2px rgba(17,19,34,.04),0 8px 24px -8px rgba(17,19,34,.10);
@@ -250,6 +252,7 @@
   --line-1:#262626; --line-2:#363636;
   --ink-1:#F2F3FA; --ink-2:#C4C8DD; --ink-3:#9298B5;
   --ok:#4ADE80; --ok-bg:rgba(74,222,128,.14); --warn:#FBBF24; --warn-bg:rgba(251,191,36,.14); --bad:#F87171; --bad-bg:rgba(248,113,113,.14);
+  --lineage-warehouse:#3CC4CF; --lineage-database:#7C9BFF; --lineage-file:#E3A946; --lineage-model:#A0A7B4; --lineage-unknown:#68717F; --lineage-lane:rgba(139,123,255,.055);
   --rail-bg:#110D2C; --rail-bg-top:#1A1540; --rail-line:rgba(255,255,255,.10);
   --shadow-card:0 1px 2px rgba(0,0,0,.4),0 8px 24px -8px rgba(0,0,0,.5);
   --background: #0A0A0A;        /* Deep neutral black */

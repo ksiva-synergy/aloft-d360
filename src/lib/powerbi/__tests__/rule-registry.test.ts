@@ -65,11 +65,45 @@ describe('rule registry', () => {
 });
 
 describe('differential test plan', () => {
+  it('treats an empty literal list as a free argument, not a constant with no values', () => {
+    const plan = buildDiffTestPlan({ name: 'CEILING', args: [{ kind: 'number', literals: [] }, { kind: 'number', literals: ['100'] }] });
+    expect(plan.columnArgs).toEqual([0]);
+    expect(plan.powerBiQuery).toMatch(/^EVALUATE ADDCOLUMNS\(DATATABLE\(.*"r0", IFERROR\(CEILING\(\[a0\], 100\), BLANK\(\)\), "e0", ISERROR\(CEILING\(\[a0\], 100\)\)\)$/);
+    expect(plan.rows.length).toBeGreaterThan(1);
+  });
+
+  it('excludes rows where Power BI errors, but every other row must still match', () => {
+    const plan = buildDiffTestPlan({ name: 'ABS', args: [{ kind: 'int' }] });
+    const pbi = plan.rows.map((r) => ({
+      '[__id]': r.id,
+      '[r0]': r.values[0] === null ? null : Math.abs(Number(r.values[0])),
+      '[e0]': r.values[0] === '-1', // pretend Power BI errors on one input
+    }));
+    const sql = plan.rows.map((r) => ({ __id: String(r.id), r0: r.values[0] === null ? null : String(Math.abs(Number(r.values[0]))) }));
+    const ok = compareDiffTest(plan, pbi, sql);
+    expect(ok.pass).toBe(true);
+    expect(ok.powerBiErrors).toBe(1);
+    expect(ok.compared).toBe(plan.rows.length - 1);
+
+    sql[0]!.r0 = '99'; // a real mismatch on a row Power BI computed still fails
+    expect(compareDiffTest(plan, pbi, sql).pass).toBe(false);
+  });
+
+  it('never passes when Power BI errored on every input', () => {
+    const plan = buildDiffTestPlan({ name: 'ABS', args: [{ kind: 'int' }] });
+    const pbi = plan.rows.map((r) => ({ '[__id]': r.id, '[r0]': null, '[e0]': true }));
+    const result = compareDiffTest(plan, pbi, []);
+    expect(result.pass).toBe(false);
+    expect(result.compared).toBe(0);
+  });
+
   it('builds a Power BI query over a literal DATATABLE and matching compiled SQL', () => {
     const plan = buildDiffTestPlan({ name: 'WEEKNUM', args: [{ kind: 'date' }, { kind: 'int', literals: ['1', '21'] }] });
     expect(plan.rows.length).toBe(9);
     expect(plan.powerBiQuery).toMatch(/^EVALUATE ADDCOLUMNS\(DATATABLE\("__id", INTEGER, "a0", DATETIME, \{\{1, "2024-01-01"\}/);
-    expect(plan.powerBiQuery).toContain('"r0", WEEKNUM([a0], 1), "r1", WEEKNUM([a0], 21)');
+    expect(plan.powerBiQuery).toContain(
+      '"r0", IFERROR(WEEKNUM([a0], 1), BLANK()), "e0", ISERROR(WEEKNUM([a0], 1)), "r1", IFERROR(WEEKNUM([a0], 21), BLANK()), "e1", ISERROR(WEEKNUM([a0], 21))',
+    );
     expect(plan.powerBiQuery).toContain('BLANK()');
     const sql = compileDiffTestSql(plan);
     expect(sql.ok && sql.sql).toContain("TRY_CAST('2024-01-01' AS TIMESTAMP)");

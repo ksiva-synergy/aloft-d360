@@ -10,6 +10,7 @@ import {
   modelGraphSummary,
   modelOverview,
 } from '@/lib/powerbi/model-graph-view';
+import { type ReportConsumer, reportConsumerFromRow } from '@/lib/powerbi/report-measure-refs';
 import { denyUnlessSection } from '@/lib/sections/server';
 
 export const dynamic = 'force-dynamic';
@@ -20,7 +21,7 @@ type Ctx = { params: Promise<{ id: string }> };
  * Model graph (L1) + fidelity gate (L0) for Estate.
  *   GET …/graph                 → model summary: node counts, source systems, fidelity issues
  *   GET …/graph?view=overview   → every object grouped by table, node-level edges, relationships
- *   GET …/graph?measure=Name    → that measure's dependency subgraph down to warehouse columns
+ *   GET …/graph?measure=Name    → source, Power Query steps, DAX dependencies, and reports that use the measure
  */
 export async function GET(req: NextRequest, ctx: Ctx) {
   const denied = await denyUnlessSection(req, ['estate.powerbi', 'view']);
@@ -49,7 +50,8 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     if (view === 'overview') {
       return NextResponse.json({ overview: modelOverview({ catalog, graph, report, status }) });
     }
-    const subgraph = measureSubgraph({ catalog, graph, report, measure: measure!, status });
+    const reports = await loadReportConsumers(orgId, model.id);
+    const subgraph = measureSubgraph({ catalog, graph, report, measure: measure!, status, reports });
     if (!subgraph) return NextResponse.json({ error: 'MEASURE_NOT_IN_GRAPH' }, { status: 404 });
     return NextResponse.json({ subgraph });
   } catch (err) {
@@ -77,4 +79,12 @@ async function loadMeasureStatus(orgId: string, modelId: string): Promise<Map<st
     );
   }
   return status;
+}
+
+async function loadReportConsumers(orgId: string, modelId: string): Promise<ReportConsumer[]> {
+  const rows = await prisma.pbiReport.findMany({
+    where: { org_id: orgId, model_id: modelId, lifecycle: 'active' },
+    select: { id: true, name: true, props: true },
+  });
+  return rows.map((row) => reportConsumerFromRow(row));
 }

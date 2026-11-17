@@ -1,5 +1,5 @@
 import prisma from '@/lib/db';
-import { launchHarvesterTask } from './launch-harvester';
+import { isLocalHarvestRuntime, launchHarvesterTask } from './launch-harvester';
 import { reapOrphanActiveJobs } from './orphan-jobs';
 
 /** Queued jobs younger than this may still be receiving a task id from the launcher. */
@@ -17,13 +17,22 @@ export function isOrphanedQueuedJob(
       ? (job.scope as Record<string, unknown>)
       : {};
   const taskId = scope.fargate_task_id;
-  return typeof taskId !== 'string' || taskId.length === 0;
+  if (typeof taskId !== 'string' || taskId.length === 0) return true;
+  if (!isLocalHarvestRuntime() || !/^local-[1-9]\d*$/.test(taskId)) return false;
+  const pid = Number(taskId.slice('local-'.length));
+  if (!Number.isSafeInteger(pid)) return false;
+  try {
+    process.kill(pid, 0);
+    return false;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'ESRCH';
+  }
 }
 
 let inflight: Promise<void> | null = null;
 
 /**
- * Start one worker per kind for top-level queued jobs that never got a task id.
+ * Start one worker per kind for top-level queued jobs with no task or a dead local worker.
  * The Fargate task cannot RunTask the next chain tier (task role has no ECS
  * network config), so those rows sit queued until the web process launches them.
  */

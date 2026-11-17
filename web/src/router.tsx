@@ -45,6 +45,9 @@ const estateRoutes: RouteObject[] = [
   { path: 'object/:id', lazy: page(() => import('@/views/agent-lab/estate/object')) },
   { path: 'silo', lazy: page(() => import('@/views/agent-lab/estate/silo')) },
   { path: 'powerbi', lazy: page(() => import('@/views/agent-lab/estate/powerbi')) },
+  { path: 'powerbi/report-lineage', lazy: page(() => import('@/views/agent-lab/estate/powerbi-report-lineage-hub')) },
+  { path: 'powerbi/reports/:reportId/lineage', lazy: page(() => import('@/views/agent-lab/estate/powerbi-report-lineage')) },
+  { path: 'powerbi/source-impact', lazy: page(() => import('@/views/agent-lab/estate/powerbi-source-impact')) },
 ];
 
 export const routes: RouteObject[] = [

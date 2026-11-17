@@ -44,6 +44,17 @@ export type MLineage = {
    * column SQL as join markers (see joinRef) that the compiler qualifies with the join alias.
    */
   joins: MJoin[];
+  /** Every step on the output chain, in evaluation order. Unmodeled steps stay on the chain. */
+  steps: MLineageStep[];
+};
+
+export type MLineageStep = {
+  name: string;
+  /** Power Query function (`Table.RenameColumns`, `Value.NativeQuery`). Null for a bare name. */
+  fn: string | null;
+  /** False when the step changes rows or columns in a way this compiler does not model. */
+  modeled: boolean;
+  detail: string | null;
 };
 
 export type MJoin = {
@@ -768,6 +779,8 @@ function parseMLineageInner(sourceM: string | null | undefined): MLineage {
   let baseTable: string | null = null;
   let embedded: MLineage['embedded'] = null;
   const joins: MJoin[] = [];
+  /** Every step on the output chain, in evaluation order. */
+  const lineageSteps: MLineageStep[] = [];
   /** NestedJoin output column name → join, waiting for Table.ExpandTableColumn. */
   const pendingNested = new Map<string, MJoin>();
 
@@ -801,6 +814,7 @@ function parseMLineageInner(sourceM: string | null | undefined): MLineage {
     baseTable,
     embedded,
     joins,
+    steps: lineageSteps,
   });
 
   if (!sourceM?.trim()) return result();
@@ -858,7 +872,9 @@ function parseMLineageInner(sourceM: string | null | undefined): MLineage {
   }
 
   for (const { step, call } of chain) {
-    if (!call || !/^table\./i.test(call.fn)) continue; // source / navigation / aliases
+    const unsupportedBefore = unsupported.length;
+    // Navigation and aliases stay on the chain; only Table.* calls change columns or rows.
+    if (call && /^table\./i.test(call.fn)) {
     const fn = call.fn.toLowerCase();
     const args = call.args;
     try {
@@ -1027,6 +1043,14 @@ function parseMLineageInner(sourceM: string | null | undefined): MLineage {
     } catch (e) {
       unsupported.push(`${step.name}: ${call.fn} (${(e as Error).message})`);
     }
+    }
+    const failed = unsupported.length > unsupportedBefore;
+    lineageSteps.push({
+      name: step.name,
+      fn: call?.fn ?? null,
+      modeled: !failed,
+      detail: failed ? (unsupported[unsupported.length - 1] ?? null) : null,
+    });
   }
 
   return result();

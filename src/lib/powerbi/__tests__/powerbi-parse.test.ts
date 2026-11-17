@@ -90,6 +90,18 @@ describe('legacy report parse', () => {
     const summary = parseLegacyReportJson(raw);
     expect(summary.measureRefs).toContain('Attained_CII YTD');
   });
+
+  it('extracts a measure from any table and ignores column fields', () => {
+    const raw = JSON.stringify({
+      config: JSON.stringify({
+        query: {
+          Measure: { Expression: { SourceRef: { Entity: 'Finance' } }, Property: 'Actual OPEX' },
+          Column: { Expression: { SourceRef: { Entity: 'Finance' } }, Property: 'Vessel' },
+        },
+      }),
+    });
+    expect(parseLegacyReportJson(raw).measureRefs).toEqual(['Actual OPEX']);
+  });
 });
 
 const estateTable = path.join(

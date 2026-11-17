@@ -5,6 +5,100 @@
 
 ---
 
+### 2026-11-17: Merge automate-runs and restore preserved worktree (GitHub Copilot)
+
+- **Issues:** Preserve all current and incoming feature work while integrating `feature/automate-runs` into `feature/powerbi-bridge`.
+- **Files changed:** `.vscode/tasks.json`, `docs/CHANGELOG.md`, `docs/jobs/current-status.md`, and this log; merge commit `7bc732c3` includes the resolved branch conflicts.
+- **Before -> after:** Local changes were saved in `pre-merge preservation before feature/automate-runs`; the target branch was merged and committed, then the stash was reapplied. Both feature sets and the local Power BI work are present. The single stash conflict in current status was combined; the stash remains available as a backup.
+- **Verified:** The guarded restore task ran; conflict-marker check passed; Git reports no unmerged paths and remains on `feature/powerbi-bridge`. Before the merge commit, 31 focused tests, Prisma schema validation, and ESLint passed. Full TypeScript remains blocked by stale generated Prisma client types; generation was deferred because Next processes were running.
+- **Not done:** Restored work remains uncommitted and unpushed. No database writes or service restarts.
+
+### 2026-11-17: Verify Definitions worker is active (GitHub Copilot)
+
+- **Files changed:** `.vscode/tasks.json`, `docs/CHANGELOG.md`, and this log.
+- **Verified:** At 01:27 UTC / 07:07 IST, Definitions job `b3bcab65-7b9a-4c3a-ab84-3cb3879e59cb` had live local worker PID `48740`, 161 model fetches, and a successful fetch timestamp at 01:27:26.727 UTC. No report fetches yet; the model pass precedes the report pass.
+- **Not done:** Read-only check only; no worker stopped/restarted, no database writes, and no pipeline changes. Task JSON/editor validation passed.
+
+### 2026-11-17: Consolidate Power BI API documentation (GitHub Copilot)
+
+- **Files changed:** `docs/powerbi-api-usage.md` (new), `docs/jobs/powerbi-report-lineage.md`, `docs/CHANGELOG.md`, and this log.
+- **Before -> after:** API information was scattered across code and discussion -> one reference maps external Power BI/Fabric/Entra APIs and internal app routes to their callers, purpose, and retained data.
+- **Verified:** Cross-checked endpoint list against implementation call sites; editor diagnostics clear.
+- **Not done:** Documentation only; no provider calls, live database changes, migration, or runtime changes. No commit/PR.
+
+### 2026-11-17: Inspect new bulk lineage run status (GitHub Copilot)
+
+- **Files changed:** `.vscode/tasks.json`, `docs/CHANGELOG.md`, current status snapshot, and this log.
+- **Verified:** Read-only status task completed at 00:14 UTC / 05:44 IST. Inventory `ff6c5ac7-539f-4f0d-8005-690a76ebce28` succeeded; Definitions `b3bcab65-7b9a-4c3a-ab84-3cb3879e59cb` running since 00:12:31 UTC with 4 model fetches and 0 report fetches recorded. New run has not reached Parse/Catalog Link. Recorded definition totals: 43 models, 14 reports; snapshots remain 5 ready, 8 partial, 485 blocked. Task JSON/editor validation passed.
+- **Not done:** No live data writes, external API calls, worker launch, or runtime change. Recorded totals do not check raw-store availability; final per-item failures are not yet known for the running job. No commit/PR.
+
+### 2026-11-17: Confirm definition download recovery (GitHub Copilot)
+
+- **Files changed:** `.vscode/tasks.json`, `docs/CHANGELOG.md`, `docs/jobs/powerbi-report-lineage.md`, status snapshot, and this log.
+- **Before -> after:** Read-only provider probe stopped at HTTP 202 -> it now uses `fetchSemanticModelDefinitionTmdl` / `fetchReportDefinition` to await completion and report returned part counts, without saving content or metadata.
+- **Verified:** At 00:04 UTC / 05:34 IST, fresh-process sample succeeded: 3 workspaces listed; Available Data Sources returned 16 model parts and 7 report parts. Task completed; task JSON/editor validation passed.
+- **Not done:** No raw-store/DB writes, bulk download, or pipeline launch. Does not establish that every remaining item supports export. User can retry the existing all-reports UI workflow, which reuses unchanged fetched definitions.
+
+### 2026-11-16: Verify lineage from additional downloaded models (GitHub Copilot)
+
+- **Files changed:** `.vscode/tasks.json`, `docs/CHANGELOG.md`, `docs/jobs/current-status.md`, and this log.
+- **Before -> after:** Report-definition-only coverage could be mistaken for all source coverage -> a read-only model-centric diagnostic includes every downloaded semantic model and its linked report snapshots, regardless of report-definition availability.
+- **Verified:** At 17:40 UTC / 23:10 IST: 42 model definitions on disk; 37 models have table rows; 36 linked active reports all have stored source tables. 13 have report definitions, while 23 lack them but retain model-wide source lineage. Six models have no linked active reports. Examples: Technical KPI Tracker (24 source tables, SharePoint); PO_Spend_Analytics (13, SQL/Fabric); Seafarer App Central BI Report (154, Snowflake/SharePoint). Task completed; JSON/editor validation passed.
+- **Not done:** No live writes, provider requests, pipeline run, status changes, or model-level snapshot implementation. Model-wide context is not confirmed report/visual dependency evidence.
+
+### 2026-11-16: Verify the harvested-definition lineage subset (GitHub Copilot)
+
+- **Files changed:** `.vscode/tasks.json`, `docs/CHANGELOG.md`, `docs/jobs/current-status.md`, and this log.
+- **Before -> after:** Full-estate totals obscured harvested-definition coverage -> read-only task reports disk availability, current parses, and snapshot/source coverage for the available subset only.
+- **Verified:** At 17:36 UTC / 23:06 IST: 42 of 42 on-disk model definitions currently parsed; 13 of 13 on-disk report definitions currently parsed and linked to available/current model definitions; all 13 contain refreshed source payloads. Snapshot statuses: 5 ready, 8 partial. No unknown-system entries in the subset's stored table sources. Task completed; JSON/editor validation passed.
+- **Not done:** No DB/provider writes, external API calls, parse/backfill/pipeline execution, or resolution of partial statuses. No claim of complete visual/page/field dependencies or full-estate definition coverage.
+
+### 2026-11-16: Retry provider definition access with a shell-free task (GitHub Copilot)
+
+- **Files changed:** `.vscode/tasks.json`, `docs/CHANGELOG.md`, and this log.
+- **Before -> after:** Terminal quoting prevented the retry -> a reusable `Check Power BI definition access` process task performs fresh-token, read-only probes without saving definitions or launching jobs.
+- **Verified:** At 17:15 UTC / 22:45 IST, Power BI workspace listing returned 401 `TenantMigrationInProgress`; the model/report definition checks returned 401 `Unauthorized`. Task completed successfully and JSON/editor validation passed.
+- **Not done:** No DB/raw-store writes, pipeline run, provider configuration changes, or secret output. Access remains unavailable; runtime/UI behavior unchanged.
+
+### 2026-11-16: Inspect stored report-lineage samples (GitHub Copilot)
+
+- **Files changed:** `.vscode/tasks.json`, `docs/CHANGELOG.md`, and this log.
+- **Before -> after:** Ad hoc sample query blocked by terminal quoting -> retained shell-free `Inspect Power BI lineage samples` task returns selected snapshot metadata in a read-only transaction; existing verification tasks unchanged.
+- **Verified:** Task completed; 498 active-report snapshots. Three sampled rows contain the older UC-focused payload, without the new original-source fields. Task JSON/editor validation passed.
+- **Not done:** No live data writes, backfill, worker launch, migration, or provider/API calls; runtime/UI behavior unchanged. No commit/PR.
+
+### 2026-11-16: Original source paths in report lineage and snapshots (GitHub Copilot)
+
+- **Files changed:** `src/lib/powerbi/report-lineage-{types,sources,build,store}.ts`, `report-lineage.ts`, `src/components/estate/ReportLineageExplorer.tsx`, resolver/store/DOM tests, `.vscode/tasks.json` lint inputs, `docs/jobs/powerbi-report-lineage.md`, status snapshot, changelog, and this log.
+- **Before -> after:** Report lineage exposed only UC mappings -> original Fabric/database/file/site/folder/sheet/navigation/connection evidence is returned, displayed and retained in the snapshot JSONB, with UC mapping optional. Model-wide and detected-measure source references are distinguished. Unknown origins are partial rather than false-ready. Model connections are not falsely assigned to tables. Credential-like parameters are redacted.
+- **Verified:** `Verify Power BI report lineage` passed: 52 focused tests, focused ESLint, and full `tsc --noEmit --pretty false`. Mocked browser screenshots at 1365x900 and 390x844 showed long paths wrap and no page/source-field overflow. Changed-file editor diagnostics clear.
+- **Not done:** No live DB writes, provider/API calls, snapshot backfill or pipeline run in this change. No further migration required; existing snapshots need a Catalog Link refresh. Unsupported/unharvested sources remain explicit unknowns. No compiler/parser behavior changes or full visual/field lineage. No commit/PR.
+
+### 2026-11-16: Preserve and repair lineage verification task (GitHub Copilot)
+
+- **Files changed:** `.vscode/tasks.json`, `src/views/agent-lab/estate/powerbi-report-lineage-hub.tsx`, `src/app/api/agent-lab/powerbi/reports/route.ts`, `docs/jobs/powerbi-report-lineage.md`, `docs/CHANGELOG.md`, this log, and `docs/jobs/current-status.md`.
+- **Before -> after:** Verification failed on PowerShell inline-JavaScript quoting -> the same top-level task now runs shell-free process tasks in sequence. React effect lint failures -> fetch response/error handlers perform asynchronous state updates. Widened search-mode string broke Prisma type inference -> query mode remains a literal.
+- **Verified:** `Verify Power BI report lineage` completed: 40 focused tests passed; focused ESLint passed; full `tsc --noEmit --pretty false` passed. Task, hub, reports API, and documentation editor diagnostics clear.
+- **Not done:** No files deleted, live DB operations, migration, pipeline launch, auth configuration changes, or commit/PR. The storage migration and Prisma client regeneration/restart are still required before live use.
+
+### 2026-11-16: All-reports lineage UI and Postgres snapshots (GitHub Copilot)
+
+- **Issues addressed:** No estate-wide Power BI lineage launch control; report/model harvest success caps; no persisted report-level lineage.
+- **Files changed:** `src/views/agent-lab/estate/powerbi-report-lineage-hub.tsx` and DOM tests; jobs launch route/API tests; reports API; `scripts/context/orchestrator.ts`; `src/lib/powerbi/{inventory,launch-scope,pipeline-stages,report-lineage-coverage,report-lineage-build,report-lineage-store}.ts` and focused tests; `prisma/schema.prisma`; `prisma/migrations/20261116_pbi_report_lineage/migration.sql`; this log, current status, changelog, and `powerbi-report-lineage.md`.
+- **Before -> after:** Model-only recreation runs and dynamically stitched report lineage -> operator-only all-reports Inventory/Definitions/Parse/Catalog Link chain, full accessible workspace coverage, no model/report success caps, coverage/gap counts, and latest per-report Postgres snapshots after Catalog Link. A missing storage migration blocks enqueue up front. Ordinary inventory/model scopes are preserved.
+- **Verified:** Focused scope, inventory, coverage, snapshot, API and UI tests; Prisma schema valid; mocked browser screenshots at desktop/mobile sizes with no horizontal overflow. UI effect lint issues repaired.
+- **Not done:** No migration applied or live pipeline run. No Azure/auth changes. Prisma generation wrote types but engine DLL replacement hit Windows EPERM; repeat after the owning process releases it. Not full page/visual/field lineage or historical versioning. No commit/PR.
+- **Notes:** Required current-status instructions read; changelog/session log/behavior status updated. Runbook includes organization-scoped read-only SQL for reports and measure-level dependency JSON.
+
+### 2026-11-16: Local parity worker launch/recovery (GitHub Copilot)
+
+- **Issues addressed:** Queued follow-up recovery when a recorded local worker has died; no new audit ID.
+- **Files changed:** `src/lib/context/launch-harvester.ts`, `src/lib/context/launch-harvester.test.ts`, `src/lib/context/kick-queued-workers.ts`, `src/lib/context/kick-queued-workers.test.ts`, `docs/jobs/current-status.md`, `docs/jobs/session-log.md`, `docs/CHANGELOG.md`.
+- **Before -> after:** A shell PID counted as a successful local launch and blocked retry indefinitely -> shell-free Node/tsx launch detects spawn failures and exits during the first second; queued recovery retries confirmed-dead local workers after the existing launch grace period. Live workers, access-denied PIDs, and ECS task IDs are left alone.
+- **Verified:** Focused Vitest run, 13 passed; focused ESLint; editor diagnostics clear.
+- **Not done:** No live worker/job execution or DB access; no RDS, bindings, ECS-health, or PID-reuse fix. Startup window does not acknowledge a claimed job. No commit/PR.
+- **Notes:** Read current status; implementation, regression tests, changelog, session log, and behavior snapshot updated.
+
 ### 2026-11-14: Recreation Architecture v2 Phases 1–2 + model graph UI (Claude Code)
 
 - **What:**

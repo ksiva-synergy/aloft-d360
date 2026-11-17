@@ -2,7 +2,11 @@ import 'server-only';
 
 import { z } from 'zod';
 
-import { harvestLlmComplete } from '@/lib/context/harvest-llm';
+import {
+  harvestLlmComplete,
+  type HarvestLlmCallOverrides,
+  type HarvestLlmProvider,
+} from '@/lib/context/harvest-llm';
 import { getPbiTranslateLlmRouting } from '@/lib/powerbi/translate-llm';
 import { extractJsonObject } from '@/lib/powerbi/translate-llm-validate';
 import {
@@ -17,7 +21,23 @@ import { runDifferentialTest, type DiffTestTarget } from '@/lib/powerbi/rule-dif
 import { saveRule } from '@/lib/powerbi/rule-store';
 
 export const RULE_SYNTH_PROMPT_VERSION = 'pbi-rule-synth-v1';
+
+/**
+ * Model for rule synthesis only. `PBI_RULE_SYNTH_PROVIDER` (llmlite | xai | bedrock | groq) and
+ * `PBI_RULE_SYNTH_MODEL` (e.g. `aws_bedrock/Gpt-6-Luna` on LLM Lite) override the translate model.
+ * Unset, synthesis uses the translate routing.
+ */
+export function getRuleSynthRouting(): HarvestLlmCallOverrides {
+  const provider = process.env.PBI_RULE_SYNTH_PROVIDER?.trim().toLowerCase();
+  const modelId = process.env.PBI_RULE_SYNTH_MODEL?.trim() || undefined;
+  const base = getPbiTranslateLlmRouting();
+  if (!provider && !modelId) return base;
+  const chosen = (provider as HarvestLlmProvider | undefined) ?? base.provider;
+  return { provider: chosen, modelId: modelId ?? base.modelId };
+}
 const MAX_ATTEMPTS = 3;
+/** Grok replies took 26–109 s in testing (2026-11-16); a stall beyond this is recorded, not waited on. */
+const SYNTH_LLM_TIMEOUT_MS = 240_000;
 
 const SYSTEM_PROMPT = `You translate ONE Power BI DAX scalar function into a Databricks (Spark SQL) expression template.
 Output strict JSON only: {"sql_template":"...","result_kind":"number|string|date|bool","arg_specs":[{"kind":"number|int|date|string|bool","literals":["..."]}],"notes":"..."}
@@ -58,7 +78,7 @@ export async function synthesizeDaxRule(input: {
   target: DiffTestTarget;
   existingRules?: RuleSet;
 }): Promise<SynthesisOutcome> {
-  const routing = getPbiTranslateLlmRouting();
+  const routing = getRuleSynthRouting();
   const name = input.name.toUpperCase();
   const history: { template: string; failures: unknown[]; error?: string }[] = [];
   let lastResult: DiffTestResult | null = null;
@@ -79,13 +99,26 @@ export async function synthesizeDaxRule(input: {
     );
     let parsed: z.infer<typeof SynthSchema>;
     try {
+      const llmStarted = Date.now();
       const resp = await harvestLlmComplete(
-        { system: SYSTEM_PROMPT, messages: [{ role: 'user', content: user }], maxTokens: 1500, temperature: 0.1 },
+        {
+          system: SYSTEM_PROMPT,
+          messages: [{ role: 'user', content: user }],
+          // Reasoning models spend output budget on thinking; a 1500 cap cut replies mid-JSON (2026-11-16).
+          maxTokens: 6000,
+          temperature: 0.1,
+          timeoutMs: SYNTH_LLM_TIMEOUT_MS,
+        },
         routing,
+      );
+      console.log(
+        `[rule-synth] ${name}/${input.arity} attempt ${attempt}: LLM reply in ${Math.round((Date.now() - llmStarted) / 1000)}s, out_tokens=${resp.outputTokens}, chars=${resp.text.length}`,
       );
       parsed = SynthSchema.parse(JSON.parse(extractJsonObject(resp.text)));
     } catch (e) {
-      history.push({ template: '', failures: [], error: `invalid LLM response: ${(e as Error).message.slice(0, 200)}` });
+      const msg = (e as Error).message.slice(0, 200);
+      console.log(`[rule-synth] ${name}/${input.arity} attempt ${attempt}: no usable LLM reply: ${msg}`);
+      history.push({ template: '', failures: [], error: `invalid LLM response: ${msg}` });
       continue;
     }
     template = parsed.sql_template.trim();
@@ -111,6 +144,9 @@ export async function synthesizeDaxRule(input: {
     const rules = new Map(input.existingRules ?? []);
     for (const [k, v] of buildRuleSet([candidate])) rules.set(k, v);
     lastResult = await runDifferentialTest({ target: input.target, spec: { name, args: argSpecs }, rules });
+    console.log(
+      `[rule-synth] ${name}/${input.arity} attempt ${attempt}: ${lastResult.pass ? 'pass' : 'fail'} compared=${lastResult.compared} mismatches=${lastResult.mismatches.length}${lastResult.error ? ` error=${lastResult.error.slice(0, 160)}` : ''}`,
+    );
     if (lastResult.pass) {
       await saveRule({
         orgId: input.orgId,

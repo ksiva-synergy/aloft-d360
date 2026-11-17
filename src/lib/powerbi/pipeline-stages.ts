@@ -139,6 +139,7 @@ export function defaultStages(state: ModelPipelineState): PbiStageId[] {
  * runs across ALL models (bug found 2026-11-15: the chain rebuilt child scopes without model_ids).
  */
 export const PBI_CHAIN_SCOPE_KEYS = [
+  'all_reports',
   'model_ids',
   'report_ids',
   'fetch_models',

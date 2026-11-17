@@ -41,20 +41,41 @@ export async function launchHarvesterTask(
   return launchEcs(extraArgs);
 }
 
-function launchLocal(extraArgs: string[]): LaunchHarvesterResult {
-  const args = [...HARVEST_ORCHESTRATOR_COMMAND.slice(1), ...extraArgs];
+async function launchLocal(extraArgs: string[]): Promise<LaunchHarvesterResult> {
   try {
+    // Resolve at runtime only; webpack must not bundle tsx/esbuild.
+    const runtimeRequire = eval('require') as NodeRequire;
+    const args = [runtimeRequire.resolve('tsx/cli'), ...HARVEST_ORCHESTRATOR_COMMAND.slice(2), ...extraArgs];
     // Local-dev only (production launches via ECS), so keep the build from tracing
     // the whole project into the standalone output because of this cwd-relative spawn.
-    const child = spawn(/*turbopackIgnore: true*/ HARVEST_ORCHESTRATOR_COMMAND[0], args, {
+    const child = spawn(/*turbopackIgnore: true*/ process.execPath, args, {
       cwd: process.cwd(),
       detached: true,
       stdio: 'ignore',
       env: process.env,
-      // Windows needs a shell to resolve npx.cmd
-      shell: process.platform === 'win32',
+      shell: false,
+      windowsHide: true,
     });
-    child.unref();
+
+    await new Promise<void>((resolve, reject) => {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const onExit = (code: number | null, signal: NodeJS.Signals | null) => {
+        clearTimeout(timer);
+        reject(new Error(`Local harvester exited during startup (code=${code}, signal=${signal})`));
+      };
+      child.once('error', (error) => {
+        clearTimeout(timer);
+        child.removeListener('exit', onExit);
+        reject(error);
+      });
+      child.once('exit', onExit);
+      child.once('spawn', () => {
+        timer = setTimeout(() => {
+          child.removeListener('exit', onExit);
+          resolve();
+        }, 1_000);
+      });
+    });
 
     const pid = child.pid;
     if (!pid) {
@@ -65,6 +86,7 @@ function launchLocal(extraArgs: string[]): LaunchHarvesterResult {
       };
     }
 
+    child.unref();
     const taskId = `local-${pid}`;
     console.log(
       `[harvest-runtime] local spawn pid=${pid} args=${extraArgs.join(' ')}`,

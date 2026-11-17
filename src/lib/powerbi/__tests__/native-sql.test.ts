@@ -37,6 +37,22 @@ describe('native-sql table paths', () => {
     expect(r.contextObjectId).toBe('obj-1');
   });
 
+  it('resolveCatalogBind matches a navigation path when there is no SQL', () => {
+    const pathIndex = new Map([['open_analytics_zone.vom.dim_schedules', [{ id: 'obj-2', source_id: 'src-1' }]]]);
+    const r = resolveCatalogBind({
+      sql: null,
+      pathIndex,
+      databricksSourceId: 'src-1',
+      fallbackPath: 'open_analytics_zone.vom.dim_schedules',
+    });
+    expect(r).toMatchObject({ status: 'matched', ucPath: 'open_analytics_zone.vom.dim_schedules', contextObjectId: 'obj-2' });
+  });
+
+  it('resolveCatalogBind stays non_uc when there is no SQL and no path', () => {
+    const r = resolveCatalogBind({ sql: null, pathIndex: new Map(), databricksSourceId: null });
+    expect(r.status).toBe('non_uc');
+  });
+
   it('resolveCatalogBind returns unscanned when path missing', () => {
     const r = resolveCatalogBind({
       sql: 'SELECT 1 FROM x.y.z',

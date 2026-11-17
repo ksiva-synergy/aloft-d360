@@ -129,12 +129,12 @@ function GroupNode({ data }: NodeProps) {
       style={{ width: GW, height: GH, opacity: dim ? 0.25 : 1, cursor: 'pointer', ...ringStyle(selected, hit, group.issues.block > 0) }}
     >
       <Handle type="target" position={Position.Left} style={hidden} />
-      <span className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wide" style={{ color: k.color }}>
+      <span className="flex items-center gap-1.5 font-mono text-size-eyebrow uppercase tracking-wide" style={{ color: k.color }}>
         {k.glyph} {group.source ? (SOURCE_LABEL[group.source] ?? group.source) : k.label}
         {group.issues.block > 0 && <AlertTriangle className="ml-auto size-3" style={{ color: TONE_COLOR.red }} aria-label="blocking issue" />}
       </span>
       <span className="truncate text-caption font-medium text-[var(--estate-ink)]">{group.name}</span>
-      <span className="truncate text-[10px] text-[var(--estate-text-muted)]">{parts.join(' · ') || 'no measures'}</span>
+      <span className="truncate text-size-eyebrow text-[var(--estate-text-muted)]">{parts.join(' · ') || 'no measures'}</span>
       <StatusBar status={group.status} />
       <Handle type="source" position={Position.Right} style={hidden} />
     </div>
@@ -151,7 +151,7 @@ function MemberNode({ data }: NodeProps) {
       style={{ width: MW, height: MH, opacity: dim ? 0.25 : 1, cursor: 'pointer', ...ringStyle(selected, hit, node.sev === 'block') }}
     >
       <Handle type="target" position={Position.Left} style={hidden} />
-      <span className="flex items-center gap-1.5 font-mono text-[10px] uppercase" style={{ color: k.color }}>
+      <span className="flex items-center gap-1.5 font-mono text-size-eyebrow uppercase" style={{ color: k.color }}>
         {k.glyph} {k.label}
         {node.status && (
           <span className="ml-auto inline-block size-2 rounded-full" style={{ background: STATUS_COLOR[node.status] }} />
@@ -179,7 +179,7 @@ function FrameNode({ data }: NodeProps) {
       }}
       title="Double-click to collapse"
     >
-      <div className="flex items-center gap-2 px-2.5 pt-1.5 font-mono text-[10px] uppercase tracking-wide" style={{ color: k.color }}>
+      <div className="flex items-center gap-2 px-2.5 pt-1.5 font-mono text-size-eyebrow uppercase tracking-wide" style={{ color: k.color }}>
         {k.glyph} {group.name}
         {hiddenCount > 0 && (
           <span className="normal-case text-[var(--estate-text-muted)]">· {hiddenCount} unused columns hidden</span>
@@ -587,7 +587,7 @@ export function ModelOverviewGraph({
           {!selected && <OverviewHelp />}
           {selGroup && (
             <div className="space-y-1.5">
-              <p className="font-mono text-[10px] uppercase" style={{ color: (KIND[selGroup.kind] ?? KIND.table!).color }}>
+              <p className="font-mono text-size-eyebrow uppercase" style={{ color: (KIND[selGroup.kind] ?? KIND.table!).color }}>
                 {(KIND[selGroup.kind] ?? KIND.table!).label}
                 {selGroup.source && ` · ${SOURCE_LABEL[selGroup.source] ?? selGroup.source}`}
               </p>
@@ -609,7 +609,7 @@ export function ModelOverviewGraph({
           )}
           {selNode && (
             <div className="space-y-1.5">
-              <p className="font-mono text-[10px] uppercase" style={{ color: (KIND[selNode.kind] ?? KIND.column!).color }}>
+              <p className="font-mono text-size-eyebrow uppercase" style={{ color: (KIND[selNode.kind] ?? KIND.column!).color }}>
                 {(KIND[selNode.kind] ?? KIND.column!).label} · {idx.groupById.get(selNode.group)?.name}
               </p>
               <p className="break-words text-ui font-medium text-[var(--estate-ink)]">{selNode.name}</p>

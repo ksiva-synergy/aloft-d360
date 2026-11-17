@@ -157,7 +157,7 @@ export function PbiModelHarvestMenu({
                   className="flex w-full flex-col gap-0.5 px-3 py-2 text-left hover:bg-[var(--estate-hover)] disabled:opacity-50"
                 >
                   <span className="text-caption font-medium text-[var(--estate-ink)]">{item.label}</span>
-                  <span className="text-[11px] leading-snug text-[var(--estate-text-muted)]">{item.hint}</span>
+                  <span className="text-size-eyebrow leading-snug text-[var(--estate-text-muted)]">{item.hint}</span>
                 </button>
               </li>
             ))}

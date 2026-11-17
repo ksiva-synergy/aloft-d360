@@ -43,12 +43,15 @@ import type {
 type Kind = GraphViewNode['kind'];
 
 const KIND_META: Record<Kind, { label: string; glyph: string; color: string }> = {
+  source: { label: 'Source', glyph: '◉', color: '#5B6B82' },
+  pq_step: { label: 'Power Query step', glyph: '→', color: TONE_COLOR.blue },
   warehouse: { label: 'Warehouse column', glyph: '▦', color: '#5B6B82' },
   table: { label: 'Table', glyph: '▤', color: '#5B6B82' },
   column: { label: 'Power Query column', glyph: '│', color: TONE_COLOR.blue },
   calc_column: { label: 'Calculated column', glyph: 'ƒ', color: TONE_COLOR.violet },
   calc_table: { label: 'Calculated table', glyph: '⊞', color: TONE_COLOR.violet },
   measure: { label: 'Measure', glyph: 'Σ', color: TONE_COLOR.amber },
+  report: { label: 'Report', glyph: '▣', color: TONE_COLOR.green },
   missing: { label: 'Unresolved reference', glyph: '?', color: TONE_COLOR.red },
 };
 
@@ -164,7 +167,7 @@ function GraphNodeCard({ data }: NodeProps) {
     >
       <Handle type="target" position={Position.Left} style={{ opacity: 0, pointerEvents: 'none' }} />
       <span
-        className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wide"
+        className="flex items-center gap-1.5 font-mono text-size-eyebrow uppercase tracking-wide"
         style={{ color: meta.color }}
       >
         <span aria-hidden>{meta.glyph}</span>
@@ -236,6 +239,9 @@ function NodeDetail({ node }: { node: GraphViewNode }) {
         {status && <Tag tone={status.tone}>{status.label}</Tag>}
       </div>
       <p className="break-words text-ui font-medium text-[var(--estate-ink)]">{node.label}</p>
+      {node.detail.summary && (
+        <p className="break-words text-caption text-[var(--estate-text-secondary)]">{node.detail.summary}</p>
+      )}
       {node.issues.map((iss, i) => (
         <div
           key={i}
@@ -311,7 +317,7 @@ export function MeasureDependencyGraph({ modelId, measure }: { modelId: string; 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-[var(--estate-text-muted)]">
         <span>
           Depends on {graph.nodes.length - 1} objects
-          {(['measure', 'calc_column', 'column', 'warehouse', 'calc_table'] as Kind[])
+          {(['source', 'pq_step', 'warehouse', 'column', 'calc_column', 'measure', 'report', 'calc_table'] as Kind[])
             .filter((k) => counts[k])
             .map((k) => ` · ${counts[k] ?? 0} ${KIND_META[k].label.toLowerCase()}${(counts[k] ?? 0) > 1 ? 's' : ''}`)
             .join('')}
@@ -363,7 +369,7 @@ export function MeasureDependencyGraph({ modelId, measure }: { modelId: string; 
 function Legend() {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-caption text-[var(--estate-text-muted)]">
-      <span>Flow: warehouse → Power Query → calculated → measure</span>
+      <span>Flow: source → Power Query steps → warehouse → calculated → measure → report</span>
       {Object.entries(STATUS_META).map(([k, s]) => (
         <span key={k} className="inline-flex items-center gap-1.5">
           <span

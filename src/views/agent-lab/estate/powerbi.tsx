@@ -26,6 +26,8 @@ import { CATALOG_BTN, CATALOG_SELECT, ESTATE_HEADER_CHIP } from '@/components/es
 import { Select } from '@/components/form/Select';
 import { Callout, CodeBlock, Tag, TONE_COLOR, type Tone } from '@/components/estate/object-ui';
 import { MeasureDependencyGraph, ModelHealthPanel } from '@/components/estate/ModelDependencyGraph';
+import { ModelHighLevelLineage } from '@/components/estate/ModelHighLevelLineage';
+import { ReportLineageExplorer } from '@/components/estate/ReportLineageExplorer';
 import { ModelDataSources } from '@/components/estate/ModelDataSources';
 import { ModelDefinitionCard } from '@/components/estate/ModelDefinitionCard';
 import { ModelOwnershipCard } from '@/components/estate/ModelOwnershipCard';
@@ -35,6 +37,7 @@ import { PbiPipelineRunButton } from '@/components/estate/PbiPipelineRunButton';
 import { PATTERN_LABEL, RECREATION_STAGE_META, ROOT_CAUSE_LABEL } from '@/lib/powerbi/recreation-labels';
 import type { MeasureRecreationStage } from '@/lib/powerbi/recreation-summary';
 import type { MeasureDefinitionFlags, TableDefinitionFlags } from '@/lib/powerbi/definition-flags';
+import type { EstateSourcesResponse } from '@/app/api/agent-lab/powerbi/sources/route';
 import { useSectionLevel } from '@/lib/sections/useSectionLevels';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -170,6 +173,52 @@ type ModelDetail = {
 
 type StatusFilter = 'all' | 'answerable' | 'caveated' | 'blocked' | 'unparsed';
 type DetailTab = 'measures' | 'tables' | 'reports' | 'health';
+
+/** Source filter: '' (all) or a key from the sources API — `cat:`, `type:`, `inst:` or `db:`. */
+type SourceFilter = string;
+
+type SourceOption = { value: string; label: string; count: number; depth: 0 | 1 | 2 | 3 };
+
+const INDENT = '\u00a0\u00a0\u00a0';
+
+/**
+ * Dropdown rows for the source filter, classified category → type → server / site → database.
+ * Counts are over `models` (the workspace/domain scope); empty rows are dropped unless selected.
+ */
+function buildSourceOptions(
+  sources: EstateSourcesResponse,
+  models: { id: string }[],
+  selected: SourceFilter,
+): { category: string; label: string; options: SourceOption[] }[] {
+  const counts = new Map<string, number>();
+  for (const m of models) for (const k of sources.by_model[m.id] ?? []) counts.set(k, (counts.get(k) ?? 0) + 1);
+  const n = (k: string) => counts.get(k) ?? 0;
+  const keep = (k: string) => n(k) > 0 || k === selected;
+  const byCount = <T extends { key: string; label: string }>(a: T, b: T) => n(b.key) - n(a.key) || a.label.localeCompare(b.label);
+
+  return sources.categories
+    .map((cat) => {
+      const catKey = `cat:${cat.id}`;
+      const types = sources.types.filter((t) => t.category === cat.id && keep(t.key)).sort(byCount);
+      const options: SourceOption[] = [];
+      if (types.length > 1) options.push({ value: catKey, label: `All ${cat.label}`, count: n(catKey), depth: 0 });
+      for (const t of types) {
+        const insts = sources.instances.filter((i) => i.type === t.id && keep(i.key)).sort(byCount);
+        const looseDbs = sources.databases.filter((d) => d.type === t.id && !d.instance && keep(d.key)).sort(byCount);
+        const specific = insts.length + looseDbs.length > 0;
+        options.push({ value: t.key, label: specific ? `${t.label} — all` : t.label, count: n(t.key), depth: 1 });
+        for (const i of insts) {
+          options.push({ value: i.key, label: i.label, count: n(i.key), depth: 2 });
+          for (const d of sources.databases.filter((x) => x.instance === i.key && keep(x.key)).sort(byCount)) {
+            options.push({ value: d.key, label: `↳ ${d.label}`, count: n(d.key), depth: 3 });
+          }
+        }
+        for (const d of looseDbs) options.push({ value: d.key, label: `↳ ${d.label}`, count: n(d.key), depth: 2 });
+      }
+      return { category: cat.id, label: `${cat.label} (${n(catKey)})`, options };
+    })
+    .filter((g) => g.options.length > 0);
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -491,11 +540,11 @@ function ModelListItem({
           {model.name}
         </span>
         {parsed ? (
-          <span className="shrink-0 font-mono text-[10px] tabular-nums text-[var(--estate-text-muted)]" title={countHint}>
+          <span className="shrink-0 font-mono text-size-eyebrow tabular-nums text-[var(--estate-text-muted)]" title={countHint}>
             {model.measure_count}m·{model.table_count}t
           </span>
         ) : (
-          <span className="shrink-0 text-[10px] italic text-[var(--estate-text-dim)]">—</span>
+          <span className="shrink-0 text-size-eyebrow italic text-[var(--estate-text-dim)]">—</span>
         )}
         {model.rls_required && (
           <Shield className="size-3 shrink-0" style={{ color: TONE_COLOR.violet }} aria-label="RLS required" />
@@ -530,7 +579,7 @@ function MeasureFlagMarks({ flags }: { flags?: MeasureDefinitionFlags | null }) 
   return (
     <>
       {marks.map((m) => (
-        <span key={m.label} title={m.title} className="ml-1.5 align-middle text-[10px] font-normal text-[var(--estate-text-dim)]">
+        <span key={m.label} title={m.title} className="ml-1.5 align-middle text-size-eyebrow font-normal text-[var(--estate-text-dim)]">
           {m.label}
         </span>
       ))}
@@ -554,7 +603,7 @@ function clip(list: string[], n: number): string {
 function MeasureSectionLabel({ children, aside }: { children: React.ReactNode; aside?: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--estate-text-muted)]">{children}</span>
+      <span className="text-size-eyebrow font-semibold uppercase tracking-wider text-[var(--estate-text-muted)]">{children}</span>
       {aside}
     </div>
   );
@@ -751,7 +800,7 @@ function MeasureDetail({
             <MeasureSectionLabel
               aside={
                 text.data?.sql && m.translation_tier ? (
-                  <span className="text-[10px] text-[var(--estate-text-muted)]">{m.translation_tier} tier</span>
+                  <span className="text-size-eyebrow text-[var(--estate-text-muted)]">{m.translation_tier} tier</span>
                 ) : undefined
               }
             >
@@ -992,53 +1041,81 @@ function TablesTab({ tables }: { tables: ModelDetail['tables'] }) {
 function ReportsTab({
   reports,
   pbiModelId,
+  onOpenMeasure,
 }: {
   reports: ModelDetail['reports'];
   pbiModelId: string;
+  onOpenMeasure: (name: string) => void;
 }) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
   if (reports.length === 0) {
     return <p className="py-6 text-ui-regular text-[var(--estate-text-muted)]">No reports use this model.</p>;
   }
   return (
     <ul className="divide-y divide-[var(--estate-border)] overflow-hidden rounded-card border border-[var(--estate-border)] bg-[var(--estate-surface)]">
-      {reports.map((r) => (
-        <li key={r.id} className="flex items-center gap-3 px-4 py-2.5">
-          <FileBarChart className="size-4 shrink-0 text-[var(--estate-text-dim)]" aria-hidden />
-          <span className="min-w-0 flex-1 truncate text-ui text-[var(--estate-ink)]" title={r.name}>
-            {r.name}
-          </span>
-          {r.report_format && (
-            <Tag tone="neutral" mono>
-              {humanize(r.report_format)}
-            </Tag>
-          )}
-          <div className="flex shrink-0 items-center gap-1">
-            {r.pbi_report_id && (
-              <PbiReportHarvestButton
-                pbiModelId={pbiModelId}
-                pbiReportId={r.pbi_report_id}
-                reportName={r.name}
-              />
-            )}
-            {r.open_url ? (
-              <a
-                href={r.open_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={cn(CATALOG_BTN, 'shrink-0')}
-                title={r.open_url_synthesized ? 'Link built from workspace + report id (not from Power BI webUrl)' : undefined}
+      {reports.map((r) => {
+        const open = expandedId === r.id;
+        return (
+          <li key={r.id}>
+            <div className="flex items-center gap-3 px-4 py-2.5">
+              <button
+                type="button"
+                aria-expanded={open}
+                onClick={() => setExpandedId(open ? null : r.id)}
+                className="flex min-w-0 flex-1 items-center gap-2 text-left"
               >
-                Open in Power BI <ExternalLink className="size-3" aria-hidden />
-                {r.open_url_synthesized && <span className="sr-only"> (synthesized link)</span>}
-              </a>
-            ) : (
-              <span className="text-caption text-[var(--estate-text-dim)]" title="Run Refresh PBI inventory to load webUrl from Power BI">
-                No link
-              </span>
-            )}
-          </div>
-        </li>
-      ))}
+                {open ? (
+                  <ChevronDown className="size-4 shrink-0 text-[var(--estate-text-dim)]" aria-hidden />
+                ) : (
+                  <ChevronRight className="size-4 shrink-0 text-[var(--estate-text-dim)]" aria-hidden />
+                )}
+                <FileBarChart className="size-4 shrink-0 text-[var(--estate-text-dim)]" aria-hidden />
+                <span className="min-w-0 truncate text-ui text-[var(--estate-ink)]" title={r.name}>
+                  {r.name}
+                </span>
+              </button>
+              {r.report_format && (
+                <Tag tone="neutral" mono>
+                  {humanize(r.report_format)}
+                </Tag>
+              )}
+              <div className="flex shrink-0 items-center gap-1">
+                <Link
+                  href={`/agent-lab/estate/powerbi/reports/${encodeURIComponent(r.id)}/lineage`}
+                  className={cn(CATALOG_BTN, 'text-caption')}
+                >
+                  Lineage
+                </Link>
+                {r.pbi_report_id && (
+                  <PbiReportHarvestButton
+                    pbiModelId={pbiModelId}
+                    pbiReportId={r.pbi_report_id}
+                    reportName={r.name}
+                  />
+                )}
+                {r.open_url ? (
+                  <a
+                    href={r.open_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={cn(CATALOG_BTN, 'shrink-0')}
+                    title={r.open_url_synthesized ? 'Link built from workspace + report id (not from Power BI webUrl)' : undefined}
+                  >
+                    Open in Power BI <ExternalLink className="size-3" aria-hidden />
+                    {r.open_url_synthesized && <span className="sr-only"> (synthesized link)</span>}
+                  </a>
+                ) : (
+                  <span className="text-caption text-[var(--estate-text-dim)]" title="Run Refresh PBI inventory to load webUrl from Power BI">
+                    No link
+                  </span>
+                )}
+              </div>
+            </div>
+            {open && <ReportLineageExplorer reportId={r.id} variant="embedded" onOpenMeasure={onOpenMeasure} />}
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -1167,7 +1244,8 @@ function ModelDetailView({
   return (
     <div className="mx-auto max-w-6xl space-y-4">
       <header className="space-y-3 border-b border-[var(--estate-border)] pb-3">
-        <div className="min-w-0">
+        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+        <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <h3 className="text-title-section text-[var(--estate-ink)]">{detail.name}</h3>
             {showParsedBadge ? (
@@ -1204,12 +1282,17 @@ function ModelDetailView({
             <p className="mt-1 max-w-3xl text-ui-regular text-[var(--estate-text-secondary)]">{detail.description}</p>
           )}
         </div>
+        {parsed && (
+          <div className="ml-auto shrink-0">
+            <ModelOwnershipCard key={detail.id} modelId={detail.id} compact />
+          </div>
+        )}
+        </div>
         <div
-          className="flex items-center gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="ml-auto flex w-fit max-w-full items-center gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           role="toolbar"
           aria-label="Model actions"
         >
-          {parsed && <ModelOwnershipCard key={detail.id} modelId={detail.id} compact />}
           {parsed && recreation && recreation.sql_drafted > 0 && (
             <ModelRecreationPanel
               modelName={detail.name}
@@ -1248,6 +1331,7 @@ function ModelDetailView({
       ) : (
         <>
           <ModelDataSources key={`notice:${detail.id}`} modelId={detail.id} variant="notice" onShowSources={() => setTab('tables')} />
+          <ModelHighLevelLineage modelId={detail.id} onOpenReports={() => setTab('reports')} />
           <div>
             <div role="tablist" aria-label="Model contents" className="mb-3 flex gap-1 border-b border-[var(--estate-border)]">
               {tabs.map((t) => (
@@ -1293,7 +1377,7 @@ function ModelDetailView({
                 </div>
               )}
               {tab === 'reports' && (
-                <ReportsTab reports={detail.reports} pbiModelId={detail.pbi_model_id} />
+                <ReportsTab reports={detail.reports} pbiModelId={detail.pbi_model_id} onOpenMeasure={openMeasure} />
               )}
               {tab === 'health' && <ModelHealthPanel modelId={detail.id} onOpenMeasure={openMeasure} />}
             </div>
@@ -1316,6 +1400,7 @@ const STATUS_ORDER: Record<Exclude<StatusFilter, 'all'>, number> = {
 export default function EstatePowerBiPage() {
   const searchParams = useSearchParams();
   const initialModel = searchParams.get('model');
+  const initialMeasure = searchParams.get('measure');
   const [summary, setSummary] = useState<Summary | null>(null);
   const [workspaces, setWorkspaces] = useState<WorkspaceRow[]>([]);
   const [models, setModels] = useState<ModelRow[]>([]);
@@ -1324,13 +1409,15 @@ export default function EstatePowerBiPage() {
   const [recreation, setRecreation] = useState<RecreationSummary | null>(null);
   const [workspaceFilter, setWorkspaceFilter] = useState<string | null>(null);
   const [domainFilter, setDomainFilter] = useState<string | null>(null);
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>('');
+  const [sources, setSources] = useState<EstateSourcesResponse | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [query, setQuery] = useState('');
   const [domains, setDomains] = useState<DomainRow[]>([]);
   const [conflicts, setConflicts] = useState<ConflictRow[]>([]);
   const [conflictsOpen, setConflictsOpen] = useState(false);
   const [conflictBusyId, setConflictBusyId] = useState<string | null>(null);
-  const [measureQuery, setMeasureQuery] = useState('');
+  const [measureQuery, setMeasureQuery] = useState(initialMeasure ?? '');
   const [tab, setTab] = useState<DetailTab>('measures');
   const pbiLevel = useSectionLevel('estate.powerbi');
   const canSteward = pbiLevel === 'manage';
@@ -1389,6 +1476,35 @@ export default function EstatePowerBiPage() {
     void loadList();
   }, [loadList]);
 
+  /** Source systems per model (traced from Power Query), loaded separately so the list never waits on it. */
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/agent-lab/powerbi/sources')
+      .then((r) => (r.ok ? (r.json() as Promise<EstateSourcesResponse>) : null))
+      .then((d) => {
+        if (alive && d) setSources(d);
+      })
+      .catch(() => {
+        /* filter stays hidden */
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  /** Models in the workspace/domain scope that match the source filter. */
+  const scopedModels = useMemo(
+    () =>
+      !sourceFilter || !sources ? models : models.filter((m) => (sources.by_model[m.id] ?? []).includes(sourceFilter)),
+    [models, sourceFilter, sources],
+  );
+
+  /** Source dropdown rows with counts over the current workspace/domain scope. */
+  const sourceOptions = useMemo(
+    () => (sources ? buildSourceOptions(sources, models, sourceFilter) : null),
+    [sources, models, sourceFilter],
+  );
+
   /**
    * Until the user picks one, show the first parsed model (from the unfiltered scope, so typing in
    * search does not swap the detail pane) so the page is never blank.
@@ -1425,16 +1541,16 @@ export default function EstatePowerBiPage() {
     void loadDetail(activeId);
   }, [activeId, loadDetail]);
 
-  /** Counts per status for the current workspace/domain scope (before search + status filter). */
+  /** Counts per status for the current workspace/domain/source scope (before search + status filter). */
   const statusCounts = useMemo(() => {
-    const c: Record<StatusFilter, number> = { all: models.length, answerable: 0, caveated: 0, blocked: 0, unparsed: 0 };
-    for (const m of models) c[statusOf(m)] += 1;
+    const c: Record<StatusFilter, number> = { all: scopedModels.length, answerable: 0, caveated: 0, blocked: 0, unparsed: 0 };
+    for (const m of scopedModels) c[statusOf(m)] += 1;
     return c;
-  }, [models]);
+  }, [scopedModels]);
 
   const visibleModels = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return models
+    return scopedModels
       .filter((m) => statusFilter === 'all' || statusOf(m) === statusFilter)
       .filter(
         (m) =>
@@ -1444,7 +1560,7 @@ export default function EstatePowerBiPage() {
           (m.workspace_name ?? '').toLowerCase().includes(q),
       )
       .sort((a, b) => STATUS_ORDER[statusOf(a)] - STATUS_ORDER[statusOf(b)] || a.name.localeCompare(b.name));
-  }, [models, statusFilter, query]);
+  }, [scopedModels, statusFilter, query]);
 
   const selectedModel = useMemo(() => models.find((m) => m.id === activeId) ?? null, [models, activeId]);
 
@@ -1497,7 +1613,8 @@ export default function EstatePowerBiPage() {
   }
 
   const parsedPct = summary && summary.models > 0 ? (summary.models_parsed / summary.models) * 100 : 0;
-  const filtersActive = statusFilter !== 'all' || Boolean(query) || Boolean(workspaceFilter) || Boolean(domainFilter);
+  const filtersActive =
+    statusFilter !== 'all' || Boolean(query) || Boolean(workspaceFilter) || Boolean(domainFilter) || Boolean(sourceFilter);
 
   return (
     <div className="flex h-full w-full min-w-0 flex-col overflow-hidden bg-[var(--estate-bg)]">
@@ -1544,6 +1661,9 @@ export default function EstatePowerBiPage() {
                 title="Same measure name with different DAX in several models"
               />
             )}
+            <Link href="/agent-lab/estate/powerbi/report-lineage" className={CATALOG_BTN}>
+              Report lineage
+            </Link>
             <Link href="/agent-lab/estate/jobs" className={CATALOG_BTN}>
               Harvest jobs
             </Link>
@@ -1574,7 +1694,7 @@ export default function EstatePowerBiPage() {
             />
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <label className="flex min-w-0 flex-col gap-1">
-                <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--estate-text-muted)]">
+                <span className="text-size-eyebrow font-medium uppercase tracking-wide text-[var(--estate-text-muted)]">
                   Workspace
                 </span>
                 <Select
@@ -1595,7 +1715,7 @@ export default function EstatePowerBiPage() {
                 </Select>
               </label>
               <label className="flex min-w-0 flex-col gap-1">
-                <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--estate-text-muted)]">
+                <span className="text-size-eyebrow font-medium uppercase tracking-wide text-[var(--estate-text-muted)]">
                   Domain
                 </span>
                 <Select
@@ -1615,6 +1735,36 @@ export default function EstatePowerBiPage() {
                   ))}
                 </Select>
               </label>
+              {sourceOptions && sourceOptions.length > 0 && (
+                <label className="flex min-w-0 flex-col gap-1 sm:col-span-2">
+                  <span
+                    className="text-size-eyebrow font-medium uppercase tracking-wide text-[var(--estate-text-muted)]"
+                    title="Specific servers, databases, sites and folders the model reads: Power BI data source settings plus Power Query"
+                  >
+                    Source
+                  </span>
+                  <Select
+                    aria-label="Data source"
+                    className={ESTATE_SELECT}
+                    value={sourceFilter}
+                    onChange={(e) => {
+                      setSourceFilter(e.target.value);
+                      setSelectedId(null);
+                    }}
+                  >
+                    <option value="">All sources</option>
+                    {sourceOptions.map((g) => (
+                      <optgroup key={g.category} label={g.label}>
+                        {g.options.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {`${INDENT.repeat(Math.max(0, o.depth - 1))}${o.label} (${o.count})`}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </Select>
+                </label>
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-1">
               <div role="group" aria-label="Filter by status" className="flex min-w-0 flex-1 flex-wrap gap-0.5">
@@ -1628,7 +1778,7 @@ export default function EstatePowerBiPage() {
                       onClick={() => setStatusFilter(s)}
                       title={s === 'all' ? undefined : STATUS_META[s].hint}
                       className={cn(
-                        'inline-flex h-6 items-center gap-0.5 rounded-md border px-1.5 text-[11px] transition-colors duration-hover',
+                        'inline-flex h-6 items-center gap-0.5 rounded-md border px-1.5 text-size-eyebrow transition-colors duration-hover',
                         statusFilter === s
                           ? 'border-[color-mix(in_srgb,var(--brand-a)_35%,var(--estate-border))] bg-[var(--estate-active-bg)] text-[var(--estate-ink)]'
                           : 'border-[var(--estate-border)] bg-[var(--estate-surface)] text-[var(--estate-text-muted)] hover:bg-[var(--estate-hover)] hover:text-[var(--estate-ink)]',
@@ -1662,8 +1812,9 @@ export default function EstatePowerBiPage() {
                     setQuery('');
                     setWorkspaceFilter(null);
                     setDomainFilter(null);
+                    setSourceFilter('');
                   }}
-                  className="shrink-0 text-[11px] text-[var(--brand-a)] hover:underline"
+                  className="shrink-0 text-size-eyebrow text-[var(--brand-a)] hover:underline"
                 >
                   Clear
                 </button>

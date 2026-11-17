@@ -1,5 +1,5 @@
 import {
-  Layers, BookOpen, Boxes, GitBranch, Zap, Route, Server, BarChart3,
+  Layers, BookOpen, Boxes, GitBranch, Zap, Route, Server, BarChart3, Network,
 } from 'lucide-react';
 import type { ElementType } from 'react';
 
@@ -43,13 +43,32 @@ export const ESTATE_NAV_ITEMS: EstateNavItem[] = [
     title: 'Power BI',
     description: 'Harvested workspaces, semantic models, measures, and catalog bindings.',
   },
+  {
+    label: 'Report lineage',
+    href: '/agent-lab/estate/powerbi/report-lineage',
+    icon: GitBranch,
+    match: 'prefix',
+    title: 'Report lineage',
+    description: 'Trace each report from its measures to model tables and original data sources.',
+  },
+  {
+    label: 'Source impact',
+    href: '/agent-lab/estate/powerbi/source-impact',
+    icon: Network,
+    match: 'prefix',
+    title: 'Source impact',
+    description: 'Pick a file, database or warehouse table and see every report that depends on it.',
+  },
   { label: 'Mapper', href: '/agent-lab/estate/mapper', icon: Route, match: 'prefix' },
   { label: 'Silo Finder', href: '/agent-lab/estate/silo', icon: Server, match: 'prefix' },
 ];
 
 /** True when `pathname` should mark `item` active, per its match mode. */
 export function isEstateItemActive(item: EstateNavItem, pathname: string): boolean {
-  return item.match === 'exact'
-    ? pathname === item.href
-    : pathname === item.href || pathname.startsWith(item.href + '/');
+  const matches = (candidate: EstateNavItem) => candidate.match === 'exact'
+    ? pathname === candidate.href
+    : pathname === candidate.href || pathname.startsWith(candidate.href + '/');
+  if (!matches(item)) return false;
+  // A nested item (Power BI › Report lineage) wins over its parent prefix.
+  return !ESTATE_NAV_ITEMS.some((other) => other !== item && other.href.startsWith(item.href + '/') && matches(other));
 }

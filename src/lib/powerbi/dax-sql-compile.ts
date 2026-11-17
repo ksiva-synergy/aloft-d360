@@ -33,7 +33,7 @@ import { normalizePbiTableName } from '@/lib/powerbi/translate-dax-refs';
  * Bump whenever compiled SQL can change for the same DAX + model (semantics, plan shape, rules).
  * Translate checkpoints are keyed on it, so a bump recompiles every measure once.
  */
-export const COMPILER_VERSION = '2026-11-15.query-culture';
+export const COMPILER_VERSION = '2026-11-16.median-calc-key-rtrim-rel';
 
 export type DaxCompileOptions = {
   /** tableKey → warehouse leaf column (lower) → replacement column (from warehouse errors). */
@@ -154,6 +154,16 @@ type TableState = {
 
 /** Key text for BLANK in grouped evaluation (NULL keys and the relationship blank row). */
 const BLANK_KEY = '__blank__';
+
+/**
+ * A relationship key as text. Warehouse key types can differ (BIGINT vs text), so keys are compared
+ * as text. Power BI matches text keys ignoring trailing spaces (found 2026-11-16: dim keys
+ * "… TRAINING " and "… TRAINING" were one member in Power BI, two in SQL). Trailing spaces only:
+ * that is the difference measured so far; case is not assumed.
+ */
+function relKeyText(sql: string): string {
+  return `rtrim(CAST(${sql} AS STRING))`;
+}
 
 /** Operands shorter than this stay inline (sharing them saves nothing). */
 const SHARE_MIN_CHARS = 120;
@@ -872,9 +882,7 @@ class Compiler {
     // Relationship keys share a type in Power BI, but warehouse types can differ (e.g. IMO as
     // BIGINT on one table, text on another). Compare non-date keys as text.
     const keyPair = (a: Sql, b: Sql): [string, string] =>
-      a.kind === 'date' || b.kind === 'date'
-        ? [a.sql, b.sql]
-        : [`CAST(${a.sql} AS STRING)`, `CAST(${b.sql} AS STRING)`];
+      a.kind === 'date' || b.kind === 'date' ? [a.sql, b.sql] : [relKeyText(a.sql), relKeyText(b.sql)];
     const cond = (i: number, toAlias: string): string => {
       const hop = hops[i]!;
       const toRef = this.colRef(hop.to, hop.toCol, toAlias);
@@ -985,7 +993,7 @@ class Compiler {
     const path = keyTable === sel.table ? [] : this.flowPath(keyTable, sel.table);
     if (!path) return null;
     const chain = (fAlias: string): { joins: string[]; keySql: string; unique: boolean } | null => {
-      const joins: string[] = [];
+      const hops: { table: string; alias: string; on: string }[] = [];
       let unique = true;
       let cur = { table: sel.table, alias: fAlias };
       for (let i = path.length - 1; i >= 0; i--) {
@@ -993,13 +1001,20 @@ class Compiler {
         if (hop.to !== cur.table) return null;
         if (!this.isUniqueSide(hop.from, hop.fromCol)) unique = false;
         const j = this.alias('a');
-        joins.push(
-          `LEFT JOIN ${this.table(hop.from).latest} ${j} ON CAST(${this.colRef(hop.to, hop.toCol, cur.alias).sql} AS STRING) = CAST(${this.colRef(hop.from, hop.fromCol, j).sql} AS STRING)`,
-        );
+        hops.push({
+          table: hop.from,
+          alias: j,
+          on: `${relKeyText(this.colRef(hop.to, hop.toCol, cur.alias).sql)} = ${relKeyText(this.colRef(hop.from, hop.fromCol, j).sql)}`,
+        });
         cur = { table: hop.from, alias: j };
       }
       if (cur.table !== keyTable) return null;
-      return { joins, keySql: this.colRef(keyTable, keyCol, cur.alias).sql, unique };
+      const keySql = this.colRef(keyTable, keyCol, cur.alias).sql;
+      // A calculated column used as a join or group key is materialized as a new stage of its
+      // table (`T_1`). Read each table's latest stage only after every column is resolved, or the
+      // join keeps the base CTE that does not have the column (UNRESOLVED_COLUMN `Account Code`).
+      const joins = hops.map((h) => `LEFT JOIN ${this.table(h.table).latest} ${h.alias} ON ${h.on}`);
+      return { joins, keySql, unique };
     };
     const alias = this.alias();
     const direct = chain(alias);
@@ -1164,7 +1179,7 @@ class Compiler {
         const fk = this.colRef(many, r.fromColumn, m).sql;
         const pk = this.colRef(table, r.toColumn, o).sql;
         parts.push(
-          `SELECT 1 AS one FROM ${this.table(many).latest} ${m} LEFT ANTI JOIN ${this.table(table).latest} ${o} ON CAST(${pk} AS STRING) = CAST(${fk} AS STRING)`,
+          `SELECT 1 AS one FROM ${this.table(many).latest} ${m} LEFT ANTI JOIN ${this.table(table).latest} ${o} ON ${relKeyText(pk)} = ${relKeyText(fk)}`,
         );
       } catch (e) {
         if (!(e instanceof CompileError)) throw e;
@@ -1821,6 +1836,7 @@ class Compiler {
       // ---- column aggregations
       case 'SUM':
       case 'AVERAGE':
+      case 'MEDIAN':
       case 'MIN':
       case 'MAX':
       case 'COUNT':
@@ -1846,6 +1862,7 @@ class Compiler {
       }
       case 'SUMX':
       case 'AVERAGEX':
+      case 'MEDIANX':
       case 'MINX':
       case 'MAXX':
       case 'COUNTX':
@@ -1859,6 +1876,7 @@ class Compiler {
           const map: Record<string, string> = {
             SUMX: 'SUM',
             AVERAGEX: 'AVERAGE',
+            MEDIANX: 'MEDIAN',
             MINX: 'MIN',
             MAXX: 'MAX',
             COUNTX: 'COUNT',
@@ -2167,6 +2185,13 @@ class Compiler {
         return `SUM(${c.sql})`;
       case 'AVERAGE':
         return `AVG(${c.sql})`;
+      case 'MEDIAN':
+        // DAX MEDIAN / MEDIANX ignore BLANK and average the two middle values for an even count;
+        // Spark median() skips NULL and interpolates the same way. Numeric inputs only.
+        if (c.kind === 'date' || c.kind === 'string' || c.kind === 'bool') {
+          throw new CompileError(`MEDIAN over a ${c.kind} value is not supported`);
+        }
+        return `median(${c.sql})`;
       case 'MIN':
         return `MIN(${c.sql})`;
       case 'MAX':

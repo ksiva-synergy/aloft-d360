@@ -1,0 +1,284 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Verify Power BI report lineage",
+			"dependsOn": [
+				"Power BI lineage: Tests",
+				"Power BI lineage: Lint",
+				"Power BI lineage: Typecheck"
+			],
+			"dependsOrder": "sequence",
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "Power BI lineage: Tests",
+			"type": "process",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/vitest/vitest.mjs",
+				"run",
+				"src/app/api/agent-lab/context/jobs/launch/route.test.ts",
+				"src/app/api/agent-lab/powerbi/__tests__/routes.test.ts",
+				"src/lib/powerbi/__tests__/pipeline-stages.test.ts",
+				"src/lib/powerbi/__tests__/report-lineage.test.ts",
+				"src/lib/powerbi/__tests__/report-lineage-store.test.ts",
+				"src/lib/powerbi/__tests__/inventory.test.ts",
+				"src/views/agent-lab/estate/powerbi-report-lineage-hub.test.tsx",
+				"src/views/agent-lab/estate/powerbi-source-impact.test.tsx",
+				"src/lib/powerbi/__tests__/report-lineage-graph.test.ts",
+				"src/lib/powerbi/__tests__/report-lineage-snapshot-summary.test.ts",
+				"src/lib/powerbi/__tests__/source-impact.test.ts",
+				"src/lib/estate/nav-items.test.ts",
+				"--reporter=verbose"
+			],
+			"options": { "cwd": "${workspaceFolder}" },
+			"problemMatcher": []
+		},
+		{
+			"label": "Power BI lineage: Lint",
+			"type": "process",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/eslint/bin/eslint.js",
+				"src/lib/powerbi/launch-scope.ts",
+				"src/lib/powerbi/pipeline-stages.ts",
+				"src/lib/powerbi/report-lineage-coverage.ts",
+				"src/lib/powerbi/report-lineage-build.ts",
+				"src/lib/powerbi/report-lineage-store.ts",
+				"src/lib/powerbi/report-lineage.ts",
+				"src/lib/powerbi/report-lineage-types.ts",
+				"src/lib/powerbi/report-lineage-sources.ts",
+				"src/components/estate/ReportLineageExplorer.tsx",
+				"src/lib/powerbi/inventory.ts",
+				"src/app/api/agent-lab/context/jobs/launch/route.ts",
+				"src/app/api/agent-lab/context/jobs/launch/route.test.ts",
+				"src/app/api/agent-lab/powerbi/reports/route.ts",
+				"src/views/agent-lab/estate/powerbi-report-lineage-hub.tsx",
+				"src/views/agent-lab/estate/powerbi-report-lineage-hub.test.tsx",
+				"src/lib/powerbi/__tests__/pipeline-stages.test.ts",
+				"src/lib/powerbi/__tests__/report-lineage.test.ts",
+				"src/lib/powerbi/__tests__/report-lineage-store.test.ts",
+				"src/lib/powerbi/__tests__/inventory.test.ts",
+				"src/lib/powerbi/report-lineage-graph.ts",
+				"src/lib/powerbi/report-lineage-snapshot-summary.ts",
+				"src/lib/powerbi/report-lineage-snapshot-load.ts",
+				"src/lib/powerbi/source-impact.ts",
+				"src/components/estate/report-lineage",
+				"src/app/api/agent-lab/powerbi/reports/[id]/lineage/route.ts",
+				"src/app/api/agent-lab/powerbi/sources/impact/route.ts",
+				"src/views/agent-lab/estate/powerbi-source-impact.tsx",
+				"src/views/agent-lab/estate/powerbi-source-impact.test.tsx",
+				"src/lib/powerbi/__tests__/report-lineage-graph.test.ts",
+				"src/lib/powerbi/__tests__/report-lineage-snapshot-summary.test.ts",
+				"src/lib/powerbi/__tests__/source-impact.test.ts",
+				"src/lib/estate/nav-items.ts",
+				"src/lib/estate/nav-items.test.ts"
+			],
+			"options": { "cwd": "${workspaceFolder}" },
+			"problemMatcher": []
+		},
+		{
+			"label": "Power BI lineage: Typecheck",
+			"type": "process",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": ["node_modules/typescript/bin/tsc", "--noEmit", "--pretty", "false"],
+			"options": { "cwd": "${workspaceFolder}" },
+			"problemMatcher": "$tsc"
+		},
+		{
+			"label": "Inspect Power BI lineage samples",
+			"type": "process",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"--require", "./scripts/context/noserver.cjs",
+				"-e",
+				"const { PrismaClient } = require('@prisma/client'); const db = new PrismaClient({ log: [] }); async function main() { const orgId = process.env.DEFAULT_ORG_ID; if (!orgId) throw new Error('Missing default organization'); const result = await db.$transaction(async tx => { await tx.$executeRawUnsafe('SET TRANSACTION READ ONLY'); const where = { org_id: orgId, report: { lifecycle: 'active' } }; const total = await tx.pbiReportLineage.count({ where }); const rows = await tx.pbiReportLineage.findMany({ where, orderBy: [{ measure_count: 'desc' }, { generated_at: 'desc' }], take: 3, select: { report_id: true, status: true, measure_count: true, uc_paths: true, lineage: true, generated_at: true, report: { select: { name: true, model: { select: { name: true } } } } } }); return { total_snapshots: total, samples: rows.map(row => { const payload = row.lineage || {}; return { report: row.report.name, model: row.report.model?.name || null, report_id: row.report_id, status: row.status, measure_count: row.measure_count, generated_at: row.generated_at, uc_paths: row.uc_paths.slice(0, 3), has_original_sources: Array.isArray(payload.sources), sources: Array.isArray(payload.sources) ? payload.sources.slice(0, 2).map(source => ({ table: source.table, origins: source.origins?.slice(0, 2).map(origin => ({ system: origin.system, connector: origin.connector, location: origin.location, database: origin.database, object: origin.object, folder: origin.folder, file: origin.file, items: origin.items })), navigation: source.navigation, referenced_by_measures: source.referenced_by_measures?.slice(0, 3) })) : [], measures: Array.isArray(payload.measures) ? payload.measures.slice(0, 2).map(measure => ({ name: measure.name, found_in_model: measure.found_in_model, tables_involved: measure.tables_involved, uc_paths: measure.uc_paths })) : [] }; }) }; }, { maxWait: 15000, timeout: 60000 }); console.log(JSON.stringify(result, null, 2)); } main().catch(error => { console.error(JSON.stringify({ code: error.code || error.name, message: 'Read-only sample query failed; no data changed.' })); process.exitCode = 1; }).finally(() => db.$disconnect());"
+			],
+			"options": { "cwd": "${workspaceFolder}" },
+			"problemMatcher": []
+		},
+		{
+			"label": "Check Power BI definition access",
+			"type": "process",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"--require", "./scripts/context/noserver.cjs",
+				"--require", "tsx/cjs",
+				"-e",
+				"const { PrismaClient } = require('@prisma/client'); const { listWorkspaces } = require('./src/lib/powerbi/client.ts'); const { fetchSemanticModelDefinitionTmdl, fetchReportDefinition } = require('./src/lib/powerbi/fabric.ts'); const db = new PrismaClient({ log: [] }); async function main() { const orgId = process.env.DEFAULT_ORG_ID; if (!orgId) throw new Error('Missing default organization'); const model = await db.pbiModel.findFirst({ where: { org_id: orgId, lifecycle: 'active', props: { path: ['definition', 'storage_path'], string_contains: 'definitions' } }, orderBy: { updated_at: 'desc' }, select: { pbi_model_id: true, name: true, workspace: { select: { pbi_workspace_id: true } } } }); const report = model ? await db.pbiReport.findFirst({ where: { org_id: orgId, lifecycle: 'active', pbi_model_id: model.pbi_model_id }, select: { pbi_report_id: true, name: true, report_format: true } }) : null; const checks = [{ name: 'Power BI workspace listing', kind: 'inventory', run: () => listWorkspaces() }]; if (model) { const workspace = model.workspace.pbi_workspace_id; checks.push({ name: 'Model definition', kind: 'definition', run: () => fetchSemanticModelDefinitionTmdl(workspace, model.pbi_model_id) }); if (report) { const format = /legacy/i.test(report.report_format || '') ? 'PBIR-Legacy' : /pbir/i.test(report.report_format || '') ? 'PBIR' : undefined; checks.push({ name: 'Report definition', kind: 'definition', run: () => fetchReportDefinition(workspace, report.pbi_report_id, format) }); } } const results = []; for (const check of checks) { console.log('Checking ' + check.name + '; waiting for complete result if asynchronous.'); try { const data = await check.run(); results.push({ test: check.name, outcome: 'completed', definition_parts: check.kind === 'definition' ? data.length : null, workspaces: check.kind === 'inventory' ? data.length : null }); } catch (error) { results.push({ test: check.name, outcome: 'failed', http_status: error.statusCode || null, message: String(error.message || error.name).replace(/https?:\\/\\/[^\\s]+/g, '[endpoint]').slice(0, 400) }); } } console.log(JSON.stringify({ checked_at: new Date().toISOString(), model: model?.name || null, report: report?.name || null, results, persisted: false }, null, 2)); } main().catch(error => { console.error(JSON.stringify({ code: error.code || error.name, message: 'Read-only access check failed; no data changed.' })); process.exitCode = 1; }).finally(() => db.$disconnect());"
+			],
+			"options": { "cwd": "${workspaceFolder}" },
+			"problemMatcher": []
+		},
+		{
+			"label": "Inspect harvested lineage coverage",
+			"type": "process",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"--require", "./scripts/context/noserver.cjs",
+				"-e",
+				"const { PrismaClient } = require('@prisma/client'); const fs = require('node:fs'); const path = require('node:path'); const db = new PrismaClient({ log: [] }); const root = path.resolve(process.env.PBI_RAW_STORE_ROOT || 'powerbi-estate'); function available(props) { const storage = props?.definition?.storage_path; return typeof storage === 'string' && fs.existsSync(path.join(root, storage)); } function modelParsed(props) { return Boolean(props?.parse?.parsed_at && props?.definition?.content_hash && props.parse.definition_hash === props.definition.content_hash); } function reportParsed(props) { return Boolean(props?.parse?.parsed_at && (!props?.definition?.fetched_at || props.parse.parsed_at >= props.definition.fetched_at)); } async function main() { const orgId = process.env.DEFAULT_ORG_ID; if (!orgId) throw new Error('Missing default organization'); const result = await db.$transaction(async tx => { await tx.$executeRawUnsafe('SET TRANSACTION READ ONLY'); const models = await tx.pbiModel.findMany({ where: { org_id: orgId, lifecycle: 'active' }, select: { id: true, props: true } }); const reports = await tx.pbiReport.findMany({ where: { org_id: orgId, lifecycle: 'active' }, select: { id: true, name: true, props: true, model: { select: { name: true, props: true, lifecycle: true } }, lineageSnapshot: { select: { status: true, generated_at: true, lineage: true, warnings: true } } } }); const harvested = reports.filter(report => available(report.props)); return { checked_at: new Date().toISOString(), active_models: models.length, model_definitions_on_disk: models.filter(model => available(model.props)).length, models_currently_parsed: models.filter(model => available(model.props) && modelParsed(model.props)).length, active_reports: reports.length, report_definitions_on_disk: harvested.length, reports_currently_parsed: harvested.filter(report => reportParsed(report.props)).length, reports_with_available_model_definition: harvested.filter(report => report.model?.lifecycle === 'active' && available(report.model.props)).length, reports_with_new_source_payload: harvested.filter(report => Array.isArray(report.lineageSnapshot?.lineage?.sources)).length, reports: harvested.map(report => { const snapshot = report.lineageSnapshot; const sources = snapshot?.lineage?.sources || []; return { report: report.name, model: report.model?.name || null, report_parsed: reportParsed(report.props), model_definition_on_disk: report.model?.lifecycle === 'active' && available(report.model.props), model_parsed: modelParsed(report.model?.props), status: snapshot?.status || 'not_saved', generated_at: snapshot?.generated_at || null, source_tables: sources.length, unknown_source_tables: sources.filter(source => source.origins?.every(origin => origin.system === 'unknown')).map(source => source.table), source_systems: [...new Set(sources.flatMap(source => (source.origins || []).map(origin => origin.system)))], has_new_source_payload: Array.isArray(snapshot?.lineage?.sources), warnings: Array.isArray(snapshot?.warnings) ? snapshot.warnings.filter(value => typeof value === 'string' && !value.includes('://')).slice(0, 3) : [] }; }) }; }, { maxWait: 15000, timeout: 60000 }); console.log(JSON.stringify(result, null, 2)); } main().catch(error => { console.error(JSON.stringify({ code: error.code || error.name, message: 'Read-only harvested coverage check failed; no data changed.' })); process.exitCode = 1; }).finally(() => db.$disconnect());"
+			],
+			"options": { "cwd": "${workspaceFolder}" },
+			"problemMatcher": []
+		},
+		{
+			"label": "Inspect lineage for harvested models",
+			"type": "process",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"--require", "./scripts/context/noserver.cjs",
+				"-e",
+				"const { PrismaClient } = require('@prisma/client'); const fs = require('node:fs'); const path = require('node:path'); const db = new PrismaClient({ log: [] }); const root = path.resolve(process.env.PBI_RAW_STORE_ROOT || 'powerbi-estate'); function available(props) { const storage = props?.definition?.storage_path; return typeof storage === 'string' && fs.existsSync(path.join(root, storage)); } async function main() { const orgId = process.env.DEFAULT_ORG_ID; if (!orgId) throw new Error('Missing default organization'); const result = await db.$transaction(async tx => { await tx.$executeRawUnsafe('SET TRANSACTION READ ONLY'); const rows = await tx.pbiModel.findMany({ where: { org_id: orgId, lifecycle: 'active' }, select: { name: true, props: true, _count: { select: { tables: true } }, reports: { where: { lifecycle: 'active' }, select: { name: true, props: true, lineageSnapshot: { select: { status: true, generated_at: true, lineage: true } } } } } }); const models = rows.filter(model => available(model.props)); const reports = models.flatMap(model => model.reports); return { checked_at: new Date().toISOString(), downloaded_models: models.length, downloaded_models_with_tables: models.filter(model => model._count.tables > 0).length, downloaded_models_without_reports: models.filter(model => model.reports.length === 0).map(model => model.name), linked_reports: reports.length, linked_reports_with_report_definition: reports.filter(report => available(report.props)).length, linked_reports_with_source_tables: reports.filter(report => (report.lineageSnapshot?.lineage?.sources?.length || 0) > 0).length, additional_reports_without_report_definition: reports.filter(report => !available(report.props)).map(report => { const payload = report.lineageSnapshot?.lineage || {}; return { report: report.name, status: report.lineageSnapshot?.status || 'not_saved', source_tables: payload.sources?.length || 0, source_systems: [...new Set((payload.sources || []).flatMap(source => (source.origins || []).map(origin => origin.system)))], inventory_connections: payload.source_connections?.length || 0, generated_at: report.lineageSnapshot?.generated_at || null }; }) }; }, { maxWait: 15000, timeout: 60000 }); console.log(JSON.stringify(result, null, 2)); } main().catch(error => { console.error(JSON.stringify({ code: error.code || error.name, message: 'Read-only harvested-model lineage check failed; no data changed.' })); process.exitCode = 1; }).finally(() => db.$disconnect());"
+			],
+			"options": { "cwd": "${workspaceFolder}" },
+			"problemMatcher": []
+		},
+		{
+			"label": "Inspect Power BI pipeline status",
+			"type": "process",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"--require", "./scripts/context/noserver.cjs",
+				"-e",
+				"const { PrismaClient } = require('@prisma/client'); const db = new PrismaClient({ log: [] }); async function main() { const orgId = process.env.DEFAULT_ORG_ID; if (!orgId) throw new Error('Missing default organization'); const result = await db.$transaction(async tx => { await tx.$executeRawUnsafe('SET TRANSACTION READ ONLY'); const jobs = await tx.platformContextJob.findMany({ where: { org_id: orgId, job_kind: { in: ['pbi_inventory','pbi_definitions','pbi_parse','pbi_catalog_link'] } }, orderBy: { created_at: 'desc' }, take: 8, select: { id: true, job_kind: true, status: true, created_at: true, started_at: true, finished_at: true, stats: true } }); const reports = await tx.pbiReport.count({ where: { org_id: orgId, lifecycle: 'active' } }); const models = await tx.pbiModel.count({ where: { org_id: orgId, lifecycle: 'active' } }); const reportDefinitions = await tx.pbiReport.count({ where: { org_id: orgId, lifecycle: 'active', props: { path: ['definition','storage_path'], string_contains: 'report-definitions' } } }); const modelDefinitions = await tx.pbiModel.count({ where: { org_id: orgId, lifecycle: 'active', props: { path: ['definition','storage_path'], string_contains: 'definitions' } } }); const definitionJob = jobs.find(job => job.job_kind === 'pbi_definitions'); const definitionProgress = definitionJob ? { job_id: definitionJob.id, models_fetched: await tx.pbiModel.count({ where: { org_id: orgId, props: { path: ['definition','fetch_run_id'], equals: definitionJob.id } } }), reports_fetched: await tx.pbiReport.count({ where: { org_id: orgId, props: { path: ['definition','fetch_run_id'], equals: definitionJob.id } } }) } : null; const snapshots = await tx.pbiReportLineage.groupBy({ by: ['status'], where: { org_id: orgId, report: { lifecycle: 'active' } }, _count: { _all: true }, _max: { generated_at: true } }); return { checked_at: new Date().toISOString(), models, modelDefinitions, reports, reportDefinitions, definitionProgress, jobs, snapshots }; }, { maxWait: 15000, timeout: 60000 }); console.log(JSON.stringify(result, null, 2)); } main().catch(error => { console.error(JSON.stringify({ code: error.code || error.name, message: 'Read-only status check failed; no data changed.' })); process.exitCode = 1; }).finally(() => db.$disconnect());"
+			],
+			"options": { "cwd": "${workspaceFolder}" },
+			"problemMatcher": []
+		},
+		{
+			"label": "Check Definitions worker liveness",
+			"type": "process",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"--require", "./scripts/context/noserver.cjs",
+				"-e",
+				"const { PrismaClient } = require('@prisma/client'); const db = new PrismaClient({ log: [] }); async function main() { const orgId = process.env.DEFAULT_ORG_ID; if (!orgId) throw new Error('Missing default organization'); const result = await db.$transaction(async tx => { await tx.$executeRawUnsafe('SET TRANSACTION READ ONLY'); const job = await tx.platformContextJob.findFirst({ where: { org_id: orgId, job_kind: 'pbi_definitions', status: 'running' }, orderBy: { created_at: 'desc' }, select: { id: true, started_at: true, updated_at: true, scope: true } }); if (!job) return { checked_at: new Date().toISOString(), running_definitions_job: null }; const models = await tx.pbiModel.findMany({ where: { org_id: orgId, props: { path: ['definition','fetch_run_id'], equals: job.id } }, select: { props: true } }); const reports = await tx.pbiReport.findMany({ where: { org_id: orgId, props: { path: ['definition','fetch_run_id'], equals: job.id } }, select: { props: true } }); const latest = rows => rows.map(row => row.props?.definition?.fetched_at).filter(Boolean).sort().at(-1) || null; return { checked_at: new Date().toISOString(), job_id: job.id, started_at: job.started_at, job_updated_at: job.updated_at, worker_id: job.scope?.fargate_task_id || null, local_worker_alive: typeof job.scope?.fargate_task_id === 'string' && job.scope.fargate_task_id.startsWith('local-') ? (() => { try { process.kill(Number(job.scope.fargate_task_id.slice(6)), 0); return true; } catch (error) { return error.code === 'ESRCH' ? false : null; } })() : null, successful_fetches: { models: models.length, reports: reports.length }, last_model_fetch_at: latest(models), last_report_fetch_at: latest(reports) }; }, { maxWait: 15000, timeout: 60000 }); console.log(JSON.stringify(result, null, 2)); } main().catch(error => { console.error(JSON.stringify({ code: error.code || error.name, message: 'Read-only worker check failed; no data changed.' })); process.exitCode = 1; }).finally(() => db.$disconnect());"
+			],
+			"options": { "cwd": "${workspaceFolder}" },
+			"problemMatcher": []
+		},
+		{
+			"label": "Inspect automate-runs merge state",
+			"type": "process",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"-e",
+				"const cp=require('node:child_process');const git='C:/Users/senthilnathan.s/AppData/Local/Programs/Git/cmd/git.exe';const run=a=>cp.spawnSync(git,a,{cwd:process.cwd(),encoding:'utf8'});const branch=run(['branch','--show-current']);const status=run(['status','--short']);const merge=run(['rev-parse','--verify','MERGE_HEAD']);const unmerged=run(['diff','--name-only','--diff-filter=U']);const stash=run(['stash','list','-1']);console.log(JSON.stringify({branch:branch.stdout.trim(),merge_in_progress:merge.status===0,unmerged_paths:(unmerged.stdout||'').trim().split(String.fromCharCode(10)).filter(Boolean),status_lines:(status.stdout||'').trim().split(String.fromCharCode(10)).filter(Boolean).length,stash_top:(stash.stdout||'').trim().slice(0,240)},null,2));"
+			],
+			"options": { "cwd": "${workspaceFolder}" },
+			"problemMatcher": []
+		},
+		{
+			"label": "Fetch automate-runs refs safely",
+			"type": "process",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"-e",
+				"const {spawnSync}=require('node:child_process'); const git='C:/Users/senthilnathan.s/AppData/Local/Programs/Git/cmd/git.exe'; for(const remote of ['origin','synergy-marine']){ const r=spawnSync(git,['fetch','--no-tags',remote,'feature/automate-runs'],{cwd:process.cwd(),encoding:'utf8',env:{...process.env,GIT_TERMINAL_PROMPT:'0'}}); console.log(remote+' fetch exit='+r.status); const clean=s=>(s||'').replace(/https?:\\/\\/[^\\s]+/g,'[remote]').slice(-1800); if(r.stdout) console.log(clean(r.stdout)); if(r.stderr) console.log(clean(r.stderr)); if(r.status!==0) process.exitCode=1; }"
+			],
+			"options": { "cwd": "${workspaceFolder}" },
+			"problemMatcher": []
+		},
+		{
+			"label": "Check Definitions process before merge",
+			"type": "process",
+			"command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+			"args": ["-NoProfile", "-Command", "Get-CimInstance Win32_Process -Filter 'ProcessId = 48740' | Select-Object ProcessId,Name,CommandLine | ConvertTo-Json -Compress"],
+			"options": { "cwd": "${workspaceFolder}" },
+			"problemMatcher": []
+		},
+		{
+			"label": "Preserve worktree before automate-runs merge",
+			"type": "process",
+			"command": "C:\\Users\\senthilnathan.s\\AppData\\Local\\Programs\\Git\\cmd\\git.exe",
+			"args": ["stash", "push", "--include-untracked", "-m", "pre-merge preservation before feature/automate-runs", "--", ".", ":(exclude).vscode/tasks.json"],
+			"options": { "cwd": "${workspaceFolder}" },
+			"problemMatcher": []
+		},
+		{
+			"label": "Start automate-runs merge without committing",
+			"type": "process",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"-e",
+				"const cp=require('node:child_process');const git='C:/Users/senthilnathan.s/AppData/Local/Programs/Git/cmd/git.exe';const run=a=>cp.spawnSync(git,a,{cwd:process.cwd(),encoding:'utf8'});const stash=run(['stash','list','-1']);if(stash.status!==0||!stash.stdout.includes('pre-merge preservation before feature/automate-runs')){console.error('Expected preservation stash not found; merge not started.');process.exit(2);}console.log('Preservation stash:',stash.stdout.trim());const merge=run(['merge','--no-commit','--no-ff','feature/automate-runs']);console.log('Merge command exit:',merge.status);const conflicts=run(['diff','--name-only','--diff-filter=U']);console.log('Unresolved paths:');console.log(conflicts.stdout||'(none)');const status=run(['status','--short','--branch']);console.log(status.stdout);if(merge.status!==0&&conflicts.status!==0)process.exitCode=1;"
+			],
+			"options": { "cwd": "${workspaceFolder}" },
+			"problemMatcher": []
+		},
+		{
+			"label": "Inspect automate-runs conflict hunks",
+			"type": "process",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"-e",
+				"const cp=require('node:child_process');const git='C:/Users/senthilnathan.s/AppData/Local/Programs/Git/cmd/git.exe';const files=['docs/databricks-auth-and-usage.md','docs/jobs/current-status.md','docs/jobs/session-log.md','prisma/schema.prisma','scripts/context/_probe-history-text.ts','scripts/context/_probe-redaction.ts','scripts/context/_sample-curated-history.ts','scripts/context/confirm-query-history-redaction.ts','scripts/context/diagnose-query-history.ts','scripts/context/show-query-history-sample.ts','scripts/context/verify-query-history-30d.ts','src/app/api/inspector/chat/route.ts','src/lib/access/warehouse.ts','src/lib/context/databricks-adapter.ts','src/lib/inspector/prompts.ts','src/lib/inspector/tools.ts','src/lib/sections/__tests__/route-coverage.test.ts'];for(const file of files){const r=cp.spawnSync(git,['diff','--cc','--',file],{cwd:process.cwd(),encoding:'utf8',maxBuffer:1024*1024});const text=(r.stdout||r.stderr||'').trim();console.log('===== '+file+' =====');console.log(text.slice(0,3500)||'(no combined diff)');}"
+			],
+			"options": { "cwd": "${workspaceFolder}" },
+			"problemMatcher": []
+		},
+		{
+			"label": "Stage resolved automate-runs conflicts",
+			"type": "process",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"-e",
+				"const fs=require('node:fs');const cp=require('node:child_process');const git='C:/Users/senthilnathan.s/AppData/Local/Programs/Git/cmd/git.exe';const files=['docs/databricks-auth-and-usage.md','docs/jobs/current-status.md','docs/jobs/session-log.md','prisma/schema.prisma','scripts/context/_probe-history-text.ts','scripts/context/_probe-redaction.ts','scripts/context/_sample-curated-history.ts','scripts/context/confirm-query-history-redaction.ts','scripts/context/diagnose-query-history.ts','scripts/context/show-query-history-sample.ts','scripts/context/verify-query-history-30d.ts','src/app/api/inspector/chat/route.ts','src/lib/access/warehouse.ts','src/lib/context/databricks-adapter.ts','src/lib/inspector/prompts.ts','src/lib/inspector/tools.ts','src/lib/sections/__tests__/route-coverage.test.ts'];const bad=files.filter(file=>/^(<<<<<<<|=======|>>>>>>>)( |$)/m.test(fs.readFileSync(file,'utf8')));if(bad.length){console.error('Conflict markers remain:',bad);process.exit(1);}const result=cp.spawnSync(git,['add','--',...files],{cwd:process.cwd(),stdio:'inherit'});process.exitCode=result.status||0;"
+			],
+			"options": { "cwd": "${workspaceFolder}" },
+			"problemMatcher": []
+		},
+		{
+			"label": "Validate automate-runs merge",
+			"type": "process",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"-e",
+				"const cp=require('node:child_process');const checks=[['Prisma schema',['node_modules/prisma/build/index.js','validate','--schema=prisma/schema.prisma']],['TypeScript',['node_modules/typescript/bin/tsc','--noEmit','--pretty','false']],['ESLint',['node_modules/eslint/bin/eslint.js','src/lib/access/warehouse.ts','src/lib/context/databricks-adapter.ts','src/lib/inspector/prompts.ts','src/lib/inspector/tools.ts','src/app/api/inspector/chat/route.ts','src/lib/sections/__tests__/route-coverage.test.ts','scripts/context/_probe-history-text.ts','scripts/context/_probe-redaction.ts','scripts/context/_sample-curated-history.ts','scripts/context/confirm-query-history-redaction.ts','scripts/context/diagnose-query-history.ts','scripts/context/show-query-history-sample.ts','scripts/context/verify-query-history-30d.ts']],['Targeted tests',['node_modules/vitest/vitest.mjs','run','src/lib/sections/__tests__/route-coverage.test.ts','src/lib/access/__tests__/department-model.test.ts','src/lib/inspector/__tests__/domain-context.test.ts','src/lib/inspector/__tests__/verified-query-context.test.ts','src/lib/inspector/__tests__/sql-full-fetch.test.ts','src/lib/powerbi/__tests__/source-origin.test.ts','--reporter=verbose']]];let failed=false;for(const [label,args] of checks){console.log('=== '+label+' ===');const r=cp.spawnSync(process.execPath,args,{cwd:process.cwd(),stdio:'inherit'});console.log(label+' exit='+r.status);if(r.status!==0)failed=true;}process.exitCode=failed?1:0;"
+			],
+			"options": { "cwd": "${workspaceFolder}" },
+			"problemMatcher": []
+		},
+		{
+			"label": "Validate merged Prisma schema",
+			"type": "process",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": ["node_modules/prisma/build/index.js", "validate", "--schema=prisma/schema.prisma"],
+			"options": { "cwd": "${workspaceFolder}" },
+			"problemMatcher": []
+		},
+		{
+			"label": "Inspect local Next processes for Prisma generate",
+			"type": "process",
+			"command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+			"args": ["-NoProfile", "-Command", "Get-CimInstance Win32_Process -Filter \"Name = 'node.exe'\" | Where-Object { $_.CommandLine -like '*C:\\ALOFT\\aloft-ui-redesign*' } | Select-Object ProcessId,ParentProcessId,CommandLine | Format-List"],
+			"options": { "cwd": "${workspaceFolder}" },
+			"problemMatcher": []
+		},
+		{
+			"label": "Commit resolved automate-runs merge",
+			"type": "process",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"-e",
+				"const cp=require('node:child_process');const git='C:/Users/senthilnathan.s/AppData/Local/Programs/Git/cmd/git.exe';const run=a=>cp.spawnSync(git,a,{cwd:process.cwd(),encoding:'utf8'});const merge=run(['rev-parse','--verify','MERGE_HEAD']);const conflicts=run(['diff','--name-only','--diff-filter=U']);const unstaged=run(['diff','--name-only']);if(merge.status!==0){console.error('No merge is in progress; refusing to commit.');process.exit(2);}if((conflicts.stdout||'').trim()){console.error('Unresolved conflicts remain:',conflicts.stdout);process.exit(2);}if((unstaged.stdout||'').trim()){console.error('Unstaged tracked edits remain; refusing to include or omit them silently:',unstaged.stdout);process.exit(2);}const commit=run(['commit','--no-edit']);console.log(commit.stdout||commit.stderr);process.exitCode=commit.status;"
+			],
+			"options": { "cwd": "${workspaceFolder}" },
+			"problemMatcher": []
+		},
+		{
+			"label": "Reapply preserved pre-merge worktree",
+			"type": "process",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"-e",
+				"const cp=require('node:child_process');const git='C:/Users/senthilnathan.s/AppData/Local/Programs/Git/cmd/git.exe';const run=a=>cp.spawnSync(git,a,{cwd:process.cwd(),encoding:'utf8'});const head=run(['log','-1','--format=%s']);if(!head.stdout.includes('feature/automate-runs')){console.error('Expected automate-runs merge commit not at HEAD; stash not applied.');process.exit(2);}const stash=run(['stash','list','-1']);if(!stash.stdout.includes('pre-merge preservation before feature/automate-runs')){console.error('Preservation stash not found; stash not applied.');process.exit(2);}const applied=run(['stash','apply','stash@{0}']);console.log(applied.stdout||'');console.log(applied.stderr||'');console.log(run(['status','--short','--branch']).stdout);console.log('UNRESOLVED',run(['diff','--name-only','--diff-filter=U']).stdout||'(none)');process.exitCode=applied.status;"
+			],
+			"options": { "cwd": "${workspaceFolder}" },
+			"problemMatcher": []
+		}
+	]
+}

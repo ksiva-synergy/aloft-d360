@@ -14,8 +14,8 @@ import {
 } from '@/lib/powerbi/partition-kind';
 import { extractTablePathsFromSql } from '@/lib/powerbi/native-sql';
 import { getPbiRawStoreRoot } from '@/lib/powerbi/raw-store';
-import { parseLegacyReportJson } from '@/lib/powerbi/report-parse-legacy';
-import { describeSourceOrigins, parseTmdlExpressions } from '@/lib/powerbi/source-origin';
+import { summarizeReportDefinitionDir } from '@/lib/powerbi/report-measure-refs';
+import { describeSourceOrigins, parseTmdlExpressions, warehouseNavigationPath } from '@/lib/powerbi/source-origin';
 import { readMParameters } from '@/lib/powerbi/m-parameters';
 import {
   parseTmdlCultureFile,
@@ -334,7 +334,7 @@ export async function runPbiParse(
             const nativeSql = extractNativeSql(parsed.partitionSourceM);
             const host = extractDatabricksHost(parsed.partitionSourceM);
             const paths = nativeSql ? extractTablePathsFromSql(nativeSql) : [];
-            const ucPath = paths[0] ?? null;
+            const ucPath = paths[0] ?? warehouseNavigationPath(parsed.partitionSourceM);
             const sourceHash = sha256Short(parsed.partitionSourceM);
             const bindingData = {
               partition_kind: kind,
@@ -507,13 +507,16 @@ export async function runPbiParse(
       continue;
     }
     const absDir = path.join(root, defMeta.storage_path);
-    const reportJson = path.join(absDir, 'report.json');
-    if (!fs.existsSync(reportJson)) {
+    if (!fs.existsSync(absDir)) {
       reportsSkipped += 1;
       continue;
     }
     try {
-      const summary = parseLegacyReportJson(fs.readFileSync(reportJson, 'utf8'));
+      const summary = summarizeReportDefinitionDir(absDir);
+      if (summary.measureRefs.length === 0 && summary.pageCount === 0) {
+        reportsSkipped += 1;
+        continue;
+      }
       const props = {
         ...(report.props as Record<string, unknown>),
         parse: {

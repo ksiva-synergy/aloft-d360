@@ -132,7 +132,7 @@ function RoleBar({ people }: { people: Person[] }) {
           );
         })}
       </div>
-      <p className="text-[11px] text-[var(--estate-text-muted)]">{roleSummary(people)}</p>
+      <p className="text-size-eyebrow text-[var(--estate-text-muted)]">{roleSummary(people)}</p>
     </div>
   );
 }
@@ -166,7 +166,7 @@ function PeopleRoster({
         tall ? 'max-h-[min(50vh,420px)]' : 'max-h-52',
       )}
     >
-      <table className="w-full min-w-[280px] border-collapse text-left text-[11px]">
+      <table className="w-full min-w-[280px] border-collapse text-left text-size-eyebrow">
         <thead className="sticky top-0 z-[1] border-b border-[var(--estate-border)] bg-[var(--estate-bg)] text-[var(--estate-text-muted)]">
           <tr>
             <th scope="col" className="px-2 py-1.5 font-medium">
@@ -246,7 +246,7 @@ function AccessSection({ editors, viewers, dataset }: { editors: Person[]; viewe
                   setRoleFilter('all');
                 }}
                 className={
-                  'px-2.5 py-1 text-[11px] ' +
+                  'px-2.5 py-1 text-size-eyebrow ' +
                   (tab === id ? 'bg-[var(--estate-active-bg)] text-[var(--estate-ink)]' : 'hover:bg-[var(--estate-hover)]')
                 }
               >
@@ -262,7 +262,7 @@ function AccessSection({ editors, viewers, dataset }: { editors: Person[]; viewe
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Filter by name…"
-            className="w-full rounded-md border border-[var(--estate-border)] bg-[var(--estate-surface)] py-1 pl-7 pr-2 text-[11px] text-[var(--estate-ink)] outline-none placeholder:text-[var(--estate-text-dim)] focus:border-[var(--brand-a)]"
+            className="w-full rounded-md border border-[var(--estate-border)] bg-[var(--estate-surface)] py-1 pl-7 pr-2 text-size-eyebrow text-[var(--estate-ink)] outline-none placeholder:text-[var(--estate-text-dim)] focus:border-[var(--brand-a)]"
           />
         </label>
       </div>
@@ -279,7 +279,7 @@ function AccessSection({ editors, viewers, dataset }: { editors: Person[]; viewe
               type="button"
               onClick={() => setRoleFilter(f.id)}
               className={
-                'rounded-md border px-2 py-0.5 text-[11px] ' +
+                'rounded-md border px-2 py-0.5 text-size-eyebrow ' +
                 (roleFilter === f.id
                   ? 'border-[var(--brand-a)] bg-[var(--estate-active-bg)] text-[var(--estate-ink)]'
                   : 'border-[var(--estate-border)] text-[var(--estate-text-muted)] hover:bg-[var(--estate-hover)]')
@@ -291,7 +291,7 @@ function AccessSection({ editors, viewers, dataset }: { editors: Person[]; viewe
         </div>
       )}
 
-      <p className="text-[11px] text-[var(--estate-text-dim)]">
+      <p className="text-size-eyebrow text-[var(--estate-text-dim)]">
         {filtered.length === pool.length
           ? `${pool.length} people`
           : `${filtered.length} of ${pool.length} match`}
@@ -326,7 +326,7 @@ function DataSources({ sources }: { sources: PbiOwnership['sources'] }) {
             {s.gateway && <Tag tone="amber">Gateway</Tag>}
           </div>
           {s.server && (
-            <p className="mt-1 break-all font-mono text-[11px] leading-relaxed text-[var(--estate-text-muted)]">{s.server}</p>
+            <p className="mt-1 break-all font-mono text-size-eyebrow leading-relaxed text-[var(--estate-text-muted)]">{s.server}</p>
           )}
           {s.database && <p className="mt-0.5 text-caption text-[var(--estate-text-secondary)]">Database / path: {s.database}</p>}
         </li>
@@ -419,7 +419,7 @@ function OwnershipDetails({
         <DataSources sources={o.sources} />
       </SubCard>
 
-      <p className="text-[11px] leading-relaxed text-[var(--estate-text-dim)]">
+      <p className="text-size-eyebrow leading-relaxed text-[var(--estate-text-dim)]">
         Report author (created / last modified by) is only exposed by the Fabric admin scanner API, which needs a tenant
         administrator.
         {o.unavailable.length > 0 && <> Not readable with current permissions: {o.unavailable.join(', ')}.</>}
@@ -547,7 +547,7 @@ export function ModelOwnershipCard({
     return (
       <span
         className={cn(
-          'inline-flex h-8 items-center gap-1.5 px-2 text-[11px] text-[var(--estate-text-muted)]',
+          'inline-flex h-8 items-center gap-1.5 px-2 text-size-eyebrow text-[var(--estate-text-muted)]',
           className,
         )}
       >

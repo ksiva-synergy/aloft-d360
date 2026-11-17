@@ -1,6 +1,7 @@
 /** Power BI job scope fields stored on `platform_context_jobs.scope` (orchestrator). */
 
 export type PbiJobLaunchScope = {
+  all_reports?: boolean;
   model_ids?: string[];
   report_ids?: string[];
   fetch_models?: boolean;
@@ -14,6 +15,9 @@ export type PbiJobLaunchScope = {
 };
 
 export function pbiJobScopeFromLaunchBody(body: Record<string, unknown>): PbiJobLaunchScope {
+  if (body.pbiAllReports === true) {
+    return { all_reports: true, fetch_models: true, fetch_reports: true };
+  }
   const out: PbiJobLaunchScope = {};
   const modelIds = body.modelIds ?? body.model_ids;
   const reportIds = body.reportIds ?? body.report_ids;
@@ -36,4 +40,15 @@ export function pbiJobScopeFromLaunchBody(body: Record<string, unknown>): PbiJob
 export function mergeJobScope(base: Record<string, unknown>, pbi: PbiJobLaunchScope): Record<string, unknown> {
   if (Object.keys(pbi).length === 0) return base;
   return { ...base, ...pbi };
+}
+
+export const PBI_LINEAGE_KINDS = ['pbi_inventory', 'pbi_definitions', 'pbi_parse', 'pbi_catalog_link'] as const;
+
+export function pbiHarvestLimits(scope: Record<string, unknown>) {
+  return {
+    maxModels: scope.all_reports === true ? Number.MAX_SAFE_INTEGER
+      : typeof scope.max_models === 'number' ? scope.max_models : undefined,
+    maxReports: scope.all_reports === true ? Number.MAX_SAFE_INTEGER
+      : typeof scope.max_reports === 'number' ? scope.max_reports : undefined,
+  };
 }

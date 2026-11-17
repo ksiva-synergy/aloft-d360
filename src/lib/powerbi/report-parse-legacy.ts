@@ -1,5 +1,6 @@
 /**
- * Minimal legacy report.json reader — page + measure references (build plan §8.6).
+ * Report definition reader — page count and every measure a visual names.
+ * Works on legacy report.json (config is a JSON string) and on PBIR visual JSON.
  */
 
 export type LegacyReportPageSummary = {
@@ -7,27 +8,29 @@ export type LegacyReportPageSummary = {
   measureRefs: string[];
 };
 
-/** Extract measure names referenced in serialized report config. */
+/** Measure names referenced as a visual `Measure` field (any table, not one entity). */
+export function extractMeasureNames(text: string): string[] {
+  const names = new Set<string>();
+  const re = /"Measure"\s*:\s*\{/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(text))) {
+    const slice = text.slice(match.index, match.index + 800);
+    const prop = slice.match(/"Property"\s*:\s*"((?:\\.|[^"\\])*)"/);
+    if (prop?.[1]) names.add(prop[1].replace(/\\"/g, '"'));
+  }
+  return [...names];
+}
+
+/** Extract measure names referenced in a report definition file. */
 export function parseLegacyReportJson(raw: string): LegacyReportPageSummary {
   let measureRefs: string[] = [];
   try {
     const root = JSON.parse(raw) as { config?: string };
-    const configStr = root.config ?? raw;
-    const measureMatches = configStr.matchAll(
-      /"Property"\s*:\s*"([^"]+)"[^}]*"Entity"\s*:\s*"CII_Measures"/g,
-    );
-    for (const m of measureMatches) {
-      if (m[1]) measureRefs.push(m[1]);
-    }
-    const alt = configStr.matchAll(
-      /"Entity"\s*:\s*"CII_Measures"[\s\S]*?"Property"\s*:\s*"([^"]+)"/g,
-    );
-    for (const m of alt) {
-      if (m[1]) measureRefs.push(m[1]);
-    }
-    measureRefs = [...new Set(measureRefs)];
+    const configStr = typeof root.config === 'string' ? root.config : raw;
+    measureRefs = extractMeasureNames(configStr);
+    if (!measureRefs.length && configStr !== raw) measureRefs = extractMeasureNames(raw);
   } catch {
-    measureRefs = [];
+    measureRefs = extractMeasureNames(raw);
   }
 
   const sectionMatches = raw.match(/ReportSection[a-f0-9]+/gi) ?? [];
