@@ -1,10 +1,13 @@
+import { ACCESS_DENIED_MODEL_HINT, friendlyDataLabel, requestUrlForAccess } from '@/lib/access/denial-ui';
 import { prisma } from '@/lib/db';
 import { ReadOnlyViolationError, MultiStatementError, ExternalLinksError } from '@/lib/databricks/execute';
+import { CHAT_QUERY_RESULT_MAX_ROWS, largeResultDisplayNote } from './result-display';
 import { profileResultSet } from '@/lib/studio/profiler';
 import type { QueryResult } from '@/hooks/useInspectorChat';
 import type { SemanticQuery } from '@/lib/semantic/types';
 import type { AccessPrincipal } from '@/lib/access/types';
 import { isAccessActive } from '@/lib/access/mode';
+import { viewerPrincipalRequired } from '@/lib/access/column-guard';
 import { runWarehouseQuery } from '@/lib/access/warehouse';
 import { AccessDeniedError } from '@/lib/access/errors';
 import { systemPrincipal } from '@/lib/access/principal';
@@ -27,11 +30,17 @@ export interface InspectorToolContext {
   dataPrincipal?: AccessPrincipal | null;
   /** Org scope for verified-query lookup (Power BI bridge). */
   orgId?: string | null;
+  /**
+   * True when the surface renders every `query_result` row in its own table
+   * (Inspector's Results pane). The model is then told not to retype large
+   * results, because a typed table runs into the reply's output-token cap.
+   */
+  resultsPanel?: boolean;
 }
 
 function resolveWarehousePrincipal(context?: InspectorToolContext): AccessPrincipal | null {
   if (context?.dataPrincipal) return context.dataPrincipal;
-  if (!isAccessActive()) return systemPrincipal('health');
+  if (!viewerPrincipalRequired()) return systemPrincipal('health');
   return null;
 }
 
@@ -510,29 +519,65 @@ export async function executeInspectorTool(
           level: 'query',
           surface: 'sql',
           sessionId: context?.sessionId ?? null,
+          rowLimit: CHAT_QUERY_RESULT_MAX_ROWS,
         });
 
-        const cappedRows = sqlResult.rows.slice(0, 1000);
+        const cappedRows = sqlResult.rows.slice(0, CHAT_QUERY_RESULT_MAX_ROWS);
         emit({
           type: 'query_result',
           columns: sqlResult.columns,
           rows: cappedRows,
           sql: statement,
           rowCount: sqlResult.row_count,
-          truncated: sqlResult.truncated || sqlResult.rows.length > 1000,
+          truncated: sqlResult.truncated || sqlResult.rows.length > CHAT_QUERY_RESULT_MAX_ROWS,
+          ...('access_note' in sqlResult && sqlResult.access_note ? { accessNote: sqlResult.access_note } : {}),
         });
 
-        return JSON.stringify(sqlResult);
+        const displayNote = largeResultDisplayNote(sqlResult.rows.length, context?.resultsPanel === true);
+        return JSON.stringify(displayNote ? { display_note: displayNote, ...sqlResult } : sqlResult);
       }
 
       const errMsg = `Tool '${toolSlug}' is not a db_query type — Inspector only supports Databricks SQL tools`;
       emit({ type: 'tool_call_error', callId, error: errMsg, retryable: false });
       return JSON.stringify({ error: errMsg });
     } catch (err: unknown) {
+      if (err instanceof AccessDeniedError && err.detail.reason === 'sql_unresolved') {
+        // The checker could not tell which tables the SQL reads (SHOW, DESCRIBE, short names, …).
+        // That is a query to rewrite, not missing access: no Request access banner, and the model retries.
+        const reason = err.detail.sqlReason ?? 'Use fully qualified catalog.schema.table names in SQL.';
+        emit({ type: 'tool_call_error', callId, error: reason, retryable: true });
+        return JSON.stringify({
+          error: 'SQL_NOT_CHECKABLE',
+          message: reason,
+          model_hint:
+            'Rewrite as one SELECT or WITH statement that names every table as catalog.schema.table. ' +
+            'Do not use SHOW, DESCRIBE or USE — call describe_schema to find tables and columns. ' +
+            'This is not an access problem: do not tell the person they lack access.',
+        });
+      }
       if (err instanceof AccessDeniedError) {
         const msg = err.message;
+        const failedPath = err.detail.failedPath ?? err.detail.paths?.[0];
+        const label = friendlyDataLabel(failedPath);
+        const userNeed = context?.lastUserMessage?.trim().slice(0, 500);
+        const queryPaths = err.detail.paths?.filter((p) => p.split('.').length === 3) ?? [];
+        const request = requestUrlForAccess({
+          path: failedPath,
+          label,
+          context: userNeed || msg,
+          level: 'query',
+          queryPaths,
+        });
         emit({ type: 'tool_call_error', callId, error: msg, retryable: false });
-        return JSON.stringify({ error: 'ACCESS_DENIED', message: msg });
+        emit({ type: 'access_denied', message: msg, request, label, path: failedPath });
+        return JSON.stringify({
+          error: 'ACCESS_DENIED',
+          message: msg,
+          request,
+          /** Technical path for tool logs and developer mode — not for the stakeholder reply. */
+          path: err.detail.failedPath ?? err.detail.paths?.[0],
+          model_hint: ACCESS_DENIED_MODEL_HINT,
+        });
       }
       if (err instanceof ReadOnlyViolationError) {
         const msg = `Read-only violation: ${err.message}`;

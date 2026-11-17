@@ -4,24 +4,23 @@
  * Platform home dashboard: a read-only briefing of Data Estate, Memory, people (sign-ins)
  * and Inspector, rendered from a server-aggregated snapshot (src/lib/dashboard/summary.ts).
  *
- * Layout: headline that states what needs you → metrics strip (coverage, job success, memory,
- * Inspector) → estate flow with the job behind each stage + briefing (failed jobs first) →
- * memory (+ AI spend and team for admins) → memory cred. Each number appears once; colour is reserved
- * for status (ok / warn / bad) and the estate stages.
+ * Layout: workspace briefing → key metrics → prioritized actions and explained data readiness →
+ * memory, AI spend and team (admins only) → memory cred. All actions navigate to existing workflows.
  */
 
 import React, { useEffect, useState } from 'react';
 import Link from '@/lib/navigation/link';
 import {
-  ArrowRight, ChevronRight,
+  ArrowRight, ChevronRight, Database, Activity, Brain, MessagesSquare, AlertCircle, ArrowUpRight, CheckCircle2, Clock3,
 } from 'lucide-react';
 import type {
   DashboardSummary, EstateSummary, MemorySummary, LoginsSummary, JobsSummary,
   GovernanceSummary, SpendSummary,
 } from '@/lib/dashboard/summary';
 import { MemoryCredCard } from '@/components/dashboard/MemoryCredCard';
-import { ESTATE_STAGE, estateStageDisplayLabel } from '@/lib/estate/stages';
+import { ESTATE_STAGE } from '@/lib/estate/stages';
 import { cn } from '@/lib/utils';
+import styles from './DashboardView.module.css';
 
 // ── Formatting ───────────────────────────────────────────────────────────────
 
@@ -92,16 +91,14 @@ function jobState(k: JobKind | undefined): { tone: 'ok' | 'bad' | 'warn' | 'live
   if (isFailed(k.lastStatus)) return { tone: 'bad', text: `Failed ${relativeTime(k.lastFinishedAt)}` };
   if (k.overdue) return { tone: 'warn', text: k.lastFinishedAt ? `Overdue · ran ${relativeTime(k.lastFinishedAt)}` : 'Overdue · never ran' };
   if (k.queued > 0) return { tone: 'live', text: 'Queued' };
-  return { tone: 'ok', text: k.lastFinishedAt ? `Ran ${relativeTime(k.lastFinishedAt)}` : 'Never finished' };
+  if (!k.lastFinishedAt) return { tone: 'idle', text: 'Never finished' };
+  if (!['completed', 'succeeded', 'success', 'done'].includes(k.lastStatus ?? '')) return { tone: 'idle', text: `${k.lastStatus ?? 'Unknown status'} · ${relativeTime(k.lastFinishedAt)}` };
+  return { tone: 'ok', text: `Ran ${relativeTime(k.lastFinishedAt)}` };
 }
 
 const JOB_DOT: Record<ReturnType<typeof jobState>['tone'], string> = {
   ok: 'var(--ok)', bad: 'var(--bad)', warn: 'var(--warn)', live: 'var(--brand-a)', idle: 'var(--line-2)',
 };
-const JOB_TEXT: Partial<Record<ReturnType<typeof jobState>['tone'], string>> = {
-  bad: 'text-[var(--bad)]', warn: 'text-[var(--warn)]',
-};
-
 // ── Shared pieces ────────────────────────────────────────────────────────────
 
 const PANEL = 'rounded-card border border-[var(--line-1)] bg-[var(--surface-1)]';
@@ -117,8 +114,8 @@ function Section({
   return (
     <section className={cn('flex min-w-0 flex-col gap-2.5', className)} aria-label={title}>
       <div className="flex items-baseline justify-between gap-3 px-1">
-        <div className="flex min-w-0 items-baseline gap-2">
-          <h2 className="shrink-0 text-size-ui font-semibold text-[var(--ink-1)]">{title}</h2>
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+          <h2 className="shrink-0 text-size-body font-semibold text-[var(--ink-1)]">{title}</h2>
           {meta && <span className={cn('min-w-0 truncate text-caption', MUTED)}>{meta}</span>}
         </div>
         {href && (
@@ -179,7 +176,7 @@ function DayBars({ data }: { data: number[] }) {
             title={`${today ? 'Today' : d.toLocaleDateString(undefined, { weekday: 'long' })}: ${v}`}
             className="dash-grow-y flex-1 rounded-[2px]"
             style={{
-              height: `${Math.max(8, (v / max) * 100)}%`,
+              height: `${v > 0 ? Math.max(8, (v / max) * 100) : 0}%`,
               background: today ? 'var(--brand-a)' : 'color-mix(in srgb, var(--brand-a) 28%, var(--surface-3))',
               animationDelay: `${i * 30}ms`,
             }}
@@ -200,9 +197,10 @@ function Metric({
   return (
     <Link
       href={href}
-      className="dash-press group relative flex min-w-0 flex-col gap-3 bg-[var(--surface-1)] px-5 py-4 no-underline transition-colors duration-hover hover:bg-[var(--surface-2)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+      className={cn(styles.metric, 'dash-press group')}
     >
       <span className="flex items-center gap-1 text-caption font-medium text-[var(--ink-2)]">
+        <span className={styles.metricIcon}>{label === 'Searchable tables' ? <Database size={16} /> : label === 'Job success' ? <Activity size={16} /> : label === 'Active memories' ? <Brain size={16} /> : <MessagesSquare size={16} />}</span>
         {label}
         <ArrowRight className="size-3 -translate-x-1 text-[var(--ink-3)] opacity-0 transition duration-hover group-hover:translate-x-0 group-hover:opacity-100" aria-hidden />
       </span>
@@ -212,7 +210,7 @@ function Metric({
             <span className={cn(NUM, 'text-kpi-lg leading-none')}>{value}</span>
             {of && <span className={cn('truncate text-size-ui tabular-nums', MUTED)}>{of}</span>}
           </div>
-          <div className={cn('mt-2 truncate text-caption tabular-nums', MUTED)}>{sub}</div>
+          <div className={cn('mt-2 text-caption tabular-nums', MUTED)}>{sub}</div>
         </div>
         {chart && <div className="w-[84px] shrink-0 pb-0.5">{chart}</div>}
       </div>
@@ -282,273 +280,171 @@ function buildAttention(
   return out.sort((a, b) => rank[a.tone] - rank[b.tone]);
 }
 
-const TONE_COLOR: Record<Tone, string> = { bad: 'var(--bad)', warn: 'var(--warn)', info: 'var(--line-2)' };
+const SEVERITY: Record<Tone, string> = { bad: 'Needs action', warn: 'Review', info: 'Follow up' };
+function attentionDetail(item: Attention) {
+  if (item.key.startsWith('job-')) return 'Inspect the failed run and its error before retrying.';
+  if (item.key === 'pii') return 'Confirm or dismiss detected personal data in the catalog.';
+  if (item.key === 'stale') return 'Review changed tables to keep agent context current.';
+  if (item.key === 'semantic') return 'Check proposed business definitions before approving them.';
+  if (item.key === 'memjob' || item.key === 'unprocessed') return 'Review memory processing so agents can learn from recent work.';
+  if (item.key === 'queued') return 'Check which jobs are queued and what is running.';
+  if (item.key === 'failed') return 'Review sign-in activity for access problems.';
+  return 'Open the related workspace to review the details.';
+}
 
 function Briefing({ items, unavailable }: { items: Attention[]; unavailable?: boolean }) {
   const [showAll, setShowAll] = useState(false);
-  const shown = showAll ? items : items.slice(0, 5);
-  return (
-    <Section title="Briefing" meta={items.length ? `${items.length} ${plural(items.length, 'item')}` : undefined} className="lg:col-span-4">
-      <div className={cn(PANEL, 'flex flex-1 flex-col overflow-hidden')}>
-        {unavailable ? <Unavailable what="The briefing" /> : items.length === 0 ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-1 px-5 py-10 text-center">
-            <span aria-hidden className="mb-2 size-2 rounded-full bg-[var(--ok)] shadow-[0_0_0_4px_var(--ok-bg)]" />
-            <p className="text-size-ui font-medium text-[var(--ink-1)]">Nothing needs you</p>
-            <p className={cn('text-caption', MUTED)}>No failed jobs, stale data, PII to review or sign-in problems.</p>
-          </div>
-        ) : (
-          <ul className="flex flex-col divide-y divide-[var(--line-1)]">
-            {shown.map(i => (
-              <li key={i.key}>
-                <Link
-                  href={i.href}
-                  className="group flex items-center gap-3 px-4 py-3 no-underline transition-colors duration-hover hover:bg-[var(--surface-2)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
-                >
-                  <span aria-hidden className="h-4 w-[3px] shrink-0 rounded-full" style={{ background: TONE_COLOR[i.tone] }} />
-                  <span className="min-w-0 flex-1 text-size-ui text-[var(--ink-1)]">{i.text}</span>
-                  <span className="inline-flex shrink-0 items-center gap-0.5 text-caption text-[var(--ink-3)] transition-colors duration-hover group-hover:text-[var(--brand-a-ink)]">
-                    {i.action}
-                    <ChevronRight className="size-3.5" aria-hidden />
-                  </span>
-                </Link>
-              </li>
-            ))}
-            {items.length > 5 && (
-              <li>
-                <button type="button" onClick={() => setShowAll(v => !v)} className="w-full px-4 py-2.5 text-left text-caption font-medium text-[var(--ink-2)] hover:bg-[var(--surface-2)]">
-                  {showAll ? 'Show less' : `Show all ${items.length}`}
-                </button>
-              </li>
-            )}
-          </ul>
-        )}
-      </div>
-    </Section>
-  );
+  const [filter, setFilter] = useState<Tone | 'all'>('all');
+  const filtered = filter === 'all' ? items : items.filter(item => item.tone === filter);
+  const shown = showAll ? filtered : filtered.slice(0, 3);
+  return <section className={styles.attention} id="dashboard-attention" aria-label="Your action list">
+    <div className={styles.sectionHeading}>
+      <div><span className={styles.eyebrow}>START HERE</span><h2>Your action list <span className={styles.count}>{items.length}</span></h2></div>
+      <AlertCircle size={19} aria-hidden />
+    </div>
+    <p className={styles.sectionDescription}>Issues to resolve and reviews to complete, ordered by priority.</p>
+    {!unavailable && items.length > 0 && <div className={styles.filters} aria-label="Filter action list">
+      {(['all', 'bad', 'warn', 'info'] as const).map(value => <button type="button" key={value} aria-pressed={filter === value}
+        onClick={() => { setFilter(value); setShowAll(false); }}>
+        {value === 'all' ? 'All' : value === 'bad' ? 'Failures' : value === 'warn' ? 'Reviews' : 'Follow-ups'}
+        <span>{value === 'all' ? items.length : items.filter(item => item.tone === value).length}</span>
+      </button>)}
+    </div>}
+    {unavailable ? <Unavailable what="The action list" /> : items.length === 0 ? <div className={styles.empty}>
+      <CheckCircle2 size={24} /><strong>No issues reported</strong><p>Available data has no pending alerts. Check unavailable sections separately.</p>
+    </div> : <>
+      <ul className={styles.actions}>{shown.map(item => <li key={item.key}>
+        <Link href={item.href} className={styles.action}>
+          <span className={styles.severity} data-tone={item.tone}>{SEVERITY[item.tone]}</span>
+          <strong>{item.text}</strong><p>{attentionDetail(item)}</p>
+          <span className={styles.actionLink}>{item.action === 'Open' ? 'Inspect job' : item.action === 'Review' ? 'Review details' : `Open ${item.action.toLowerCase()}`} <ArrowUpRight size={14} aria-hidden /></span>
+        </Link>
+      </li>)}</ul>
+      {filtered.length === 0 && <p className={styles.sectionDescription}>No items in this category.</p>}
+      {filtered.length > 3 && <button className={styles.showMore} type="button" onClick={() => setShowAll(v => !v)}>{showAll ? 'Show fewer items' : `View all ${filtered.length} items`} <ChevronRight size={15} /></button>}
+    </>}
+  </section>;
 }
 
 // ── Data estate flow ─────────────────────────────────────────────────────────
 
 function EstateFlow({ e, jobs }: { e: EstateSummary | null; jobs: JobsSummary | null }) {
-  if (!e) {
-    return (
-      <Section title="Data estate" href="/agent-lab/estate" className="lg:col-span-8">
-        <div className={PANEL}><Unavailable what="Estate coverage" /></div>
-      </Section>
-    );
-  }
+  if (!e) return <section className={styles.readiness}><h2>Data readiness</h2><Unavailable what="Estate coverage" /></section>;
   const found = Math.max(e.estateTotal, e.harvested);
   const stages = [
-    { s: ESTATE_STAGE.discovered, n: found },
-    { s: ESTATE_STAGE.scanned, n: e.harvested },
-    { s: ESTATE_STAGE.profiled, n: e.profiled },
-    { s: ESTATE_STAGE.enriched, n: e.enriched },
-    { s: ESTATE_STAGE.searchable, n: e.embedded },
+    { stage: ESTATE_STAGE.discovered, count: found, label: 'Discovered', detail: 'Tables found across connected sources' },
+    { stage: ESTATE_STAGE.scanned, count: e.harvested, label: 'Structure scanned', detail: 'Columns and schema captured · T0' },
+    { stage: ESTATE_STAGE.profiled, count: e.profiled, label: 'Data profiled', detail: 'Data characteristics collected · T1' },
+    { stage: ESTATE_STAGE.enriched, count: e.enriched, label: 'Business context added', detail: 'Meaning and descriptions prepared · T2' },
+    { stage: ESTATE_STAGE.searchable, count: e.embedded, label: 'Searchable by agents', detail: 'Descriptions indexed for retrieval · Embed' },
   ];
-  // Step-to-step conversion, so each connector reads as "of the previous stage".
-  const conv = stages.slice(1).map((st, i) => pct(st.n, stages[i].n));
-  const worst = found > 0 ? conv.indexOf(Math.min(...conv)) : -1;
-
-  // Where every discovered table sits today (exclusive buckets, furthest stage wins).
-  const searchable = Math.min(e.embedded, found);
-  const described = Math.max(0, Math.min(e.enriched, found) - searchable);
-  const profiled = Math.max(0, Math.min(e.profiled, found) - searchable - described);
-  const scanned = Math.max(0, e.harvested - searchable - described - profiled);
-  const waiting = Math.max(0, found - e.harvested);
-  const buckets = [
-    { label: estateStageDisplayLabel(ESTATE_STAGE.searchable), n: searchable, color: ESTATE_STAGE.searchable.color },
-    { label: estateStageDisplayLabel(ESTATE_STAGE.enriched), n: described, color: ESTATE_STAGE.enriched.color },
-    { label: estateStageDisplayLabel(ESTATE_STAGE.profiled), n: profiled, color: ESTATE_STAGE.profiled.color },
-    { label: 'Scanned only', n: scanned, color: ESTATE_STAGE.scanned.color },
-    { label: 'Not scanned', n: waiting, color: 'var(--surface-3)' },
-  ].filter(b => b.n > 0);
-
+  const gaps = stages.slice(1).map((stage, i) => Math.max(0, stages[i].count - stage.count));
+  const biggest = Math.max(...gaps);
+  const gapIndex = gaps.indexOf(biggest);
   const stageKinds = new Set(Object.values(STAGE_JOB));
-  const order = Object.keys(JOB_LABELS);
-  const otherJobs = (jobs?.kinds ?? [])
-    .filter(k => !stageKinds.has(k.kind) && JOB_LABELS[k.kind])
-    .sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
-
-  return (
-    <Section
-      title="Data estate"
-      meta={`${e.sources} ${plural(e.sources, 'source')} · last scan ${relativeTime(e.lastSweepAt)}`}
-      href="/agent-lab/estate"
-      className="lg:col-span-8"
-    >
-      <div className={cn(PANEL, 'flex flex-1 flex-col')}>
-        <ol className="grid grid-cols-2 gap-y-5 px-5 pb-5 pt-5 sm:grid-cols-5 xl:flex xl:items-stretch">
-          {stages.map((st, i) => (
-            <React.Fragment key={st.s.key}>
-              {i > 0 && (
-                <li
-                  className="hidden shrink-0 items-center gap-0.5 self-end px-2 pb-[3px] xl:flex"
-                  title={`${conv[i - 1]}% of ${stages[i - 1].s.label.toLowerCase()} tables reach ${st.s.label.toLowerCase()}`}
-                >
-                  <ChevronRight aria-hidden className={cn('size-3.5', i - 1 === worst ? 'text-[var(--warn)]' : 'text-[var(--line-2)]')} />
-                  <span
-                    className={cn(
-                      'rounded-full px-1.5 py-px text-caption font-medium tabular-nums',
-                      i - 1 === worst ? 'bg-[var(--warn-bg)] text-[var(--warn)]' : 'bg-[var(--surface-2)] text-[var(--ink-3)]',
-                    )}
-                  >
-                    {conv[i - 1]}%
-                  </span>
-                </li>
-              )}
-              <li className="flex min-w-0 flex-1 flex-col gap-1.5" title={st.s.help}>
-                <span className="flex items-center gap-1.5 text-caption text-[var(--ink-2)]">
-                  <span aria-hidden className="size-1.5 shrink-0 rounded-full" style={{ background: st.s.color }} />
-                  {st.s.label}
-                </span>
-                <span className={cn(NUM, 'text-kpi-md leading-none')}>{st.n.toLocaleString()}</span>
-                {jobs && (() => {
-                  const kind = STAGE_JOB[st.s.key];
-                  const js = jobState(jobs.kinds.find(k => k.kind === kind));
-                  return (
-                    <Link
-                      href={jobHref(kind)}
-                      title={`${jobLabel(kind)} job`}
-                      className={cn(
-                        'mt-0.5 inline-flex w-fit max-w-full items-center gap-1.5 truncate text-caption tabular-nums no-underline transition-colors duration-hover hover:text-[var(--brand-a-ink)]',
-                        js.tone === 'bad' || js.tone === 'warn' ? JOB_TEXT[js.tone] : MUTED,
-                      )}
-                    >
-                      <span
-                        aria-hidden
-                        className={cn('size-1.5 shrink-0 rounded-full', js.tone === 'live' && 'animate-pulse')}
-                        style={{ background: JOB_DOT[js.tone] }}
-                      />
-                      <span className="truncate">{js.text}</span>
-                    </Link>
-                  );
-                })()}
-              </li>
-            </React.Fragment>
-          ))}
-        </ol>
-
-        <div className="border-t border-[var(--line-1)] px-5 pb-4 pt-4">
-          <div className="mb-2 flex items-baseline justify-between gap-3">
-            <span className="text-caption text-[var(--ink-2)]">Where your {fmt(found)} tables are</span>
-            {worst >= 0 && (
-              <Link href="/agent-lab/estate/jobs" className="text-caption text-[var(--ink-3)] no-underline hover:text-[var(--brand-a-ink)]">
-                Biggest drop: <span className="text-[var(--warn)]">{stages[worst].s.label} → {stages[worst + 1].s.label}</span>
-              </Link>
-            )}
+  const otherJobs = (jobs?.kinds ?? []).filter(k => !stageKinds.has(k.kind) && JOB_LABELS[k.kind]);
+  return <section className={styles.readiness} aria-label="Data readiness">
+    <div className={styles.sectionHeading}>
+      <div><span className={styles.eyebrow}>FROM SOURCE TO ANSWER</span><h2>Data readiness</h2></div>
+      <Link href="/agent-lab/estate" className={styles.textLink}>Explore estate <ArrowUpRight size={15} /></Link>
+    </div>
+    <p className={styles.sectionDescription}>{e.sources} connected {plural(e.sources, 'source')} · Last scan {relativeTime(e.lastSweepAt)}</p>
+    <div className={styles.coverage}>
+      <div><strong>{found ? `${pct(e.embedded, found)}%` : '—'}</strong><span>ready for agent search</span></div>
+      <p>{e.embedded.toLocaleString()} searchable / {found.toLocaleString()} discovered tables</p>
+    </div>
+    <div className={styles.journey} role="img" aria-label={`${e.embedded} of ${found} discovered tables are searchable`}>
+      <svg viewBox="0 0 600 190" preserveAspectRatio="none" aria-hidden="true">
+        {[0, 1, 2, 3].map(i => {
+          const x = 30 + i * 135, nextX = x + 135;
+          const y = 170 - (found ? Math.min(stages[i].count / found, 1) * 150 : 0);
+          const nextY = 170 - (found ? Math.min(stages[i + 1].count / found, 1) * 150 : 0);
+          const color = ['#658b9a', '#2b9c90', '#8e7ec6', 'var(--brand-a)'][i];
+          return <g key={i}>
+            <path d={`M${x} ${y} C${x + 65} ${y} ${nextX - 65} ${nextY} ${nextX} ${nextY} L${nextX} 170 L${x} 170Z`} fill={color} opacity=".16" />
+            <path d={`M${x} ${y} C${x + 65} ${y} ${nextX - 65} ${nextY} ${nextX} ${nextY}`} fill="none" stroke={color} strokeWidth="2" />
+          </g>;
+        })}
+        {stages.map((stage, i) => {
+          const x = 30 + i * 135, y = 170 - (found ? Math.min(stage.count / found, 1) * 150 : 0);
+          return <g key={stage.stage.key}><line x1={x} y1="10" x2={x} y2="180" stroke="var(--line-1)" strokeDasharray="3 5" /><circle cx={x} cy={y} r="4" fill={i === 4 ? 'var(--brand-a)' : 'var(--ink-3)'} /></g>;
+        })}
+      </svg>
+      <span className={styles.journeyCaption}>Cumulative table coverage across the pipeline</span>
+    </div>
+    <ol className={styles.pipeline}>
+      {stages.map((item, i) => {
+        const kind = STAGE_JOB[item.stage.key];
+        const status = jobs ? jobState(jobs.kinds.find(k => k.kind === kind)) : null;
+        return <li key={item.stage.key}>
+          <span className={styles.stepNumber}>{String(i + 1).padStart(2, '0')}</span>
+          <div className={styles.stageLabel}><strong>{item.label}</strong><span>{item.detail}</span></div>
+          <div className={styles.stageValue}><strong>{item.count.toLocaleString()}</strong>
+            <div className={styles.stageTrack}><span style={{ width: `${pct(item.count, found)}%`, background: item.stage.color }} /></div>
           </div>
-          <div className="flex h-2.5 gap-[2px] overflow-hidden rounded-full" role="img" aria-label={buckets.map(b => `${b.label} ${b.n}`).join(', ')}>
-            {buckets.map((b, i) => (
-              <div
-                key={b.label}
-                title={`${b.label}: ${b.n.toLocaleString()} (${pct(b.n, found)}%)`}
-                className="dash-grow-x h-full first:rounded-l-full last:rounded-r-full"
-                style={{ width: `${(b.n / found) * 100}%`, minWidth: 3, background: b.color, animationDelay: `${i * 50}ms` }}
-              />
-            ))}
-          </div>
-          <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1">
-            {buckets.map(b => (
-              <span key={b.label} className={cn('inline-flex items-center gap-1.5 text-caption', MUTED)}>
-                <span aria-hidden className="size-2 rounded-[2px]" style={{ background: b.color, boxShadow: b.label === 'Not scanned' ? 'inset 0 0 0 1px var(--line-2)' : undefined }} />
-                {b.label}
-                <span className="tabular-nums text-[var(--ink-2)]">{pct(b.n, found)}%</span>
-              </span>
-            ))}
-          </div>
-        </div>
-
-        {otherJobs.length > 0 && (
-          <div className="mt-auto flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-[var(--line-1)] px-5 py-3">
-            <span className={cn('text-caption', MUTED)}>Other jobs</span>
-            {otherJobs.map(k => {
-              const js = jobState(k);
-              return (
-                <Link
-                  key={k.kind}
-                  href={jobHref(k.kind)}
-                  className="group inline-flex items-center gap-1.5 text-caption no-underline"
-                >
-                  <span aria-hidden className={cn('size-1.5 shrink-0 rounded-full', js.tone === 'live' && 'animate-pulse')} style={{ background: JOB_DOT[js.tone] }} />
-                  <span className="text-[var(--ink-1)] transition-colors duration-hover group-hover:text-[var(--brand-a-ink)]">{jobLabel(k.kind)}</span>
-                  <span className={cn('tabular-nums', JOB_TEXT[js.tone] ?? MUTED)}>{js.text.toLowerCase()}</span>
-                </Link>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </Section>
-  );
+          <Link href={jobHref(kind)} className={styles.stageStatus} data-tone={status?.tone} style={{ color: status ? JOB_DOT[status.tone] : undefined }}>
+            {status?.text ?? 'Job status unavailable'} <ChevronRight size={12} aria-hidden />
+          </Link>
+        </li>;
+      })}
+    </ol>
+    <details className={styles.stageGuide}><summary>How to read this journey</summary><p>Stages show cumulative coverage, not separate groups of tables.</p><ul>{stages.map(item => <li key={item.stage.key}><strong>{item.label}</strong><span>{item.detail}</span></li>)}</ul><p>The height of the line shows how many discovered tables have reached each stage. A steep drop indicates a coverage gap, not necessarily a failed job.</p></details>
+    {biggest > 0 && <div className={styles.nextStep}>
+      <ArrowRight size={18} aria-hidden /><div><strong>Largest coverage gap: {stages[gapIndex + 1].label.toLowerCase()}</strong>
+      <p>{biggest.toLocaleString()} fewer tables than the preceding stage. Review scope and job results before continuing.</p></div>
+      <Link href={jobHref(STAGE_JOB[stages[gapIndex + 1].stage.key])}>Review <ArrowUpRight size={14} /></Link>
+    </div>}
+    {!found && <p className={styles.sectionDescription}>No tables discovered yet. Open the estate to review your connected sources.</p>}
+    {otherJobs.length > 0 && <details className={styles.otherJobs}><summary>Supporting jobs <span>{otherJobs.length}</span></summary>
+      <ul>{otherJobs.map(k => { const status = jobState(k); return <li key={k.kind}><Link href={jobHref(k.kind)}><span>{jobLabel(k.kind)}</span><span style={{ color: JOB_DOT[status.tone] }}>{status.text} <ChevronRight size={12} /></span></Link></li>; })}</ul>
+    </details>}
+  </section>;
 }
 
 // ── Memory ───────────────────────────────────────────────────────────────────
 
 function MemoryPanel({ m }: { m: MemorySummary | null }) {
-  return (
-    <Section title="Memory" meta={m ? (m.injectEnabled ? 'In use by agents' : 'Not in use') : undefined} href="/agent-lab/memory" className="lg:col-span-12">
-      <div className={cn(PANEL, 'flex flex-1 flex-col')}>
-        {!m ? <Unavailable what="Memory" /> : (() => {
-          const rated = m.helpfulTotal + m.harmfulTotal;
-          const helpfulPct = Math.round(m.helpfulRatio * 100);
-          const topMax = Math.max(...m.topTopics.map(t => t.count), 1);
-          return (
-            <div className="grid grid-cols-1 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-              <div className="flex flex-col border-b border-[var(--line-1)] md:border-b-0 md:border-r">
-                <div className="flex items-end justify-between gap-4 px-5 pt-5">
-                  <div>
-                    <div className="text-caption text-[var(--ink-2)]">Helpful when used</div>
-                    <div className={cn(NUM, 'mt-1.5 text-kpi-lg leading-none')}>{rated ? `${helpfulPct}%` : '—'}</div>
-                  </div>
-                  <div className={cn('pb-0.5 text-right text-caption tabular-nums', MUTED)}>
-                    {rated ? <>{m.helpfulTotal} helpful<br />{m.harmfulTotal} not helpful</> : 'No ratings yet'}
-                  </div>
-                </div>
-                <div className="mx-5 mt-3 flex h-1.5 gap-[2px] overflow-hidden rounded-full bg-[var(--surface-3)]">
-                  {rated > 0 && <div className="dash-grow-x rounded-l-full" style={{ width: `${helpfulPct}%`, background: 'var(--ok)' }} />}
-                  {rated > 0 && helpfulPct < 100 && <div className="dash-grow-x rounded-r-full" style={{ width: `${100 - helpfulPct}%`, background: 'color-mix(in srgb, var(--bad) 55%, transparent)', animationDelay: '80ms' }} />}
-                </div>
-                <p className={cn('mx-5 mb-5 mt-2.5 text-caption tabular-nums', MUTED)}>
-                  {fmt(m.activeMemories)} active · {fmt(m.coreMemories)} core · learned from {fmt(m.tracedSessions)} {plural(m.tracedSessions, 'session')}
-                </p>
-                <dl className="mt-auto grid grid-cols-3 divide-x divide-[var(--line-1)] border-t border-[var(--line-1)]">
-                  {[
-                    { k: 'Used today', v: fmt(m.injectedLast24h) },
-                    { k: 'Blocked this week', v: fmt(m.phantomsBlocked7d), title: 'Low-quality memories kept away from agents' },
-                    { k: 'Last learned', v: relativeTime(m.lastSynthesisAt) },
-                  ].map(x => (
-                    <div key={x.k} className="px-4 py-3" title={x.title}>
-                      <dt className={cn('truncate text-caption', MUTED)}>{x.k}</dt>
-                      <dd className="mt-0.5 truncate text-size-ui font-medium tabular-nums text-[var(--ink-1)]">{x.v}</dd>
-                    </div>
-                  ))}
-                </dl>
-              </div>
+  const rated = m ? m.helpfulTotal + m.harmfulTotal : 0;
+  const helpfulPct = m ? Math.max(0, Math.min(100, Math.round(m.helpfulRatio * 100))) : 0;
+  const topics = m ? [...m.topTopics].sort((a, b) => b.count - a.count).slice(0, 6) : [];
+  const topMax = Math.max(...topics.map(t => t.count), 1);
+  return <Section title="Agent memory" href="/agent-lab/memory" linkLabel="Explore memory" className="lg:col-span-12"
+    meta={m ? <span className={styles.memoryStatus} data-enabled={m.injectEnabled}>{m.injectEnabled ? 'In use by agents' : 'Not in use'}</span> : undefined}>
+    {!m ? <div className={PANEL}><Unavailable what="Memory" /></div> : <div className={styles.memoryPanel}>
+      <div className={styles.memoryHealth}>
 
-              <div className="px-5 py-5">
-                <h3 className={cn('mb-2 text-caption', MUTED)}>What agents remember most</h3>
-                {m.topTopics.length === 0 ? (
-                  <p className={cn('text-size-ui', MUTED)}>No topics yet.</p>
-                ) : (
-                  <ul className="flex flex-col gap-2">
-                    {m.topTopics.slice(0, 6).map((t, i) => (
-                      <li key={t.name} className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)_2rem] items-center gap-3 text-size-ui">
-                        <span className="truncate text-[var(--ink-1)]">{t.name}</span>
-                        <div className="h-1 overflow-hidden rounded-full bg-[var(--surface-3)]">
-                          <div className="dash-grow-x h-full rounded-full" style={{ width: `${(t.count / topMax) * 100}%`, background: 'color-mix(in srgb, var(--brand-a) 60%, var(--surface-3))', animationDelay: `${i * 40}ms` }} />
-                        </div>
-                        <span className={cn('text-right text-caption tabular-nums', MUTED)}>{t.count}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
-          );
-        })()}
+        <div className={styles.memoryScore}>
+          <div className={styles.memoryRing} role="img" aria-label={rated ? `${helpfulPct}% helpful across ${rated} ratings` : 'No memory ratings yet'}>
+            <svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="var(--surface-3)" strokeWidth="8" />
+              {rated > 0 && <circle cx="60" cy="60" r="50" fill="none" stroke="var(--ok)" strokeWidth="8" strokeLinecap="round" pathLength="100" strokeDasharray={`${helpfulPct} 100`} transform="rotate(-90 60 60)" />}
+            </svg>
+            <div><strong>{rated ? `${helpfulPct}%` : '—'}</strong><span>{rated ? 'helpful' : 'not rated'}</span></div>
+          </div>
+          <div className={styles.memoryRatings}>
+            <h3>Memory helpfulness</h3><p>{rated ? `${rated.toLocaleString()} rated uses` : 'No ratings yet'}</p>
+            <dl><div><dt><span className={styles.helpfulDot} />Helpful</dt><dd>{m.helpfulTotal.toLocaleString()}</dd></div>
+              <div><dt><span className={styles.unhelpfulDot} />Not helpful</dt><dd>{m.harmfulTotal.toLocaleString()}</dd></div></dl>
+          </div>
+        </div>
+        <p className={styles.memoryContext}><strong>{m.activeMemories.toLocaleString()}</strong> active memories · <strong>{m.coreMemories.toLocaleString()}</strong> core · Learned from <strong>{m.tracedSessions.toLocaleString()}</strong> sessions</p>
+
       </div>
-    </Section>
-  );
+      <div className={styles.memoryTopics}>
+        <div className={styles.memoryHeading}><h3>Most remembered</h3><span title="Bars compare each topic with the largest shown, not with all memories.">Memories by topic</span></div>
+        {topics.length === 0 ? <p className={styles.sectionDescription}>No topics yet. They appear as memories are organized.</p> : <ol className={styles.topicList}>
+          {topics.map((topic, i) => <li key={topic.name}>
+            <div className={styles.topicName}><span>{topic.name}</span><div className={styles.topicTrack} aria-hidden="true"><span style={{ width: `${topic.count / topMax * 100}%`, opacity: 1 - i * .1 }} /></div></div>
+            <strong>{topic.count.toLocaleString()}</strong>
+          </li>)}
+        </ol>}
+      </div>
+        <dl className={styles.memoryActivity}>
+          <div><dt>Uses · last 24h</dt><dd>{fmt(m.injectedLast24h)}</dd></div>
+          <div title="Low-quality memories prevented from reaching agents"><dt>Blocked · last 7d</dt><dd>{fmt(m.phantomsBlocked7d)}</dd></div>
+          <div><dt>Last learned</dt><dd>{m.lastSynthesisAt ? relativeTime(m.lastSynthesisAt) : 'Not yet'}</dd></div>
+        </dl>
+    </div>}
+  </Section>;
 }
 
 // ── AI spend ─────────────────────────────────────────────────────────────────
@@ -589,7 +485,7 @@ function SpendPanel({ s }: { s: SpendSummary | null }) {
                       title={`${today ? 'Today' : d.toLocaleDateString(undefined, { weekday: 'long' })}: ${usd(v)}`}
                       className="dash-grow-y flex-1 rounded-[3px]"
                       style={{
-                        height: `${Math.max(4, (v / max) * 100)}%`,
+                        height: `${v > 0 ? Math.max(4, (v / max) * 100) : 0}%`,
                         background: today ? 'var(--brand-a)' : 'color-mix(in srgb, var(--brand-a) 28%, var(--surface-3))',
                         animationDelay: `${i * 30}ms`,
                       }}
@@ -684,7 +580,6 @@ const MOTION_CSS = `
 
 export function DashboardView({
   summary,
-  displayName,
   roleLabel,
   canReadUsers,
 }: {
@@ -698,25 +593,16 @@ export function DashboardView({
   const governance = summary.governance ?? null;
   const spend = summary.spend ?? null;
 
-  // Greeting and date are client-derived to avoid SSR/timezone drift.
+  // Date is client-derived to avoid SSR/timezone drift.
   const [mounted, setMounted] = useState(false);
-  const [greeting, setGreeting] = useState('Welcome back');
   const [dateStr, setDateStr] = useState('');
   useEffect(() => {
     setMounted(true);
-    const h = new Date().getHours();
-    setGreeting(h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening');
     setDateStr(new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }));
   }, []);
 
   const attention = buildAttention(estate, memory, logins, jobs, governance, canReadUsers);
-  const urgent = attention.filter(a => a.tone !== 'info').length;
   const noData = !estate && !memory && !logins && !inspector && !jobs && !governance;
-  const headline = noData
-    ? 'Platform data is not available right now.'
-    : urgent > 0
-    ? `${urgent} ${plural(urgent, 'thing needs', 'things need')} your attention.`
-    : attention.length > 0 ? 'Nothing urgent today.' : 'Everything is running smoothly.';
   const memGrowth = memory && memory.storeSeries.length > 1 ? memory.storeSeries[memory.storeSeries.length - 1] - memory.storeSeries[0] : null;
   const found = estate ? Math.max(estate.estateTotal, estate.harvested) : 0;
   const runs = jobs?.kinds.reduce((a, k) => ({
@@ -725,48 +611,32 @@ export function DashboardView({
   const finished = runs ? runs.ok + runs.failed : 0;
 
   return (
-    <div className="dash-page h-full overflow-y-auto scrollbar-thin">
+    <div className={cn(styles.page, 'h-full overflow-y-auto scrollbar-thin')}>
       <style>{MOTION_CSS}</style>
-      <div className="relative mx-auto flex max-w-[1240px] flex-col gap-8 px-5 pb-16 pt-8 sm:px-8">
-        <header className="relative flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
-          <div className="min-w-0">
-            <p className={cn('mb-2 text-caption', MUTED)}>
-              {[mounted ? dateStr : null, roleLabel].filter(Boolean).join(' · ')}
-            </p>
-            <h1 className="text-title-page">
-              <span className="wl-title">{greeting}, {displayName}.</span>
-              <span className="block text-[var(--ink-3)]">{headline}</span>
-            </h1>
-          </div>
-          {mounted && (
-            <div className={cn('flex items-center gap-4 text-caption', MUTED)}>
-              {runs && runs.running > 0 && (
-                <Link href="/agent-lab/estate/jobs?tab=active" className="inline-flex items-center gap-1.5 text-[var(--ink-2)] no-underline hover:text-[var(--brand-a-ink)]">
-                  <span aria-hidden className="size-1.5 animate-pulse rounded-full bg-[var(--brand-a)]" />
-                  {runs.running} {plural(runs.running, 'job')} running
-                </Link>
-              )}
-              <span className="inline-flex items-center gap-1.5" title={new Date(summary.generatedAt).toLocaleString()}>
-                <span aria-hidden className="size-1.5 rounded-full bg-[var(--ok)]" />
-                Updated {relativeTime(summary.generatedAt)}
-              </span>
+      <div className={styles.container}>
+        <header className={styles.header}>
+          <div className={styles.headerTitle}><h1>Overview</h1><span>{roleLabel}</span></div>
+          <div className={styles.headerActions}>
+            <div className={styles.snapshot}>
+              <span><Clock3 size={13} aria-hidden />{mounted ? dateStr : 'Workspace summary'}</span>
+              {mounted && <small title={new Date(summary.generatedAt).toLocaleString()}>Snapshot updated {relativeTime(summary.generatedAt)}</small>}
             </div>
-          )}
+            <Link href="/inspector">Ask Data <ArrowUpRight size={15} aria-hidden /></Link>
+          </div>
         </header>
-
-        <div className={cn(PANEL, 'grid grid-cols-1 gap-px overflow-hidden bg-[var(--line-1)] sm:grid-cols-2 lg:grid-cols-4')}>
+        <div className={styles.metrics} aria-label="Key metrics">
           <Metric
             label="Searchable tables"
             href="/agent-lab/estate"
             value={estate ? fmt(estate.embedded) : '—'}
             of={estate ? `of ${fmt(found)}` : undefined}
-            sub={estate ? `${pct(estate.embedded, found)}% of everything discovered` : 'Not available'}
+            sub={estate ? `${pct(estate.embedded, found)}% coverage · ready for retrieval` : 'Not available'}
           />
           <Metric
             label="Job success"
             href="/agent-lab/estate/jobs"
             value={runs && finished > 0 ? `${pct(runs.ok, finished)}%` : '—'}
-            of={runs && finished > 0 ? 'this week' : undefined}
+            of={runs && finished > 0 ? 'last 7 days' : undefined}
             sub={!jobs ? 'Not available' : runs && runs.total > 0
               ? <>{fmt(runs.total)} {plural(runs.total, 'run')}{runs.failed > 0 && <> · <span className="text-[var(--bad)]">{runs.failed} failed</span></>}</>
               : 'No runs this week'}
@@ -779,20 +649,20 @@ export function DashboardView({
             chart={memory ? <Sparkline data={memory.storeSeries} /> : undefined}
           />
           <Metric
-            label={canReadUsers ? 'Inspector sessions' : 'My sessions'}
+            label={canReadUsers ? 'Ask Data sessions' : 'My sessions'}
             href="/inspector"
             value={inspector ? fmt(inspector.sessions7d) : '—'}
-            of={inspector ? 'this week' : undefined}
+            of={inspector ? 'last 7 days' : undefined}
             sub={inspector ? (
               <span title={`All time: ${inspector.totalSessions.toLocaleString()} sessions, ${inspector.totalMessages.toLocaleString()} messages`}>
-                {inspector.totalMessages >= 1_000 && inspector.totalMessages < 10_000 ? `${(inspector.totalMessages / 1_000).toFixed(1)}K` : fmt(inspector.totalMessages)} {plural(inspector.totalMessages, 'message')}{canReadUsers ? ` · ${inspector.activeUsers} ${plural(inspector.activeUsers, 'person', 'people')}` : ' all time'}
+                {inspector.totalMessages >= 1_000 && inspector.totalMessages < 10_000 ? `${(inspector.totalMessages / 1_000).toFixed(1)}K` : fmt(inspector.totalMessages)} {plural(inspector.totalMessages, 'message')} all time{canReadUsers ? ` · ${inspector.activeUsers} ${plural(inspector.activeUsers, 'person', 'people')}` : ''}
               </span>
             ) : 'Not available'}
             chart={inspector ? <DayBars data={inspector.dailyCounts} /> : undefined}
           />
         </div>
 
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-6">
+        <div className={styles.mainGrid}>
           <EstateFlow e={estate} jobs={jobs} />
           <Briefing items={attention} unavailable={noData} />
         </div>

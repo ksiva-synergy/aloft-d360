@@ -7,6 +7,7 @@ import {
   type ToolConfiguration,
 } from '@aws-sdk/client-bedrock-runtime';
 import { classifyToolCall, type ToolKind } from '@/lib/boost/classify';
+import { finishCutOffReply, isOutputCapStop } from './reply-cutoff';
 
 export type TrajectoryEntry = {
   seq: number;
@@ -28,6 +29,8 @@ export type AgentLoopResult = {
   usage: { inputTokens: number; outputTokens: number };
   loops: number;
   errorDetail?: string;
+  /** Gateway model that actually answered, when a later model stood in for the one that failed. */
+  servedModelId?: string;
 };
 
 /** Per-LLM-call measurements, persisted to agent_loop_log by the caller. */
@@ -51,7 +54,8 @@ export type LoopMetrics = {
   contextMessages: number;
   contextChars: number;
   toolCalls: number;
-  stopReason: 'tool_use' | 'end_turn' | 'max_loops' | 'aborted';
+  /** max_tokens: the final reply hit the output-token cap and was cut off. */
+  stopReason: 'tool_use' | 'end_turn' | 'max_loops' | 'aborted' | 'max_tokens';
 };
 
 export function measureContext(systemPrompt: string, messages: unknown[]): { contextMessages: number; contextChars: number } {
@@ -69,7 +73,22 @@ export type ToolCallEvent =
   | { type: 'tool_call_running'; callId: string; toolName: string; input: Record<string, unknown> }
   | { type: 'tool_call_result'; callId: string; output: unknown; durationMs: number }
   | { type: 'tool_call_error'; callId: string; error: string; retryable: boolean }
-  | { type: 'query_result'; columns: unknown; rows: unknown; sql: string; rowCount: number; truncated: boolean };
+  | {
+      type: 'query_result';
+      columns: unknown;
+      rows: unknown;
+      sql: string;
+      rowCount: number;
+      truncated: boolean;
+      accessNote?: { message: string; request: string | null };
+    }
+  | {
+      type: 'access_denied';
+      message: string;
+      request: string | null;
+      label: string;
+      path: string | undefined;
+    };
 
 export type AgentLoopParams = {
   modelId: string;
@@ -89,6 +108,15 @@ export type AgentLoopParams = {
    * model's min cacheable size the cachePoint is silently ignored, never an error.
    */
   cacheSystemPrompt?: boolean;
+  /**
+   * Opt-in Bedrock conversation caching (implies `cacheSystemPrompt`): on every loop a
+   * cachePoint is placed after the LAST message, so loop N+1 reads everything loop N
+   * sent (tools, system, history, earlier tool results) and pays full price only for
+   * the new tail. The marker is added to a per-request copy and never stored in the
+   * conversation. Uses 2 of Bedrock's 4 cachePoints. Cache writes cost ~25% more, so a
+   * single-loop turn is slightly dearer; multi-loop agent turns are much cheaper.
+   */
+  cacheConversation?: boolean;
   onTextChunk?: (delta: string) => void;
   onThinkingChunk?: (delta: string) => void;
   onToolCallEvent?: (event: ToolCallEvent) => void;
@@ -97,6 +125,8 @@ export type AgentLoopParams = {
   /** Fired once per loop after its tools (if any) finish. */
   onLoopMetrics?: (metrics: LoopMetrics) => void;
   onTextReplace?: (text: string) => void;
+  /** Fired when the requested model failed before answering and another model is taking the turn. */
+  onModelSwitch?: (modelId: string) => void;
   abortSignal?: { value: boolean };
 };
 
@@ -117,6 +147,14 @@ function getBedrockClient(): BedrockRuntimeClient {
   });
 }
 
+/** Copy of `messages` with a cachePoint appended to the last message (original untouched). */
+function withTailCachePoint(messages: Message[]): Message[] {
+  if (messages.length === 0) return messages;
+  const last = messages[messages.length - 1];
+  const content = [...(last.content ?? []), { cachePoint: { type: 'default' } } as unknown as ContentBlock];
+  return [...messages.slice(0, -1), { ...last, content }];
+}
+
 export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopResult> {
   const {
     modelId,
@@ -127,7 +165,8 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
     maxLoops,
     supportsTools,
     supportsThinking,
-    cacheSystemPrompt,
+    cacheSystemPrompt: cacheSystemPromptOpt,
+    cacheConversation,
     onTextChunk,
     onThinkingChunk,
     onToolCallEvent,
@@ -139,6 +178,7 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
   } = params;
 
   const client = getBedrockClient();
+  const cacheSystemPrompt = cacheSystemPromptOpt || cacheConversation;
 
   // Stable system prefix + cachePoint when opted in; plain text otherwise.
   const system: SystemContentBlock[] = cacheSystemPrompt
@@ -167,7 +207,7 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
 
       const command = new ConverseStreamCommand({
         modelId,
-        messages,
+        messages: cacheConversation ? withTailCachePoint(messages) : messages,
         system,
         ...(mustIncludeToolConfig ? { toolConfig: tools } : {}),
         inferenceConfig: {
@@ -192,6 +232,7 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
       let outputTokens = 0;
       let cacheReadTokens = 0;
       let cacheWriteTokens = 0;
+      let providerStopReason: string | undefined;
 
       if (response.stream) {
         for await (const chunk of response.stream) {
@@ -220,6 +261,8 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
           if (chunk.contentBlockDelta?.delta?.toolUse && activeToolIdx >= 0) {
             toolUseBlocks[activeToolIdx].input += chunk.contentBlockDelta.delta.toolUse.input || '';
           }
+
+          if (chunk.messageStop?.stopReason) providerStopReason = chunk.messageStop.stopReason;
 
           if (chunk.metadata?.usage) {
             inputTokens = chunk.metadata.usage.inputTokens || 0;
@@ -251,11 +294,16 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
           stopReason,
         });
 
+      const cutOff = toolUseBlocks.length === 0 && isOutputCapStop(providerStopReason) && !(abortSignal?.value);
       if (toolUseBlocks.length === 0) {
-        onTextReplace?.(stripInspectorMarkup(fullText).trim());
+        const clean = stripInspectorMarkup(fullText).trim();
+        onTextReplace?.(cutOff ? finishCutOffReply(clean) : clean);
       }
 
       if (toolUseBlocks.length > 0 && !(abortSignal?.value)) {
+        // Grok and Claude often emit a short stakeholder preamble each tool loop; clear the
+        // streamed draft so loops do not stack duplicate paragraphs in the UI.
+        if (fullText.trim()) onTextReplace?.('');
         const toolBatchStart = Date.now();
         const toolResults = await Promise.all(
           toolUseBlocks.map(async (block) => {
@@ -314,8 +362,9 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
       }
 
       // Clean break — model returned text with no tool calls
-      reportLoop(0, abortSignal?.value ? 'aborted' : 'end_turn');
+      reportLoop(0, abortSignal?.value ? 'aborted' : cutOff ? 'max_tokens' : 'end_turn');
       finalText = stripInspectorMarkup(fullText).trim();
+      if (cutOff) finalText = finishCutOffReply(finalText);
       return {
         finalText,
         toolCalls: trajectory,

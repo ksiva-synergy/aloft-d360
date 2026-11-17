@@ -12,6 +12,7 @@ const querySchema = z.object({
   sourceId: z.string().uuid().optional(),
   kind: z.string().optional(),
   tier: z.enum(['t0', 't1', 't2', 'embed', 't3', 't4']).optional(),
+  needsEmbed: z.string().optional().transform(v => v === 'true'),
   catalog: z.string().optional(),
   schema: z.string().optional(),
   q: z.string().optional(),

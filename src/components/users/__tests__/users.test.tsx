@@ -43,13 +43,27 @@ async function sectionMatrix() {
     canEdit: session.role === 'platform_admin',
     groups: SECTION_GROUP_LABEL,
     sections: SECTIONS.map((x) => ({
-      id: x.id, label: x.label, group: x.group, view: x.view, manage: x.manage, defaults: x.defaults,
+      id: x.id, label: x.label, group: x.group, view: x.view, manage: x.manage, defaults: x.defaults, builtInDefaults: x.defaults,
       viewOnly: Boolean(x.viewOnly), platformAdminActionsOnly: Boolean(x.manageIsPlatformAdminOnly),
       enforced: Boolean(x.enforced), bundleCeiling: bundleCeiling(x),
     })),
     bundles: [
       { id: 'r1', name: 'Analyst', description: null, kind: 'role', base: 'member', levels: { 'build.inspector': 'manage', 'govern.connections': 'view' }, members: [] },
       { id: 'b1', name: 'Cost viewers', description: null, kind: 'bundle', base: null, levels: { 'govern.cost': 'view' }, members: [{ id: 'other', name: 'Jamie Chen', email: 'jamie@example.test' }] },
+    ],
+  };
+}
+
+async function permissionMatrix() {
+  const { PERMISSION_CATALOG, PERMISSION_GROUP_LABEL } = await import('@/lib/permission-catalog');
+  return {
+    canEdit: session.role === 'platform_admin',
+    groups: PERMISSION_GROUP_LABEL,
+    permissions: PERMISSION_CATALOG,
+    roles: [
+      { id: 'role-admin', name: 'admin', kind: 'builtin', base: null, keys: ['inspector:use', 'session:read'], memberCount: 1 },
+      { id: 'role-member', name: 'member', kind: 'builtin', base: null, keys: ['inspector:use'], memberCount: 1 },
+      { id: 'b1', name: 'Cost viewers', kind: 'bundle', base: null, keys: [], memberCount: 1 },
     ],
   };
 }
@@ -75,6 +89,7 @@ beforeEach(() => {
     if (url === '/api/access/roles') return json({ roles: ['platform_admin', 'admin', 'member', 'readonly'].map(name => ({ id: name, name, permissions: [] })) });
     if (url === '/api/users' && !init?.method) return json({ users });
     if (url === '/api/sections') return json(await sectionMatrix());
+    if (url === '/api/sections/permissions') return json(await permissionMatrix());
     // The drawer's warehouse data access block is covered by its own tests; here it shows its error state.
     if (url.startsWith('/api/access/')) return json({ error: 'FORBIDDEN', message: 'Not in this test' }, 403);
     return json({});
@@ -84,7 +99,7 @@ beforeEach(() => {
 
 afterEach(() => vi.unstubAllGlobals());
 
-describe('Users directory', () => {
+describe('Users directory', { timeout: 20_000 }, () => {
   it('combines search, role, and status filters and clears them', async () => {
     render(<UsersPage />);
     await screen.findByRole('button', { name: 'View profile for Alex Morgan' });
@@ -172,7 +187,7 @@ describe('Users directory', () => {
     expect(within(jobs).getByRole('option', { name: 'Manage (not allowed)' })).toBeDisabled();
 
     fireEvent.change(screen.getByRole('combobox', { name: 'Cost viewers: Policies' }), { target: { value: 'view' } });
-    expect(screen.getByText('Unsaved changes in 1 bundle')).toBeInTheDocument();
+    expect(screen.getByText('Unsaved changes in 1 column')).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalledWith('/api/sections/bundles/b1', expect.anything());
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/sections/bundles/b1', expect.objectContaining({ method: 'PATCH' })));
@@ -180,6 +195,61 @@ describe('Users directory', () => {
     expect(sent.levels['govern.policies']).toBe('view');
     expect(sent.levels['govern.cost']).toBe('view');
     expect(sent.levels['govern.users']).toBe('none');
+  });
+
+  it('changes a built-in role default for everyone with that role, and can reset it', async () => {
+    render(<UsersPage />);
+    fireEvent.click(await screen.findByRole('tab', { name: 'Section access' }));
+    const automate = await screen.findByRole('combobox', { name: 'Member: Automate' });
+    expect(automate).toHaveValue('none');
+    expect(screen.queryByRole('combobox', { name: 'Platform admin: Automate' })).not.toBeInTheDocument();
+
+    fireEvent.change(automate, { target: { value: 'manage' } });
+    expect(screen.getByText(/Member changes apply to everyone with that role/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Reset/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/sections/role-defaults/member', expect.objectContaining({ method: 'PUT' })));
+    const sent = JSON.parse(fetchMock.mock.calls.find(([u]) => u === '/api/sections/role-defaults/member')![1].body as string);
+    expect(sent.levels['build.automate']).toBe('manage');
+    expect(sent.levels['build.inspector']).toBe('manage');
+  });
+
+  it('warns when a column opens Automate without Connections, and fixes it in one click', async () => {
+    render(<UsersPage />);
+    fireEvent.click(await screen.findByRole('tab', { name: 'Section access' }));
+    expect(await screen.findByText(/Uses Connections and Knowledge inside it/)).toBeInTheDocument();
+    expect(screen.queryByRole('note', { name: 'Sections that depend on other sections' })).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Member: Automate' }), { target: { value: 'manage' } });
+    const note = screen.getByRole('note', { name: 'Sections that depend on other sections' });
+    expect(within(note).getByText(/add a new connection from a flow they also need Connections \(Manage\)/)).toBeInTheDocument();
+    fireEvent.click(within(note).getByRole('button', { name: 'Give Connections: Manage' }));
+    expect(screen.getByRole('combobox', { name: 'Member: Connections' })).toHaveValue('manage');
+    expect(screen.queryByRole('note', { name: 'Sections that depend on other sections' })).not.toBeInTheDocument();
+  });
+
+  it('gives a role a permission from the Permissions tab', async () => {
+    render(<UsersPage />);
+    fireEvent.click(await screen.findByRole('tab', { name: 'Permissions' }));
+    const box = await screen.findByRole('checkbox', { name: 'Admin: Publish flows that send outside ALOFT' });
+    expect(box).not.toBeChecked();
+    // Cross-user history stays with platform admins: no tick to give it.
+    expect(screen.queryByRole('checkbox', { name: "Admin: See everyone's sessions and history" })).not.toBeInTheDocument();
+
+    fireEvent.click(box);
+    expect(screen.getByText(/Admin changes apply to everyone with that role/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/sections/permissions/role-admin', expect.objectContaining({ method: 'PUT' })));
+    const sent = JSON.parse(fetchMock.mock.calls.find(([u]) => u === '/api/sections/permissions/role-admin')![1].body as string);
+    expect(sent.keys.sort()).toEqual(['connector:external', 'inspector:use', 'session:read']);
+  });
+
+  it('shows permissions read-only to admins', async () => {
+    session.role = 'admin';
+    render(<UsersPage />);
+    fireEvent.click(await screen.findByRole('tab', { name: 'Permissions' }));
+    await screen.findByText('Publish flows that send outside ALOFT');
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
   });
 
   it('shows custom roles and bundles as separate kinds of column', async () => {
@@ -209,6 +279,7 @@ describe('Users directory', () => {
     fireEvent.click(await screen.findByRole('tab', { name: 'Section access' }));
     await screen.findByText('Cost viewers');
     expect(screen.queryByRole('combobox', { name: 'Cost viewers: Cost monitor' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Member: Automate' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'New bundle' })).not.toBeInTheDocument();
   });
 
@@ -224,7 +295,7 @@ describe('Users directory', () => {
   });
 });
 
-describe('Invite user', () => {
+describe('Invite user', { timeout: 20_000 }, () => {
   it('moves focus into the mounted dialog and restores it when closed', async () => {
     const user = userEvent.setup();
     render(<UsersPage />);

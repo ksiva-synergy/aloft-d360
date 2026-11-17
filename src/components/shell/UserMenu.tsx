@@ -4,7 +4,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { useTheme } from 'next-themes';
 import { useRouter } from '@/lib/navigation';
 import { useState, useRef, useEffect } from 'react';
-import { Settings, LogOut, Sun, Moon, Monitor } from 'lucide-react';
+import { Settings, LogOut, Sun, Moon, Monitor, KeyRound, Inbox } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AppearanceControls } from './AppearanceControls';
 import { DeveloperModeToggle } from './DeveloperModeToggle';
@@ -50,7 +50,7 @@ const THEMES = [
   { id: 'system', label: 'System', Icon: Monitor },
 ] as const;
 
-function ThemeSwitch() {
+function ThemeSwitch({ compact = false }: { compact?: boolean }) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -60,22 +60,24 @@ function ThemeSwitch() {
     <div
       role="radiogroup"
       aria-label="Theme"
-      className="flex gap-1 rounded-full bg-[var(--surface-2)] p-1"
+      className={cn('flex gap-0.5 rounded-full bg-[var(--surface-2)]', compact ? 'p-0.5' : 'gap-1 p-1')}
     >
       {THEMES.map(({ id, label, Icon }) => (
         <button
           key={id}
           role="radio"
           aria-checked={current === id}
+          title={label}
           onClick={() => setTheme(id)}
           className={cn(
-            'flex flex-1 items-center justify-center gap-1.5 rounded-full px-2 py-1.5 text-size-ui font-semibold transition-colors',
+            'flex flex-1 items-center justify-center rounded-full font-semibold transition-colors',
+            compact ? 'gap-1 px-2 py-1 text-[length:var(--type-caption-size)]' : 'gap-1.5 px-2 py-1.5 text-size-ui',
             current === id
               ? 'bg-[var(--surface-1)] text-[var(--ink-1)] shadow-card'
               : 'text-[var(--ink-3)] hover:text-[var(--ink-1)]',
           )}
         >
-          <Icon className="h-3.5 w-3.5" />
+          <Icon className={compact ? 'h-3 w-3' : 'h-3.5 w-3.5'} />
           {label}
         </button>
       ))}
@@ -97,6 +99,21 @@ export function UserMenu({
   const { data: session, status, update } = useSession();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [accessUnread, setAccessUnread] = useState(0);
+  // Unread access notices, fetched when the menu opens (no background polling).
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    fetch('/api/access/notifications', { credentials: 'same-origin' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { unread?: number } | null) => {
+        if (!cancelled && d) setAccessUnread(d.unread ?? 0);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
   const menuRef = useRef<HTMLDivElement>(null);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -179,40 +196,67 @@ export function UserMenu({
         <div
           role="menu"
           className={cn(
-            'absolute z-50 w-72 overflow-hidden rounded-card border border-[var(--line-1)] bg-[var(--surface-1)] text-[var(--ink-1)] shadow-pop animate-zoom-in-95',
+            'absolute z-50 w-[17.5rem] overflow-hidden rounded-card border border-[var(--line-1)] bg-[var(--surface-1)] text-[var(--ink-1)] shadow-pop animate-zoom-in-95',
             placement === 'top' ? 'bottom-full left-0 mb-3' : 'bottom-0 left-full ml-3',
           )}
         >
-          <div className="border-b border-[var(--line-1)] p-4">
-            <div className="truncate text-size-body-lg font-semibold">{user.name || 'User'}</div>
-            <div className="truncate text-size-body text-[var(--ink-3)]">{user.email}</div>
-            {displayRole && (
-              <div className="mt-2">
-                <RoleBadge role={user.role ?? ''} label={displayRole} />
+          <div className="border-b border-[var(--line-1)] px-3 py-2.5">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-size-body font-semibold leading-snug">{user.name || 'User'}</div>
+                <div className="truncate text-[length:var(--type-caption-size)] text-[var(--ink-3)]">{user.email}</div>
               </div>
-            )}
+              {displayRole && (
+                <RoleBadge role={user.role ?? ''} label={displayRole} />
+              )}
+            </div>
           </div>
-          <div className="space-y-1 p-3">
-            <div className="px-1 pb-1 text-size-ui font-semibold uppercase tracking-wide text-[var(--ink-3)]">Theme</div>
-            <ThemeSwitch />
+          <div className="space-y-2 border-b border-[var(--line-1)] px-2.5 py-2">
+            <div className="px-0.5">
+              <div className="mb-1 text-[length:var(--type-caption-size)] font-semibold uppercase tracking-wide text-[var(--ink-3)]">Theme</div>
+              <ThemeSwitch compact />
+            </div>
+            <DeveloperModeToggle compact />
+            <AppearanceControls compact />
           </div>
-          <div className="border-t border-[var(--line-1)] p-3">
-            <DeveloperModeToggle />
-          </div>
-          <div className="border-t border-[var(--line-1)] p-3">
-            <AppearanceControls />
-          </div>
-          <div className="border-t border-[var(--line-1)] p-2">
+          <div className="p-1">
             <button
               role="menuitem"
               onClick={() => {
                 setOpen(false);
                 router.push('/settings/profile');
               }}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-size-body font-semibold text-[var(--ink-1)] transition-colors hover:bg-[var(--surface-2)]"
+              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-size-ui font-semibold text-[var(--ink-1)] transition-colors hover:bg-[var(--surface-2)]"
             >
-              <Settings className="h-4 w-4 text-[var(--ink-3)]" />
+              <Settings className="h-3.5 w-3.5 text-[var(--ink-3)]" />
               Settings
+            </button>
+            <button
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                router.push('/my-access');
+              }}
+              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-size-ui font-semibold text-[var(--ink-1)] transition-colors hover:bg-[var(--surface-2)]"
+            >
+              <KeyRound className="h-3.5 w-3.5 text-[var(--ink-3)]" />
+              My data access
+            </button>
+            <button
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                router.push('/my-access/tickets');
+              }}
+              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-size-ui font-semibold text-[var(--ink-1)] transition-colors hover:bg-[var(--surface-2)]"
+            >
+              <Inbox className="h-3.5 w-3.5 text-[var(--ink-3)]" />
+              My access tickets
+              {accessUnread > 0 ? (
+                <span className="ml-auto rounded-full bg-[var(--brand-a)] px-1.5 text-[length:var(--type-caption-size)] font-semibold text-[var(--on-accent,#fff)]" aria-label={`${accessUnread} new`}>
+                  {accessUnread}
+                </span>
+              ) : null}
             </button>
             <button
               role="menuitem"
@@ -220,13 +264,13 @@ export function UserMenu({
                 forgetFirstName(); // signing out also forgets the login page's "Welcome back" name
                 signOut({ callbackUrl: '/login' });
               }}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-size-body font-semibold text-[var(--bad)] transition-colors hover:bg-[var(--bad-bg)]"
+              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-size-ui font-semibold text-[var(--bad)] transition-colors hover:bg-[var(--bad-bg)]"
             >
-              <LogOut className="h-4 w-4" />
+              <LogOut className="h-3.5 w-3.5" />
               Sign out
             </button>
           </div>
-          <div className="border-t border-[var(--line-1)] bg-[var(--surface-2)] px-4 py-2 text-size-ui text-[var(--ink-3)]">
+          <div className="border-t border-[var(--line-1)] bg-[var(--surface-2)] px-3 py-1 text-center text-[length:var(--type-caption-size)] text-[var(--ink-3)]">
             Powered by ALOFT v0.4
           </div>
         </div>

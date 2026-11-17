@@ -7,18 +7,18 @@ import { sectionForPath, SECTION_GROUP_LABEL } from '@/lib/sections/registry';
 import { useSectionLevels } from '@/lib/sections/useSectionLevels';
 
 /**
- * Page gate for enforced sections (src/lib/sections):
+ * Page gate (src/lib/sections):
  *   none   → an explanation instead of the page
  *   view   → the page with a view-only notice (skipped on view-only sections such as the Audit log)
  *   manage → the page as-is
- * Sections that are not enforced yet render as before. Presentation only: the APIs check the same rules.
+ * Unmapped paths (profile, my-access, …) render as before. APIs mirror these rules via api-guard.
  */
 export default function SectionGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const me = useSectionLevels();
   const section = sectionForPath(pathname);
 
-  if (!section?.enforced) return <>{children}</>;
+  if (!section) return <>{children}</>;
   if (me === null) {
     return (
       <p role="status" className="p-6 text-ui-regular text-muted-foreground">

@@ -54,7 +54,7 @@ describe('agent-use-chat-stream', () => {
     await vi.waitFor(() => expect(onSettled).toHaveBeenCalledWith(CHAT_ID));
 
     const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
-    expect(body).toEqual({ slug, message: 'hello', chatId: null, model: 'm-1' });
+    expect(body).toEqual({ slug, message: 'hello', chatId: null, model: 'm-1', turnId: expect.any(String) });
     const snap = getAgentUseChatSnapshot(slug);
     expect(snap.chatId).toBe(CHAT_ID);
     expect(snap.messages.map((m) => `${m.role}:${m.content}`)).toEqual(['user:hello', 'assistant:Hi!']);
@@ -125,5 +125,85 @@ describe('agent-use-chat-stream', () => {
       content: 'Dinesh S is active.',
       inspection: { sources: 'a.b.c', joins: 'assumed', caveats: 'one gap' },
     });
+  });
+
+  it('keeps the turn running when the connection drops, then shows the saved reply', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (String(url).includes('/chats/')) {
+        return {
+          ok: true,
+          json: async () => ({
+            chat: {
+              messages: [
+                { id: 'u', role: 'user', content: 'hello' },
+                { id: 'a', role: 'assistant', content: 'finished away' },
+              ],
+              draft: { status: 'done', text: 'finished away' },
+            },
+          }),
+        };
+      }
+      const err = new Error('aborted');
+      err.name = 'AbortError';
+      throw err;
+    }));
+
+    startAgentUseChat({ slug, chatId: CHAT_ID, message: 'hello', priorMessages: [] });
+    expect(getAgentUseChatSnapshot(slug).running).toBe(true);
+    await vi.waitFor(() => expect(getAgentUseChatSnapshot(slug).running).toBe(false), { timeout: 4000 });
+    expect(getAgentUseChatSnapshot(slug).messages.at(-1)?.content).toBe('finished away');
+  });
+
+  it('Send now: stops the running reply on the server by turn id and keeps its partial text, marked stopped', async () => {
+    const calls: { url: string; body: Record<string, unknown> }[] = [];
+    let first = true;
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push({ url, body: JSON.parse(String(init?.body ?? '{}')) });
+      if (url.endsWith('/cancel')) return { ok: true, json: async () => ({ ok: true }) };
+      if (first) {
+        first = false;
+        // First reply: one chunk, then hangs until aborted.
+        const chunks = [
+          new TextEncoder().encode(`data: ${JSON.stringify({ type: 'chat', chatId: CHAT_ID })}\n\n`),
+          new TextEncoder().encode(`data: ${JSON.stringify({ type: 'text', delta: 'partial' })}\n\n`),
+        ];
+        return {
+          ok: true,
+          body: {
+            getReader: () => ({
+              read: () => {
+                const value = chunks.shift();
+                if (value) return Promise.resolve({ done: false, value });
+                return new Promise((_resolve, reject) => {
+                  init?.signal?.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+                });
+              },
+            }),
+          },
+        };
+      }
+      return streamOf([{ type: 'text', delta: 'second answer' }, { type: 'done' }])(url, init);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    startAgentUseChat({ slug, chatId: null, message: 'first', priorMessages: [] });
+    await vi.waitFor(() => expect(getAgentUseChatSnapshot(slug).messages.at(-1)?.content).toBe('partial'));
+    const firstTurnId = calls[0].body.turnId;
+
+    startAgentUseChat({ slug, chatId: CHAT_ID, message: 'second', priorMessages: [] });
+    await vi.waitFor(() => expect(getAgentUseChatSnapshot(slug).running).toBe(false));
+
+    const cancel = calls.find((c) => c.url.endsWith('/cancel'));
+    expect(cancel?.body).toEqual({ chatId: CHAT_ID, turnId: firstTurnId });
+    const second = calls.filter((c) => c.url.endsWith('/agents/chat'))[1];
+    expect(second.body.turnId).not.toBe(firstTurnId);
+
+    const messages = getAgentUseChatSnapshot(slug).messages;
+    expect(messages.map((m) => `${m.role}:${m.content}${m.stopped ? ' (stopped)' : ''}`)).toEqual([
+      'user:first',
+      'assistant:partial (stopped)',
+      'user:second',
+      'assistant:second answer',
+    ]);
   });
 });

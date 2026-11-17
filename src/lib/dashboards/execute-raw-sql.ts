@@ -6,7 +6,7 @@
 
 import { enforceReadOnly } from '@/lib/databricks/execute';
 import type { AccessPrincipal } from '@/lib/access/types';
-import { isAccessActive } from '@/lib/access/mode';
+import { viewerPrincipalRequired } from '@/lib/access/column-guard';
 import { systemPrincipal } from '@/lib/access/principal';
 import { runWarehouseQuery } from '@/lib/access/warehouse';
 import { AccessDeniedError } from '@/lib/access/errors';
@@ -24,8 +24,8 @@ export async function executeRawSql(
   enforceReadOnly(sql);
 
   const principal =
-    dataPrincipal ?? (isAccessActive() ? null : systemPrincipal('health'));
-  if (isAccessActive() && !principal) {
+    dataPrincipal ?? (viewerPrincipalRequired() ? null : systemPrincipal('health'));
+  if (viewerPrincipalRequired() && !principal) {
     throw new AccessDeniedError('Data access principal is required for dashboard SQL.');
   }
 

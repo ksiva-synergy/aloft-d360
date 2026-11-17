@@ -13,7 +13,7 @@ import { validateSemanticQuery } from './types';
 import type { SemanticQuery, SemanticModel } from './types';
 import prisma from '@/lib/db';
 import type { AccessPrincipal } from '@/lib/access/types';
-import { isAccessActive } from '@/lib/access/mode';
+import { viewerPrincipalRequired } from '@/lib/access/column-guard';
 import { authorizePaths } from '@/lib/access/authorize';
 import { systemPrincipal } from '@/lib/access/principal';
 import { runWarehouseQuery } from '@/lib/access/warehouse';
@@ -165,9 +165,9 @@ export async function executeSemanticQuery(
 
   const dataPrincipal =
     opts?.dataPrincipal ??
-    (isAccessActive() ? null : systemPrincipal('health'));
+    (viewerPrincipalRequired() ? null : systemPrincipal('health'));
 
-  if (isAccessActive() && !dataPrincipal) {
+  if (viewerPrincipalRequired() && !dataPrincipal) {
     throw new AccessDeniedError('Data access principal is required for semantic queries.');
   }
 

@@ -4,11 +4,15 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { flattenPermissions, userAuthInclude, PERMISSIONS } from '@/lib/rbac';
 import type { Prisma } from '@prisma/client';
+import { denyUnlessSectionForApi } from '@/lib/sections/api-guard';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
+    const denied = await denyUnlessSectionForApi(request);
+    if (denied) return denied;
+
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
@@ -19,7 +23,7 @@ export async function POST(request: NextRequest) {
     const dbUser = await prisma.user.findUnique({ where: { id: userId }, include: userAuthInclude });
     const permissions = dbUser ? flattenPermissions(dbUser) : new Set<string>();
     if (!permissions.has(PERMISSIONS.INSPECTOR_USE) && !permissions.has(PERMISSIONS.SESSION_WRITE)) {
-      return NextResponse.json({ error: 'FORBIDDEN', message: 'Inspector access requires member role or above' }, { status: 403 });
+      return NextResponse.json({ error: 'FORBIDDEN', message: 'Ask Data access requires member role or above' }, { status: 403 });
     }
 
     const body = await request.json() as { title?: string; surface?: string; context_mode?: string };

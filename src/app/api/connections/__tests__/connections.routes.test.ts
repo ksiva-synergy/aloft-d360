@@ -73,8 +73,8 @@ import { DELETE as oneDELETE, PATCH as onePATCH } from '../[id]/route';
 import { POST as testPOST } from '../[id]/test/route';
 import { GET as browseGET } from '../[id]/browse/route';
 
-const ana = { userId: 'u-ana', role: 'member', permissions: new Set(['inspector:use']) };
-const ben = { userId: 'u-ben', role: 'member', permissions: new Set(['inspector:use']) };
+const ana = { userId: 'u-ana', role: 'member', permissions: new Set(['inspector:use', 'section:govern.connections:manage']) };
+const ben = { userId: 'u-ben', role: 'member', permissions: new Set(['inspector:use', 'section:govern.connections:manage']) };
 const orgAdmin = { userId: 'u-admin', role: 'admin', permissions: new Set(['inspector:use']) };
 const platformAdmin = { userId: 'u-pa', role: 'platform_admin', permissions: new Set(['inspector:use']) };
 const viewer = { userId: 'u-view', role: 'readonly', permissions: new Set<string>() };
@@ -158,6 +158,28 @@ describe('connections API', () => {
 
     // Ben may still create his own connection with the same name.
     expect((await createPOST(req('POST', '', s3Body), undefined)).status).toBe(201);
+  });
+
+  it("lets Automate's picker list shared connections for someone with Automate but no Connections, and nothing more", async () => {
+    const id = (await (await createPOST(req('POST', '', s3Body), undefined)).json()).connection.id as string;
+    await onePATCH(req('PATCH', `/${id}`, { visibility: 'org' }), params(id));
+    expect((await (await listGET(req('GET', ''), undefined)).json()).canCreate).toBe(true);
+
+    const automator = { userId: 'u-auto', role: 'member', permissions: new Set(['inspector:use', 'section:build.automate:manage']) };
+    h.resolveAuth.mockResolvedValue(automator);
+    const listed = await (await listGET(req('GET', ''), undefined)).json();
+    expect(listed.connections.map((c: { name: string }) => c.name)).toEqual(['Invoices bucket']);
+    expect(listed.canCreate).toBe(false);
+    // Everything else on Connections still needs the Connections section.
+    expect((await createPOST(req('POST', '', { ...s3Body, name: 'x' }), undefined)).status).toBe(403);
+    expect((await testPOST(req('POST', `/${id}/test`), params(id))).status).toBe(403);
+    expect((await browseGET(req('GET', `/${id}/browse`), params(id))).status).toBe(403);
+
+    // Automate at View is enough to list (the picker shows saved flows too), but not without Automate at all.
+    h.resolveAuth.mockResolvedValue({ ...automator, permissions: new Set(['inspector:use', 'section:build.automate:view']) });
+    expect((await listGET(req('GET', ''), undefined)).status).toBe(200);
+    h.resolveAuth.mockResolvedValue({ ...automator, permissions: new Set(['inspector:use']) });
+    expect((await listGET(req('GET', ''), undefined)).status).toBe(403);
   });
 
   it('lets a platform admin see and manage every connection, private ones included', async () => {

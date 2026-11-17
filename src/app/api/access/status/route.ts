@@ -2,7 +2,9 @@ import { prisma } from '@/lib/db';
 import { handle, ok } from '@/lib/http';
 import { getOrgId } from '@/lib/databricks/connections';
 import { requireAccessAdmin } from '@/lib/access/admin-api';
-import { accessMode, enforcedSurfaces } from '@/lib/access/config';
+import { accessConfigErrors, accessMode, enforcedSurfaces } from '@/lib/access/config';
+import { columnAccessMode } from '@/lib/access/column-guard';
+import { getAccessModel } from '@/lib/access/model-store';
 import { loadPolicySnapshot } from '@/lib/access/policy-store';
 import { withAccessDbRetry } from '@/lib/access/guards';
 import { isPlatformAdminRole } from '@/lib/access/sensitive';
@@ -33,6 +35,8 @@ export const GET = handle(async (req) => {
 
   const departmentGrants = policy.grants.filter((g) => g.principalType === 'department');
   const mode = accessMode();
+  const columnMode = columnAccessMode();
+  const { model } = await getAccessModel(orgId);
 
   return ok({
     me: { userId: auth.userId, platformAdmin: isPlatformAdminRole(auth.role) },
@@ -45,8 +49,11 @@ export const GET = handle(async (req) => {
       }))
       .sort((a, b) => a.rank - b.rank || a.label.localeCompare(b.label)),
     accessMode: mode,
+    columnAccessMode: columnMode,
+    configErrors: accessConfigErrors(),
     enforcedSurfaces: mode === 'enforce' ? [...enforcedSurfaces()] : [],
-    legacyOpen: policy.legacyOpen,
+    // Simplified model: open only while bootstrap is switched on and no rules exist (review C3).
+    legacyOpen: model.bootstrapOpen,
     policyVersion: policy.version.toString(),
     counts: {
       departments,

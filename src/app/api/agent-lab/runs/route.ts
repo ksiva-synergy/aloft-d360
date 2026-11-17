@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getAgentOpsAuth } from '@/lib/agent-ops/access';
+import { denyUnlessSectionForApi } from '@/lib/sections/api-guard';
 import type { RunListItem } from '@/lib/agent-ops/types';
 import { parseSurfaceParam, surfaceWhere } from '@/lib/sessions/surfaces';
 import { hideOtherAdminsAgentChatsWhere } from '@/lib/agents/agent-chats';
@@ -8,6 +9,9 @@ import { hideOtherAdminsAgentChatsWhere } from '@/lib/agents/agent-chats';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
+  const denied = await denyUnlessSectionForApi(request);
+  if (denied) return denied;
+
   const auth = await getAgentOpsAuth();
   if (!auth.ok) return NextResponse.json({ error: 'Unauthorized' }, { status: auth.status });
 

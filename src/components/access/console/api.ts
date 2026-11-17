@@ -121,7 +121,12 @@ export type AccessStatus = {
   me: { userId: string; platformAdmin: boolean };
   roles: RoleInfo[];
   accessMode: 'off' | 'observe' | 'enforce';
+  /** COLUMN_ACCESS_MODE: whether protected columns are masked. */
+  columnAccessMode?: 'off' | 'shadow' | 'enforce';
+  /** Settings the server could not read (typo in a mode, missing tables). */
+  configErrors?: string[];
   enforcedSurfaces: string[];
+  /** True only while ACCESS_BOOTSTRAP_OPEN is set and no access rules exist. */
   legacyOpen: boolean;
   policyVersion: string;
   counts: {
@@ -242,4 +247,76 @@ export function reasonText(reason: DenyReason | null, label?: Sensitivity): stri
     default:
       return '—';
   }
+}
+
+// ── Column access: data tags, access groups, tag grants (pii-protection-backlog.md §7) ──
+
+export type TagLevel = 'aggregate' | 'full';
+
+export const TAG_LEVEL_LABEL: Record<TagLevel, string> = { aggregate: 'Totals only', full: 'Full' };
+export const TAG_LEVEL_HINT: Record<TagLevel, string> = {
+  aggregate: 'Averages and totals for groups of 5 or more; no individual values',
+  full: 'Real values',
+};
+
+export type DataTag = {
+  id: string;
+  key: string;
+  name: string;
+  description: string | null;
+  requiresTwoApprovals: boolean;
+  maxDurationDays: number | null;
+  columnCount?: number;
+  grantCount?: number;
+};
+
+/** Confidential / Restricted are the only whole-path protections; every other tag is column-level. */
+export const isPathLevelTag = (t: { key: string }) => t.key === 'confidential' || t.key === 'restricted';
+
+export type ColumnTagRow = {
+  id: string;
+  tablePath: string;
+  column: string;
+  tagId: string;
+  status: string;
+  source: string;
+  reason: string | null;
+  setBy: string | null;
+  updatedAt: string;
+};
+
+export type TagGrant = {
+  id: string;
+  tagId: string;
+  principalType: 'group' | 'user';
+  principalId: string;
+  level: TagLevel;
+  expiresAt: string | null;
+  reason: string | null;
+  createdAt: string;
+};
+
+export type GroupPerson = { userId: string; email: string | null; name: string | null };
+
+export type GroupMember = GroupPerson & {
+  expiresAt: string | null;
+  expired: boolean;
+  reason: string | null;
+  addedAt: string;
+};
+
+export type AccessGroup = {
+  id: string;
+  key: string;
+  name: string;
+  description: string | null;
+  owners: GroupPerson[];
+  members: GroupMember[];
+  grants: TagGrant[];
+};
+
+/** "Payroll team" → "payroll_team" (keys must start with a letter). */
+export function keyFromName(name: string): string {
+  const k = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  return /^[a-z]/.test(k) ? k.slice(0, 64) : `t_${k}`.slice(0, 64);
 }

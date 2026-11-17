@@ -1,6 +1,6 @@
 import {
   HouseIcon, HammerIcon, BrainIcon, StackIcon, ShieldCheckIcon, RobotIcon,
-  MagnifyingGlassIcon, SquaresFourIcon, RulerIcon, MagicWandIcon, FlaskIcon,
+  ChatCircleTextIcon, SquaresFourIcon, RulerIcon, MagicWandIcon, FlaskIcon,
   DiceFiveIcon, ClockCounterClockwiseIcon, LightbulbIcon, PulseIcon, UsersThreeIcon,
   UsersIcon,   ScrollIcon, BookOpenIcon, BooksIcon, CubeIcon, TreeStructureIcon,
   KeyIcon,
@@ -50,7 +50,7 @@ export const NAV_GROUPS: NavGroup[] = [
     id: 'build',
     icon: HammerIcon,
     items: [
-      { label: 'Inspector',       href: '/inspector',            icon: MagnifyingGlassIcon },
+      { label: 'Ask Data',       href: '/inspector',            icon: ChatCircleTextIcon },
       { label: 'Agents',          href: '/agent-lab/agents',       icon: RobotIcon },
       { label: 'Dashboards',      href: '/inspector/dashboards', icon: SquaresFourIcon },
       { label: 'Metrics',         href: '/agent-lab/metrics',    icon: RulerIcon },
@@ -98,6 +98,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Models',      href: '/agent-staging/models',      icon: CpuIcon },
       { label: 'Users',       href: '/agent-staging/users',       icon: UsersIcon },
+      { label: 'Access requests', href: '/agent-staging/access-requests', icon: ShieldCheckIcon },
       { label: 'Data access', href: '/agent-staging/data-access', icon: KeyIcon },
       { label: 'Cost monitor', href: '/agent-staging/cost',       icon: CurrencyCircleDollarIcon },
       { label: 'Policies',    href: '/agent-staging/policies',    icon: ShieldCheckIcon },
@@ -124,4 +125,31 @@ export function filterNavGroups(groups: NavGroup[], levels: SectionLevels | null
   return groups
     .map((g) => ({ ...g, items: g.items.filter((i) => !hiddenInNav(levels, i.href)) }))
     .filter((g) => g.items.length > 0);
+}
+
+export function showHomeInNav(levels: SectionLevels | null): boolean {
+  return !hiddenInNav(levels, HOME_ITEM.href);
+}
+
+/** First page this person can open — used for logo / post-login landing. */
+export function primaryNavHref(levels: SectionLevels | null): string {
+  if (showHomeInNav(levels)) return HOME_ITEM.href;
+  for (const g of NAV_GROUPS) {
+    for (const i of g.items) {
+      if (!hiddenInNav(levels, i.href)) return i.href;
+    }
+  }
+  return '/inspector';
+}
+
+/**
+ * One visible nav group (typical Member: Ask Data, Agents, History). Skip Build/Memory/Estate tabs
+ * and list those pages directly in the sidebar.
+ */
+export function isFlatNav(groups: NavGroup[]): boolean {
+  return groups.length === 1;
+}
+
+export function flatNavItems(groups: NavGroup[]): NavItem[] {
+  return groups.length === 1 ? groups[0].items : [];
 }

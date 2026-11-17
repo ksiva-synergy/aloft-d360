@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PO Spend — Connecting Databricks Tables to ALOFT Semantics</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --surface-2: #243044;
+      --border: #344054;
+      --text: #e8edf4;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-dim: #0c4a6e;
+      --success: #4ade80;
+      --warning: #fbbf24;
+      --danger: #f87171;
+      --pbi: #f2c811;
+      --dbx: #ff3621;
+      --aloft: #a78bfa;
+      --radius: 10px;
+      --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+      --mono: ui-monospace, "Cascadia Code", "SF Mono", monospace;
+    }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    font-size: 16px;
+  }
+
+  .wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 4rem;
+  }
+
+  header.hero {
+    background: linear-gradient(135deg, var(--surface) 0%, var(--accent-dim) 100%);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 2rem 1.75rem;
+    margin-bottom: 2rem;
+  }
+  header.hero h1 {
+    margin: 0 0 0.5rem;
+    font-size: 1.65rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  header.hero .subtitle {
+    color: var(--muted);
+    font-size: 1.05rem;
+    margin: 0;
+  }
+  header.hero .meta {
+    margin-top: 1rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+
+  nav.toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 2rem;
+  }
+  nav.toc h2 {
+    margin: 0 0 0.75rem;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+  }
+  nav.toc ol {
+    margin: 0;
+    padding-left: 1.25rem;
+  }
+  nav.toc li { margin: 0.35rem 0; }
+  nav.toc a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  nav.toc a:hover { text-decoration: underline; }
+
+  section {
+    margin-bottom: 2.5rem;
+  }
+  section h2 {
+    font-size: 1.35rem;
+    margin: 0 0 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  section h3 {
+    font-size: 1.1rem;
+    margin: 1.5rem 0 0.75rem;
+    color: var(--accent);
+  }
+  p { margin: 0.75rem 0; }
+
+  .callout {
+    border-left: 4px solid var(--accent);
+    background: var(--surface);
+    padding: 1rem 1.25rem;
+    border-radius: 0 var(--radius) var(--radius) 0;
+    margin: 1.25rem 0;
+  }
+  .callout.success { border-left-color: var(--success); }
+  .callout.warning { border-left-color: var(--warning); }
+  .callout strong { display: block; margin-bottom: 0.35rem; }
+
+  .three-layers {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    margin: 1.25rem 0;
+  }
+  @media (min-width: 640px) {
+    .three-layers { grid-template-columns: repeat(3, 1fr); }
+  }
+  .layer-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.1rem;
+    position: relative;
+  }
+  .layer-card .badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    display: inline-block;
+    margin-bottom: 0.5rem;
+  }
+  .badge.pbi { background: #422006; color: var(--pbi); }
+  .badge.dbx { background: #450a0a; color: #fca5a5; }
+  .badge.aloft { background: #2e1065; color: var(--aloft); }
+  .layer-card h4 { margin: 0 0 0.5rem; font-size: 1rem; }
+  .layer-card p { margin: 0; font-size: 0.9rem; color: var(--muted); }
+
+  .flow {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    margin: 1.5rem 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .flow-step {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+  .flow-step:last-child { border-bottom: none; }
+  .flow-num {
+    flex-shrink: 0;
+    width: 2rem;
+    height: 2rem;
+    background: var(--accent-dim);
+    color: var(--accent);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.9rem;
+  }
+  .flow-step h4 { margin: 0 0 0.25rem; font-size: 1rem; }
+  .flow-step p { margin: 0; font-size: 0.92rem; color: var(--muted); }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    margin: 1rem 0;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 0.6rem 0.75rem;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: var(--surface-2);
+    font-weight: 600;
+  }
+  tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+  code, .path {
+    font-family: var(--mono);
+    font-size: 0.85em;
+    background: var(--surface-2);
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+  }
+
+  .compare {
+    display: grid;
+    gap: 1rem;
+    margin: 1.25rem 0;
+  }
+  @media (min-width: 720px) {
+    .compare { grid-template-columns: 1fr 1fr; }
+  }
+  .compare-box {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.15rem;
+    background: var(--surface);
+  }
+  .compare-box h4 {
+    margin: 0 0 0.75rem;
+    font-size: 0.95rem;
+  }
+  .compare-box.recommended {
+    border-color: var(--success);
+    box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.15);
+  }
+  ul.compact { margin: 0.5rem 0; padding-left: 1.25rem; }
+  ul.compact li { margin: 0.35rem 0; }
+
+  .diagram {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    background: #0a0e14;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    overflow-x: auto;
+    line-height: 1.45;
+    color: #cbd5e1;
+    white-space: pre;
+    margin: 1rem 0;
+  }
+
+  .checklist {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0;
+  }
+  .checklist li {
+    padding: 0.5rem 0 0.5rem 1.75rem;
+    position: relative;
+    border-bottom: 1px solid var(--border);
+  }
+  .checklist li::before {
+    content: "☐";
+    position: absolute;
+    left: 0;
+    color: var(--muted);
+  }
+
+  footer.doc-footer {
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+  footer.doc-footer a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <h1>PO Spend: Databricks tables → ALOFT semantic layer</h1>
+      <p class="subtitle">
+        A plain-language guide when Power BI, Fabric, and Unity Catalog all seem to say different things.
+      </p>
+      <p class="meta">
+        Status: explanatory guide · PO Spend Analytics · Open in any browser (single file, no build step)
+      </p>
+    </header>
+
+    <nav class="toc" aria-label="Contents">
+      <h2>Contents</h2>
+      <ol>
+        <li><a href="#confusion">Why this feels confusing</a></li>
+        <li><a href="#one-sentence">The idea in one sentence</a></li>
+        <li><a href="#three-layers">Three layers (Power BI vs Databricks vs ALOFT)</a></li>
+        <li><a href="#wire">What actually gets “connected”</a></li>
+        <li><a href="#design">Pick a design: one view or many tables</a></li>
+        <li><a href="#steps">Step-by-step build checklist</a></li>
+        <li><a href="#mapping">Power BI → Databricks mapping worksheet</a></li>
+        <li><a href="#measures">Measures: start small</a></li>
+        <li><a href="#faq">FAQ</a></li>
+        <li><a href="#files">Files in this repo</a></li>
+      </ol>
+    </nav>
+
+    <section id="confusion">
+      <h2>1. Why this feels confusing</h2>
+      <p>
+        <strong>Power BI PO Spend Analytics</strong> is not “just a report on a table.”
+        The important business logic lives in three places at once:
+      </p>
+      <ul class="compact">
+        <li><strong>SQL inside Power Query</strong> — joins and CASE rules (compliance vs leakage, status flags, DOC from FDL).</li>
+        <li><strong>DAX measures</strong> — 119 KPIs on top of that flattened table.</li>
+        <li><strong>Fabric storage</strong> — warehouse / lakehouse objects the PBIX pointed at when it was built.</li>
+      </ul>
+      <p>
+        <strong>Databricks</strong> has (or will have) the <em>same underlying data</em>, often under <em>different names</em>
+        (<code>catalog.schema.table</code>), not <code>po_spend_analysis</code> as in Fabric.
+      </p>
+      <p>
+        <strong>ALOFT</strong> does not “import Power BI.” It stores a <strong>governed semantic model</strong> in its database
+        and, at query time, runs SQL against <strong>Databricks only</strong>, using paths you configure.
+      </p>
+      <div class="callout warning">
+        <strong>Common mistake</strong>
+        Thinking harvest / embeddings alone gives you PO Spend KPIs. Embeddings help <em>find</em> tables.
+        You still must define <em>entities, dimensions, measures</em> tied to real UC paths and promote them to <em>governed</em>.
+      </div>
+    </section>
+
+    <section id="one-sentence">
+      <h2>2. The idea in one sentence</h2>
+      <div class="callout success">
+        <strong>Connect = tell ALOFT the exact Unity Catalog path of your fact table (or view), then register columns as dimensions and amounts as measures until Inspector can compile SQL to that path.</strong>
+      </div>
+      <p>
+        The technical name for “the path” in ALOFT is <code>full_path</code> on an <strong>entity</strong> —
+        always three parts: <code>catalog.schema.table</code>.
+      </p>
+    </section>
+
+    <section id="three-layers">
+      <h2>3. Three layers (what each system owns)</h2>
+      <div class="three-layers">
+        <article class="layer-card">
+          <span class="badge pbi">Power BI / Fabric</span>
+          <h4>Specification &amp; UX</h4>
+          <p>
+            Shows charts, slicers, RLS. Today: reads Fabric SQL + embedded logic in the PBIX.
+            Good source for <em>what to name</em> KPIs and <em>what SQL</em> to reproduce.
+          </p>
+        </article>
+        <article class="layer-card">
+          <span class="badge dbx">Databricks UC</span>
+          <h4>Data &amp; transforms</h4>
+          <p>
+            Tables and views holding rows. This is where joins and CASE logic should live long-term
+            (especially one “enriched” view matching <code>Purchase_History</code>).
+          </p>
+        </article>
+        <article class="layer-card">
+          <span class="badge aloft">ALOFT</span>
+          <h4>Governed semantics</h4>
+          <p>
+            Entities, dimensions, measures, joins stored in Aurora (<code>platform_sem_*</code>).
+            Compiler turns a semantic query into <code>SELECT … FROM catalog.schema.table</code>.
+          </p>
+        </article>
+      </div>
+
+      <div class="diagram">  User question (Inspector / dashboard)
+           │
+           ▼
+  ┌─────────────────────┐
+  │ ALOFT semantic model │  ← entity.full_path = catalog.schema.table
+  │ dimensions, measures │
+  └──────────┬──────────┘
+             │ compile SQL
+             ▼
+  ┌─────────────────────┐
+  │ Databricks          │  ← rows live here
+  │ Unity Catalog       │
+  └─────────────────────┘
+
+  Power BI today (parallel path, not ALOFT runtime):
+  PBIX ──► Fabric warehouse / SQL DB ──► same business rows (different door)</div>
+    </section>
+
+    <section id="wire">
+      <h2>4. What actually gets “connected”</h2>
+      <p>Think in four registry rows in ALOFT — not in Power BI terminology:</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Power BI concept</th>
+            <th>ALOFT table (concept)</th>
+            <th>You set</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Table e.g. <code>Purchase_History</code></td>
+            <td><strong>Entity</strong></td>
+            <td><code>entity_label</code> + <code>full_path</code> (UC table or view)</td>
+          </tr>
+          <tr>
+            <td>Column in model</td>
+            <td><strong>Dimension</strong></td>
+            <td><code>column_name</code> = real column name in Databricks</td>
+          </tr>
+          <tr>
+            <td>DAX measure</td>
+            <td><strong>Measure</strong></td>
+            <td><code>aggregate</code> (e.g. sum) + column, or safe expression</td>
+          </tr>
+          <tr>
+            <td>Relationship</td>
+            <td><strong>Join</strong></td>
+            <td><code>join_on_sql</code> e.g. <code>fact.doc = doc_target.doc</code></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="callout">
+        <strong>Status: candidate → governed</strong>
+        Until an entity and its measures are <em>governed</em>, production Inspector paths treat them as draft.
+        Promote the <strong>entity first</strong>, then headline measures.
+      </div>
+    </section>
+
+    <section id="design">
+      <h2>5. Pick a design: one view or many tables</h2>
+      <p>You said equivalent tables already exist in Databricks. You still choose how ALOFT sees the <strong>fact</strong>:</p>
+      <div class="compare">
+        <div class="compare-box recommended">
+          <h4>✓ Recommended: one enriched UC view</h4>
+          <p>Recreate Fabric <code>Purchase_History</code> SQL as a Spark view (joins + flags in the view).</p>
+          <ul class="compact">
+            <li>One entity, one <code>full_path</code></li>
+            <li>Matches how PBIX already flattens data</li>
+            <li>Easiest joins to <code>doc_target</code> only</li>
+          </ul>
+        </div>
+        <div class="compare-box">
+          <h4>Alternative: several UC tables</h4>
+          <p>One entity per table; define joins manually.</p>
+          <ul class="compact">
+            <li>More entities and join SQL to maintain</li>
+            <li>Auto T4 joins may default to <code>= id</code> — you must fix to <code>PONO</code> / <code>DOC</code></li>
+            <li>Cross-table CASE logic harder in measures</li>
+          </ul>
+        </div>
+      </div>
+      <p>
+        Example placeholder for a gold view (your team fills real catalog names):
+        <code class="path">reporting_layer.gold.po_spend_enriched</code>
+      </p>
+    </section>
+
+    <section id="steps">
+      <h2>6. Step-by-step build checklist</h2>
+      <div class="flow">
+        <div class="flow-step">
+          <span class="flow-num">1</span>
+          <div>
+            <h4>List Unity Catalog paths</h4>
+            <p>Write down every table/view PO Spend needs: fact, doc targets, optional RLS map. Three-part paths only.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <span class="flow-num">2</span>
+          <div>
+            <h4>Align columns with Power BI</h4>
+            <p>Use <code>schema.csv</code> from the PBIX extract. Every dimension in ALOFT must point at a column that exists on the UC object (or view).</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <span class="flow-num">3</span>
+          <div>
+            <h4>Harvest in ALOFT (Agent Lab → Jobs)</h4>
+            <p>Run estate harvest (T0–T2 at minimum) on the catalog/schema that contains those tables so columns and descriptions appear in Estate.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <span class="flow-num">4</span>
+          <div>
+            <h4>T4 bootstrap (optional but helpful)</h4>
+            <p>Jobs <code>t4_entity_propose</code> and <code>t4_dim_propose</code> create candidate entities and draft dimensions from column roles. Review — don’t trust blindly.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <span class="flow-num">5</span>
+          <div>
+            <h4>Edit the entity model on each table’s Estate page</h4>
+            <p>Fix labels, add PBIX dimensions (DOC, compliance_flag, dates), add joins to doc_target, copy measure names from DAX as synonyms.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <span class="flow-num">6</span>
+          <div>
+            <h4>Promote entity → promote measures</h4>
+            <p>Use Promote on the entity card. Then promote 5–15 headline KPIs.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <span class="flow-num">7</span>
+          <div>
+            <h4>Smoke test</h4>
+            <p>Run the example SQL from the entity card or ask Inspector a question that maps to a governed measure. Compare one PONO to Power BI.</p>
+          </div>
+        </div>
+      </div>
+
+      <h3>Diagnostic if dimensions never appear</h3>
+      <p>From repo root (with app database URL):</p>
+      <p><code>npx tsx scripts/context/trace-t4-dim-for-table.ts --full-path YOUR.CATALOG.SCHEMA.TABLE</code></p>
+    </section>
+
+    <section id="mapping">
+      <h2>7. Power BI → Databricks mapping worksheet</h2>
+      <p>Fill the “Your UC path” column with values your data team confirms. Do not guess catalog names.</p>
+      <table>
+        <thead>
+          <tr>
+            <th>PBIX table</th>
+            <th>Role</th>
+            <th>Your UC <code>full_path</code> (fill in)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>Purchase_History</code></td>
+            <td>Fact (line grain)</td>
+            <td><em>e.g.</em> reporting_layer.… .po_spend_enriched</td>
+          </tr>
+          <tr>
+            <td><code>doc_target</code></td>
+            <td>Reference (DOC targets)</td>
+            <td><em>fill in</em></td>
+          </tr>
+          <tr>
+            <td>Sources inside PQ only</td>
+            <td><code>po_spend_analysis</code>, <code>preference_data</code>, <code>FDL_abstract</code></td>
+            <td>Should be <strong>inside the fact view</strong> or separate tables + joins</td>
+          </tr>
+          <tr>
+            <td><code>RLS_Mapping</code>, <code>PIC_Mapping</code></td>
+            <td>Security / lookup</td>
+            <td>UC table or ALOFT access rules</td>
+          </tr>
+          <tr>
+            <td><code>CALENDAR</code></td>
+            <td>DAX calendar</td>
+            <td>Usually <strong>not</strong> a UC table — use temporal dimension on <code>PODATE</code></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Important columns on the fact (from PBIX)</h3>
+      <p>These must exist on your UC fact table or view for parity with the report:</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Business use</th>
+            <th>PBIX column (examples)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Spend</td><td><code>FINAL_AMOUNT_USD</code>, <code>BASEAMOUNT_USD</code></td></tr>
+          <tr><td>Grain</td><td><code>PONO</code></td></tr>
+          <tr><td>Compliance story</td><td><code>preference</code>, <code>compliance_flag</code>, <code>preference_flag</code></td></tr>
+          <tr><td>Org</td><td><code>DOC</code>, DOC Head, Procurement Manager</td></tr>
+          <tr><td>Slices</td><td><code>VENDORCODE</code>, <code>IMONO</code>, <code>Final_Category</code>, <code>STATUS</code></td></tr>
+          <tr><td>Time</td><td><code>PODATE</code>, <code>new_po_date</code></td></tr>
+        </tbody>
+      </table>
+      <div class="callout warning">
+        <strong>If flags only exist in Fabric SQL today</strong>
+        They are not in Databricks until you add them to a view or column. ALOFT measures cannot invent <code>compliance_flag</code> without a physical column or an approved expression.
+      </div>
+    </section>
+
+    <section id="measures">
+      <h2>8. Measures: start small</h2>
+      <p>There are 119 DAX measures in the extract. Phase 1 in ALOFT — govern roughly this set:</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Business name</th>
+            <th>PBIX name (reference)</th>
+            <th>Typical definition</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Total PO spend (USD)</td><td>Total Amount</td><td>SUM of final amount column</td></tr>
+          <tr><td>PO count</td><td>Total PO</td><td>Count distinct PONO</td></tr>
+          <tr><td>Leakage spend</td><td>Leakage Value</td><td>Sum where compliance = Leakage</td></tr>
+          <tr><td>Compliance spend</td><td>Compliance Amount</td><td>Sum for compliant preference buckets</td></tr>
+          <tr><td>Compliance %</td><td>Compliance percentage</td><td>Ratio (pick one denominator and document it)</td></tr>
+        </tbody>
+      </table>
+      <p>Full list: <code>reports/pbix_semantic_metadata/PO_Spend_Analytics/dax_measures.csv</code></p>
+    </section>
+
+    <section id="faq">
+      <h2>9. FAQ</h2>
+      <h3>We have tables in both Fabric and Databricks — which does ALOFT use?</h3>
+      <p><strong>Databricks only</strong> for queries ALOFT runs. Fabric/PBIX remains a reference until you repoint BI to UC.</p>
+
+      <h3>Does ALOFT auto-sync from Power BI?</h3>
+      <p><strong>No.</strong> You extract semantics (PBIXray + this doc), implement logic in UC if needed, then author and promote in Estate.</p>
+
+      <h3>Harvester found 55 purchase tables but none are governed — what now?</h3>
+      <p>Those are <strong>ERP module</strong> candidates, not the PO Spend Analytics mart. Find or build the analytics fact path, harvest that schema, and create a dedicated entity for the mart — don’t mark all 55 governed at once.</p>
+
+      <h3>What is “connected” in one line for my stakeholder?</h3>
+      <p>“We registered the PO spend mart in ALOFT against Unity Catalog path X; governed dimensions and KPIs compile to SQL on X so agents and apps match our definitions.”</p>
+    </section>
+
+    <section id="files">
+      <h2>10. Files in this repo</h2>
+      <ul class="compact">
+        <li>PBIX extract: <code>reports/pbix_semantic_metadata/PO_Spend_Analytics/</code></li>
+        <li>Long-form plan: <code>reports/PO_Spend_Semantic_Migration_Analysis.md</code></li>
+        <li>PBIX analyzer script: <code>scripts/analyze_pbix_mac.py</code></li>
+        <li>Databricks probe: <code>scripts/context/probe-po-spend-databricks.ts</code></li>
+        <li>This guide: <code>reports/po_spend/ALOFT_PO_Spend_Semantic_Connection_Guide.html</code></li>
+      </ul>
+
+      <h3>Sign-off checklist</h3>
+      <ul class="checklist">
+        <li>UC fact <code>full_path</code> confirmed with data engineering</li>
+        <li>Column dictionary: PBIX name → UC column name</li>
+        <li>Harvester run on that catalog/schema</li>
+        <li>Entity + 5 governed measures promoted</li>
+        <li>One PONO reconciled PBI vs ALOFT</li>
+      </ul>
+    </section>
+
+    <footer class="doc-footer">
+      <p>ALOFT D360 · PO Spend semantic connection guide · Generated for stewards and engineers.</p>
+      <p>Open this file locally: double-click or <code>open reports/po_spend/ALOFT_PO_Spend_Semantic_Connection_Guide.html</code></p>
+    </footer>
+  </div>
+</body>
+</html>

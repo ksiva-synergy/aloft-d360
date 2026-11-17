@@ -19,7 +19,11 @@ export type DenyReason =
   | 'needs_clearance'
   | 'legacy_open'
   | 'sql_unresolved'
-  | 'system_scope';
+  | 'system_scope'
+  /** A protected column is used to filter, sort, group or join. */
+  | 'column_refused'
+  /** The query reads protected data but its columns could not be resolved. */
+  | 'column_unresolved';
 
 /** Result of pure §4.1 decision for one path. */
 export type Decision =
@@ -81,6 +85,41 @@ export interface LabelRow {
 
 export type PolicyLabel = LabelRow;
 
+/** How much of a tag a grant opens: aggregates only (groups of 5 or more), or real values. */
+export type TagGrantLevel = 'aggregate' | 'full';
+
+export interface TagInfo {
+  id: string;
+  key: string;
+  /** Friendly name used in messages, e.g. "Compensation". */
+  name: string;
+  requiresTwoApprovals: boolean;
+}
+
+export interface TagGrantRow {
+  tagId: string;
+  principalType: 'group' | 'user';
+  principalId: string;
+  level: TagGrantLevel;
+  expiresAt: Date | null;
+}
+
+export interface GroupMembershipRow {
+  groupId: string;
+  expiresAt: Date | null;
+}
+
+/** Column access by tag and group (pii-protection-backlog.md §7). Confirmed tags only. */
+export interface ColumnPolicy {
+  /** Active (not archived) tags by id. */
+  tags: Map<string, TagInfo>;
+  /** lowercase table path → lowercase column name → tag ids. */
+  columnTags: Map<string, Map<string, string[]>>;
+  tagGrants: TagGrantRow[];
+  /** userId → access group memberships (active groups only). */
+  groupsByUser: Map<string, GroupMembershipRow[]>;
+}
+
 export interface PolicySnapshot {
   orgId: string;
   version: bigint;
@@ -92,6 +131,8 @@ export interface PolicySnapshot {
   membersByUser: Map<string, string[]>;
   /** True when access_grants has zero rows for the org (bootstrap). */
   legacyOpen: boolean;
+  /** Column tags, tag grants and access groups. Empty until the 20261107 migration is applied. */
+  columns?: ColumnPolicy;
 }
 
 export interface AuthorizeContext {

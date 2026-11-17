@@ -13,6 +13,7 @@ import { randomUUID } from 'crypto';
 import { prisma } from '@/lib/db';
 import { agentUseLink } from '@/lib/sessions/surfaces';
 import { parseInspection, type AgentInspection } from '@/lib/agents/inspection';
+import { readTurnDraft, type TurnDraft } from '@/lib/chat/turn-draft';
 
 export const AGENT_CHAT_SURFACE = 'agent_use';
 
@@ -37,6 +38,8 @@ export type AgentChatRow = {
   messages: AgentChatMessage[];
   agentId: string | null;
   slug: string | null;
+  /** Set while a reply is still generating after the browser dropped the stream. */
+  draft: TurnDraft | null;
   updated_at: Date | null;
   created_at: Date | null;
 };
@@ -99,6 +102,7 @@ function toRow(row: {
     messages: parseChatMessages(row.messages),
     agentId: link?.agentId ?? null,
     slug: link?.slug ?? null,
+    draft: readTurnDraft(row.progress, 'agentDraft'),
     updated_at: row.updated_at,
     created_at: row.created_at,
   };

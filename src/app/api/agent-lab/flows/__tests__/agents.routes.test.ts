@@ -38,7 +38,7 @@ import { GET as listAgents } from '../agents/route';
 import { POST as tryAgent } from '../agent-try/route';
 import { AgentRunError } from '@/lib/agents/run-catalog-agent';
 
-const member = { userId: 'u-1', role: 'member', permissions: new Set(['inspector:use']) };
+const member = { userId: 'u-1', role: 'member', permissions: new Set(['inspector:use', 'section:build.automate:manage']) };
 const post = (body: unknown) => tryAgent(new Request('http://test/api/agent-lab/flows/agent-try', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }), undefined);
 const answer = [{ key: 'compliant', label: 'Compliant', type: 'text', description: 'yes or no' }];
 

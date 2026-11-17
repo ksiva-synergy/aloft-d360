@@ -142,7 +142,7 @@ export function PinRawSqlDialog({ chart, onSaved, onClose }: PinRawSqlDialogProp
           body: JSON.stringify({
             widgets,
             layout: { columns: 12, rows: widgets.map((w) => ({ widgetId: w.widgetId, ...w.position })) },
-            changeSummary: `Pinned raw-SQL chart "${widgetName.trim() || chart.name}" from Inspector`,
+            changeSummary: `Pinned raw-SQL chart "${widgetName.trim() || chart.name}" from Ask Data`,
           }),
         });
       };

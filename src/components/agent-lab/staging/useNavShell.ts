@@ -6,25 +6,57 @@ import { useCallback, useEffect, useRef, useState, type FocusEvent } from 'react
 const PIN_KEY = 'aloft-nav-pinned';
 export const TOGGLE_EVENT = 'aloft:nav-toggle';
 
+function memberPinDefaultRole(role: string | null | undefined): boolean {
+  return role === 'member' || role === 'readonly';
+}
+
+function readStoredPin(): boolean | null {
+  try {
+    const stored = localStorage.getItem(PIN_KEY);
+    if (stored === '1') return true;
+    if (stored === '0') return false;
+  } catch { /* storage unavailable */ }
+  return null;
+}
+
+export type NavShellOptions = {
+  /** Role from the server session so the first client paint can pin for members before useSession resolves. */
+  initialRole?: string | null;
+};
+
 /**
  * Shared open/close behaviour for both sidebar styles: auto-collapse on hover-out
  * (unless pinned), "[" toggles the pin, the header's menu button opens the mobile
  * drawer, and Escape closes it.
  */
-export function useNavShell() {
+export function useNavShell(options: NavShellOptions = {}) {
   const pathname = usePathname();
-  const [pinned, setPinned] = useState(false);
+  const [pinned, setPinned] = useState(() => {
+    if (typeof window === 'undefined') return memberPinDefaultRole(options.initialRole);
+    const stored = readStoredPin();
+    if (stored !== null) return stored;
+    return memberPinDefaultRole(options.initialRole);
+  });
   const [hovered, setHovered] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shellRef = useRef<HTMLElement>(null);
 
-  // Restore the pin preference after hydration (server renders the auto-hide default).
+  // Restore pin preference (or member default) after hydration when role/session was not ready at init.
   useEffect(() => {
     try {
-      if (localStorage.getItem(PIN_KEY) === '1') setPinned(true);
+      const stored = readStoredPin();
+      if (stored === true) {
+        setPinned(true);
+        return;
+      }
+      if (stored === false) return;
+      if (memberPinDefaultRole(options.initialRole)) {
+        setPinned(true);
+        localStorage.setItem(PIN_KEY, '1');
+      }
     } catch { /* storage unavailable */ }
-  }, []);
+  }, [options.initialRole]);
 
   useEffect(() => {
     setMobileOpen(false);

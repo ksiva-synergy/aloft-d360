@@ -39,7 +39,7 @@ vi.mock('@/lib/spend/log-llm-turn', () => ({ logInteractiveLlmTurn: vi.fn().mock
 
 import { POST } from '../copilot/route';
 
-const member = { userId: 'u-1', role: 'member', permissions: new Set(['inspector:use']) };
+const member = { userId: 'u-1', role: 'member', permissions: new Set(['inspector:use', 'section:build.automate:manage']) };
 const copilotUsage = { modelId: 'test-model', usage: { inputTokens: 10, outputTokens: 5 } };
 const definition = () => JSON.parse(JSON.stringify(getFlowTemplate('procurement-po-follow-up')!.definition));
 const call = (body: unknown) =>

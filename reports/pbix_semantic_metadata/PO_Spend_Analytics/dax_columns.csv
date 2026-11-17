@@ -1,0 +1,52 @@
+TableName,ColumnName,Expression
+CALENDAR,MWEEK,"
+VAR FirstDayOfMonth =
+    DATE(YEAR([Date]), MONTH([Date]), 1)
+VAR Offset =
+    WEEKDAY(FirstDayOfMonth, 2) - 1     -- Monday = 1
+RETURN
+
+'CALENDAR'[MONTH] & "" ""& ""W""
+    & INT((DAY([Date]) + Offset - 1) / 7) + 1"
+DateTableTemplate_3cd70511-85a1-42d4-a095-5c25d29388af,Year,YEAR([Date])
+DateTableTemplate_3cd70511-85a1-42d4-a095-5c25d29388af,MonthNo,MONTH([Date])
+DateTableTemplate_3cd70511-85a1-42d4-a095-5c25d29388af,Month,"FORMAT([Date], ""MMMM"")"
+DateTableTemplate_3cd70511-85a1-42d4-a095-5c25d29388af,QuarterNo,INT(([MonthNo] + 2) / 3)
+DateTableTemplate_3cd70511-85a1-42d4-a095-5c25d29388af,Quarter,"""Qtr "" & [QuarterNo]"
+DateTableTemplate_3cd70511-85a1-42d4-a095-5c25d29388af,Day,DAY([Date])
+LocalDateTable_68f73cdb-11f8-4a0d-8376-4b9ab32b4caa,Year,YEAR([Date])
+LocalDateTable_68f73cdb-11f8-4a0d-8376-4b9ab32b4caa,MonthNo,MONTH([Date])
+LocalDateTable_68f73cdb-11f8-4a0d-8376-4b9ab32b4caa,Month,"FORMAT([Date], ""MMMM"")"
+LocalDateTable_68f73cdb-11f8-4a0d-8376-4b9ab32b4caa,QuarterNo,INT(([MonthNo] + 2) / 3)
+LocalDateTable_68f73cdb-11f8-4a0d-8376-4b9ab32b4caa,Quarter,"""Qtr "" & [QuarterNo]"
+LocalDateTable_68f73cdb-11f8-4a0d-8376-4b9ab32b4caa,Day,DAY([Date])
+LocalDateTable_966213da-3263-4639-af78-3a5b4349a20f,Year,YEAR([Date])
+LocalDateTable_966213da-3263-4639-af78-3a5b4349a20f,MonthNo,MONTH([Date])
+LocalDateTable_966213da-3263-4639-af78-3a5b4349a20f,Month,"FORMAT([Date], ""MMMM"")"
+LocalDateTable_966213da-3263-4639-af78-3a5b4349a20f,QuarterNo,INT(([MonthNo] + 2) / 3)
+LocalDateTable_966213da-3263-4639-af78-3a5b4349a20f,Quarter,"""Qtr "" & [QuarterNo]"
+LocalDateTable_966213da-3263-4639-af78-3a5b4349a20f,Day,DAY([Date])
+LocalDateTable_1aea82a6-6b18-4006-917e-49f9b9b913a3,Year,YEAR([Date])
+LocalDateTable_1aea82a6-6b18-4006-917e-49f9b9b913a3,MonthNo,MONTH([Date])
+LocalDateTable_1aea82a6-6b18-4006-917e-49f9b9b913a3,Month,"FORMAT([Date], ""MMMM"")"
+LocalDateTable_1aea82a6-6b18-4006-917e-49f9b9b913a3,QuarterNo,INT(([MonthNo] + 2) / 3)
+LocalDateTable_1aea82a6-6b18-4006-917e-49f9b9b913a3,Quarter,"""Qtr "" & [QuarterNo]"
+LocalDateTable_1aea82a6-6b18-4006-917e-49f9b9b913a3,Day,DAY([Date])
+LocalDateTable_3c26b78d-869e-4ac9-a0c7-52a8ead64692,Year,YEAR([Date])
+LocalDateTable_3c26b78d-869e-4ac9-a0c7-52a8ead64692,MonthNo,MONTH([Date])
+LocalDateTable_3c26b78d-869e-4ac9-a0c7-52a8ead64692,Month,"FORMAT([Date], ""MMMM"")"
+LocalDateTable_3c26b78d-869e-4ac9-a0c7-52a8ead64692,QuarterNo,INT(([MonthNo] + 2) / 3)
+LocalDateTable_3c26b78d-869e-4ac9-a0c7-52a8ead64692,Quarter,"""Qtr "" & [QuarterNo]"
+LocalDateTable_3c26b78d-869e-4ac9-a0c7-52a8ead64692,Day,DAY([Date])
+LocalDateTable_cc726845-d496-4bfe-9d88-25185ef9cef0,Year,YEAR([Date])
+LocalDateTable_cc726845-d496-4bfe-9d88-25185ef9cef0,MonthNo,MONTH([Date])
+LocalDateTable_cc726845-d496-4bfe-9d88-25185ef9cef0,Month,"FORMAT([Date], ""MMMM"")"
+LocalDateTable_cc726845-d496-4bfe-9d88-25185ef9cef0,QuarterNo,INT(([MonthNo] + 2) / 3)
+LocalDateTable_cc726845-d496-4bfe-9d88-25185ef9cef0,Quarter,"""Qtr "" & [QuarterNo]"
+LocalDateTable_cc726845-d496-4bfe-9d88-25185ef9cef0,Day,DAY([Date])
+LocalDateTable_7ad5d265-b392-4246-9405-af75106bd377,Year,YEAR([Date])
+LocalDateTable_7ad5d265-b392-4246-9405-af75106bd377,MonthNo,MONTH([Date])
+LocalDateTable_7ad5d265-b392-4246-9405-af75106bd377,Month,"FORMAT([Date], ""MMMM"")"
+LocalDateTable_7ad5d265-b392-4246-9405-af75106bd377,QuarterNo,INT(([MonthNo] + 2) / 3)
+LocalDateTable_7ad5d265-b392-4246-9405-af75106bd377,Quarter,"""Qtr "" & [QuarterNo]"
+LocalDateTable_7ad5d265-b392-4246-9405-af75106bd377,Day,DAY([Date])

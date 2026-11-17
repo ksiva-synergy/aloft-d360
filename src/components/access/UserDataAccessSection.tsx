@@ -2,16 +2,9 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from '@/lib/navigation/link';
-import { KeyRound } from 'lucide-react';
+import { KeyRound, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import {
-  accessFetch,
-  runAsync,
-  type AccessStatus,
-  type Department,
-  type Person,
-} from '@/components/access/console/api';
-import { PersonAccessEditor } from '@/components/access/console/PersonAccessEditor';
+import { accessFetch, runAsync } from '@/components/access/console/api';
 import styles from '@/components/users/users.module.css';
 
 type UserDataAccessSectionProps = {
@@ -20,27 +13,31 @@ type UserDataAccessSectionProps = {
   canManage: boolean;
 };
 
+type PersonInfo = {
+  groups: { id: string; name: string; expiresAt: string | null }[];
+  builtins: { id: string; name: string }[];
+  rules: { path: string; access: 'use' | 'export' | 'block'; through: string }[];
+  protections: { id: string; name: string; level: 'full' | 'aggregate' | 'none' }[];
+};
+
+const ACCESS_LABEL = { use: 'Use', export: 'Use + export', block: 'Block' } as const;
+
+/**
+ * Users drawer: a read-only summary of this person's data access (simplified model). Changes are
+ * made in Govern → Data access (Data, Protections, People & groups).
+ */
 export function UserDataAccessSection({ userId, canManage }: UserDataAccessSectionProps) {
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [people, setPeople] = useState<Person[] | null>(null);
-  const [status, setStatus] = useState<AccessStatus | null>(null);
+  const [info, setInfo] = useState<PersonInfo | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const [d, u, st] = await Promise.all([
-        accessFetch<{ departments: Department[] }>('/api/access/departments'),
-        accessFetch<{ users: Person[] }>('/api/access/users'),
-        accessFetch<AccessStatus>('/api/access/status'),
-      ]);
-      setDepartments(d.departments);
-      setPeople(u.users);
-      setStatus(st);
+      setInfo(await accessFetch<PersonInfo>(`/api/access/person?userId=${encodeURIComponent(userId)}`));
       setLoadError(null);
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : 'Failed to load data access');
     }
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     if (canManage) runAsync(load);
@@ -48,33 +45,45 @@ export function UserDataAccessSection({ userId, canManage }: UserDataAccessSecti
 
   if (!canManage) return null;
 
+  const held = info?.protections.filter((p) => p.level !== 'none') ?? [];
+
   return (
     <div className={styles.detailSection}>
       <div className="mb-2 flex items-center gap-2 text-title-card">
         <KeyRound className="h-4 w-4 text-muted-foreground" />
         Warehouse data access
       </div>
-      <p className="mb-4 text-caption text-muted-foreground">
-        Data comes from this person's app role, their departments, and their own grants. Clearance is needed for labelled tables.
-      </p>
-
       {loadError ? (
         <p className="text-size-ui text-red-600 dark:text-red-400" role="alert">
           {loadError}
         </p>
-      ) : people === null || status === null ? (
+      ) : info === null ? (
         <p className="text-caption text-muted-foreground">Loading…</p>
       ) : (
-        <PersonAccessEditor
-          personId={userId}
-          people={people}
-          departments={departments}
-          roles={status.roles}
-          meId={status.me.userId}
-          isPlatformAdmin={status.me.platformAdmin}
-          onChanged={load}
-          showHeader={false}
-        />
+        <div className="flex flex-col gap-2 text-caption">
+          <p>
+            <span className="text-muted-foreground">Groups: </span>
+            {[...info.builtins.map((b) => b.name), ...info.groups.map((g) => g.name)].join(', ') || 'none'}
+          </p>
+          <p className="text-muted-foreground">Can use:</p>
+          {info.rules.length === 0 ? (
+            <p>No data yet.</p>
+          ) : (
+            <ul className="flex flex-col gap-0.5">
+              {info.rules.slice(0, 8).map((r, i) => (
+                <li key={i}>
+                  {ACCESS_LABEL[r.access]} <code>{r.path}</code> <span className="text-muted-foreground">· {r.through}</span>
+                </li>
+              ))}
+              {info.rules.length > 8 ? <li className="text-muted-foreground">+{info.rules.length - 8} more</li> : null}
+            </ul>
+          )}
+          <p>
+            <Lock className="mr-1 inline h-3 w-3" aria-hidden="true" />
+            <span className="text-muted-foreground">Protected data: </span>
+            {held.length ? held.map((p) => `${p.name}${p.level === 'aggregate' ? ' (totals only)' : ''}`).join(', ') : 'none'}
+          </p>
+        </div>
       )}
 
       <Link

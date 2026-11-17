@@ -8,6 +8,8 @@ import {
 import { openDatabricksSession } from '@/lib/databricks/token-client';
 import { queryRoleForTier } from '@/lib/databricks/sp-roles';
 import { authorizeSql } from './authorize';
+import { extractTablesForAuthorization } from './sql-tables';
+import { applyMask, logColumnDecision, planColumnGuard } from './column-guard';
 import { AccessDeniedError } from './errors';
 import type { AccessLevel, AccessPrincipal } from './types';
 
@@ -26,6 +28,7 @@ export interface RunWarehouseQueryInput {
   asyncPolling?: boolean;
   /** Async polling budget; on expiry the statement is cancelled server-side. */
   pollTimeoutMs?: number;
+  /** Override default Databricks row_limit for this query (e.g. Ask Data inline tables). */
   rowLimit?: number;
 }
 
@@ -36,24 +39,39 @@ export async function runWarehouseQuery(input: RunWarehouseQueryInput): Promise<
     sessionId: input.sessionId ?? undefined,
   });
 
+  // Column protections (COLUMN_ACCESS_MODE): shadow records only; enforce masks, refuses, limits.
+  const tables = extractTablesForAuthorization(input.statement);
+  const plan = await planColumnGuard(input.principal, input.statement, tables.ok ? tables.paths : []);
+  logColumnDecision(input.principal, input.surface, tables.ok ? tables.paths : [], plan, input.sessionId);
+  const enforce = plan.applies && plan.mode === 'enforce';
+  if (enforce && plan.stop) {
+    throw new AccessDeniedError(plan.stop, {
+      reason: plan.parserOk ? 'column_refused' : 'column_unresolved',
+      surface: input.surface,
+      level: input.level,
+      paths: tables.ok ? tables.paths : [],
+    });
+  }
+
   const conn = await prisma.platformDatabricksConnection.findUniqueOrThrow({
     where: { id: input.connectionId },
   });
   const session = await openDatabricksSession(conn, queryRoleForTier(tier));
 
-  return executeDatabricksSQL(
+  const result = await executeDatabricksSQL(
     input.connectionId,
     session.workspaceHost,
     session.warehouseId,
     session.token,
     {
-      statement: input.statement,
+  statement: enforce ? plan.statement : input.statement,
       waitTimeoutSecs: input.waitTimeoutSecs,
       asyncPolling: input.asyncPolling,
       pollTimeoutMs: input.pollTimeoutMs,
-      rowLimit: input.rowLimit,
+      ...(input.rowLimit != null ? { rowLimit: input.rowLimit } : {}),
     },
   );
+  return enforce ? applyMask(result, plan) : result;
 }
 
 export interface RunWarehouseExportInput extends RunWarehouseQueryInput {
@@ -66,6 +84,19 @@ export async function runWarehouseExport(input: RunWarehouseExportInput): Promis
     purpose: input.purpose,
     sessionId: input.sessionId ?? undefined,
   });
+
+  // Exports are files we cannot mask row by row: refuse if they would include protected columns.
+  const tables = extractTablesForAuthorization(input.statement);
+  const plan = await planColumnGuard(input.principal, input.statement, tables.ok ? tables.paths : []);
+  logColumnDecision(input.principal, 'export', tables.ok ? tables.paths : [], plan, input.sessionId);
+  if (plan.applies && plan.mode === 'enforce' && (plan.stop || plan.maskIndexes.length || plan.totalsOnly)) {
+    throw new AccessDeniedError(plan.stop ?? `This export includes protected columns (${plan.masked.map((m) => m.friendly).join(', ') || 'totals only'}). Remove them from the query to export.`, {
+      reason: plan.parserOk ? 'column_refused' : 'column_unresolved',
+      surface: 'export',
+      level: input.level,
+      paths: tables.ok ? tables.paths : [],
+    });
+  }
 
   const conn = await prisma.platformDatabricksConnection.findUniqueOrThrow({
     where: { id: input.connectionId },

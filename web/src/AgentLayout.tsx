@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router';
 import { useSession } from 'next-auth/react';
+import SectionGate from '@/components/sections/SectionGate';
 import { UnifiedAgentSidebar } from '@/components/agent-lab/staging/StagingSidebar';
 import { StagingHeader } from '@/components/agent-lab/staging/StagingHeader';
 
@@ -24,7 +25,9 @@ export function AgentLayout() {
           className="flex-1 overflow-y-auto overflow-x-hidden"
           style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}
         >
-          <Outlet />
+          <SectionGate>
+            <Outlet />
+          </SectionGate>
         </main>
       </div>
     </div>

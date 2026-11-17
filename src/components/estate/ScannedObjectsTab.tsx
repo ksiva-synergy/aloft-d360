@@ -31,6 +31,7 @@ interface ScannedObjectItem {
   last_t3_at: string | null;
   last_t4_at: string | null;
   has_embedding: boolean;
+  embedding_current?: boolean;
   lifecycle: string;
   source_id: string;
   source_name: string | null;
@@ -60,6 +61,7 @@ interface ScannedFilterState {
   kind?: string;
   q?: string;
   tier: TierFilter;
+  needsEmbed?: boolean;
   page: number;
   pageSize: number;
 }
@@ -71,6 +73,8 @@ interface ScannedObjectsTabProps {
   canRunPipeline?: boolean;
   /** Pre-select a tier filter (e.g. from a Jobs funnel stage click). */
   initialTier?: TierFilter;
+  /** Open the list on tables whose embedding is missing or out of date. */
+  initialNeedsEmbed?: boolean;
 }
 
 /** Pipeline steps in order. Colours match the Stage badges on "All objects". */
@@ -81,7 +85,7 @@ function tierDone(obj: ScannedObjectItem, tier: Tier): boolean {
     case 't0': return !!obj.last_t0_at;
     case 't1': return !!obj.last_t1_at;
     case 't2': return !!obj.last_t2_at;
-    case 'embed': return obj.has_embedding;
+    case 'embed': return obj.embedding_current ?? obj.has_embedding;
     case 't3': return !!obj.last_t3_at;
     case 't4': return !!obj.last_t4_at;
   }
@@ -91,7 +95,7 @@ function tierDone(obj: ScannedObjectItem, tier: Tier): boolean {
 function nextStep(obj: ScannedObjectItem): string | null {
   if (!obj.last_t1_at) return 'Needs profile';
   if (!obj.last_t2_at) return 'Needs description';
-  if (!obj.has_embedding) return 'Not searchable';
+  if (!(obj.embedding_current ?? obj.has_embedding)) return 'Needs searchable';
   return null;
 }
 
@@ -146,6 +150,7 @@ export function ScannedObjectsTab({
   showTestSources = false,
   canRunPipeline: canRunPipelineProp,
   initialTier = null,
+  initialNeedsEmbed = false,
 }: ScannedObjectsTabProps) {
   const canRunFromSession = useCanRunEstatePipeline();
   const canRunPipeline = canRunPipelineProp ?? canRunFromSession;
@@ -154,6 +159,7 @@ export function ScannedObjectsTab({
   const [total, setTotal] = useState(0);
   const [tierCounts, setTierCounts] = useState<ScannedTierCounts>({ t0: 0, t1: 0, t2: 0, embed: 0, t3: 0, t4: 0 });
   const [embeddingTotals, setEmbeddingTotals] = useState<ScannedEmbeddingTotals | null>(null);
+  const [needsEmbedCount, setNeedsEmbedCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [searchVal, setSearchVal] = useState('');
   const [pipelineSchemaKeys, setPipelineSchemaKeys] = useState<Set<string>>(new Set());
@@ -164,7 +170,8 @@ export function ScannedObjectsTab({
     schema: undefined,
     kind: undefined,
     q: undefined,
-    tier: initialTier,
+    tier: initialNeedsEmbed ? null : initialTier,
+    needsEmbed: initialNeedsEmbed || undefined,
     page: 1,
     pageSize: 50,
   });
@@ -218,6 +225,7 @@ export function ScannedObjectsTab({
       if (sourceFilter && sourceFilter !== 'All') params.append('sourceId', sourceFilter);
       if (filters.kind) params.append('kind', filters.kind);
       if (filters.tier) params.append('tier', filters.tier);
+      if (filters.needsEmbed) params.append('needsEmbed', 'true');
       if (filters.catalog) params.append('catalog', filters.catalog);
       if (filters.schema) params.append('schema', filters.schema);
       if (filters.q) params.append('q', filters.q);
@@ -235,11 +243,13 @@ export function ScannedObjectsTab({
         setTotal(newTotal);
         setTierCounts(newTierCounts);
         setEmbeddingTotals(json?.data?.embeddingTotals ?? null);
+        setNeedsEmbedCount(json?.data?.needsEmbed ?? 0);
       } else {
         setItems([]);
         setTotal(0);
         setTierCounts({ t0: 0, t1: 0, t2: 0, embed: 0, t3: 0, t4: 0 });
         setEmbeddingTotals(null);
+        setNeedsEmbedCount(0);
       }
     } catch (err) {
       console.error('[ScannedObjectsTab] fetch error', err);
@@ -247,6 +257,7 @@ export function ScannedObjectsTab({
       setTotal(0);
       setTierCounts({ t0: 0, t1: 0, t2: 0, embed: 0, t3: 0, t4: 0 });
       setEmbeddingTotals(null);
+      setNeedsEmbedCount(0);
     } finally {
       setLoading(false);
     }
@@ -296,7 +307,11 @@ export function ScannedObjectsTab({
   }, []);
 
   const handleTierClick = useCallback((tier: Tier) => {
-    setFilters(prev => ({ ...prev, tier: prev.tier === tier ? null : tier, page: 1 }));
+    setFilters(prev => ({ ...prev, tier: prev.tier === tier ? null : tier, needsEmbed: undefined, page: 1 }));
+  }, []);
+
+  const handleNeedsEmbedClick = useCallback(() => {
+    setFilters(prev => ({ ...prev, needsEmbed: prev.needsEmbed ? undefined : true, tier: null, page: 1 }));
   }, []);
 
   const multiSource = useMemo(() => new Set(items.map(i => i.source_id)).size > 1, [items]);
@@ -352,6 +367,7 @@ export function ScannedObjectsTab({
               setPipelineSchemaKeys(new Set());
               setSelectedTablePaths(new Set());
             }}
+            onShowNeedsEmbed={handleNeedsEmbedClick}
           />
         )}
 
@@ -361,6 +377,7 @@ export function ScannedObjectsTab({
             {loading && total === 0 ? '\u2014' : (
               <>
                 <span className="text-[var(--estate-ink)]">{total.toLocaleString()}</span> scanned object{total !== 1 ? 's' : ''}
+                {filters.needsEmbed && <> that <span className="text-[var(--estate-ink)]">need searchable</span></>}
                 {activeTier && <> with <span className="text-[var(--estate-ink)]">{estateTierDisplayLabel(activeTier)}</span> done</>}
               </>
             )}
@@ -377,6 +394,23 @@ export function ScannedObjectsTab({
             {TIERS.map(t => (
               <TierPill key={t.id} tier={t} count={tierCounts[t.id]} active={filters.tier === t.id} onClick={() => handleTierClick(t.id)} />
             ))}
+            {(needsEmbedCount > 0 || filters.needsEmbed) && (
+              <button
+                type="button"
+                aria-pressed={Boolean(filters.needsEmbed)}
+                title="Tables with no embedding, or an embedding older than the latest description. The Searchable color counts only embeddings that are still current, so this number plus that color is the full scanned set."
+                onClick={handleNeedsEmbedClick}
+                className={cn(
+                  'inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-label transition-colors duration-hover focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+                  filters.needsEmbed
+                    ? 'border-[var(--brand-a)] bg-[color:color-mix(in_srgb,var(--brand-a)_10%,transparent)] text-[var(--estate-ink)]'
+                    : 'border-[var(--estate-border)] text-[var(--estate-text-secondary)] hover:border-[var(--estate-btn-border)] hover:text-[var(--estate-ink)]',
+                )}
+              >
+                <span className="size-1.5 rounded-full" style={{ background: TIERS.find(t => t.id === 'embed')!.color }} />
+                {needsEmbedCount.toLocaleString()} need{needsEmbedCount === 1 ? 's' : ''} searchable
+              </button>
+            )}
           </div>
         </div>
 

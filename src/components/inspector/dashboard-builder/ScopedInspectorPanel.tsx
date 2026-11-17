@@ -52,7 +52,7 @@ export function ScopedInspectorPanel({ modelId, dashboardName, onPinChart, onClo
   // queries through the right semantic layer automatically.
   const scopePrefix = `[model:${modelId}] `;
 
-  const insp = useInspectorChat({ sessionId: null, contextMode: 'harvested' });
+  const insp = useInspectorChat({ sessionId: null, contextMode: 'harvested', liveKey: 'inspector-scoped' });
 
   const [composer, setComposer] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -67,8 +67,8 @@ export function ScopedInspectorPanel({ modelId, dashboardName, onPinChart, onClo
     const text = composer.trim();
     if (!text || insp.isStreaming) return;
     // Prepend model scope so the full Inspector pipeline picks up the right model
-    insp.send(scopePrefix + text);
-    setComposer('');
+    // Refused while a reply is still starting (double click): keep the text.
+    if (insp.send(scopePrefix + text)) setComposer('');
   }, [composer, insp, scopePrefix]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {

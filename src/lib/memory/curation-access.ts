@@ -8,6 +8,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { PERMISSIONS, roleRank } from '@/lib/rbac';
+import { denyUnlessSectionForApi } from '@/lib/sections/api-guard';
 import { authenticateSession, type AuthContext } from '@/middleware/auth';
 
 export function canCurateBullet(
@@ -28,8 +29,10 @@ export async function canPurgeSession(auth: AuthContext, sessionId: string): Pro
   return !!row?.user_id && row.user_id === auth.userId;
 }
 
-/** Resolve the caller or return the 401 response to send. */
-export async function requireMemoryCaller(): Promise<AuthContext | NextResponse> {
+/** Resolve the caller or return the 401/403 response to send. */
+export async function requireMemoryCaller(req: Request): Promise<AuthContext | NextResponse> {
+  const denied = await denyUnlessSectionForApi(req);
+  if (denied) return denied;
   const auth = await authenticateSession();
   return auth ?? NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
 }

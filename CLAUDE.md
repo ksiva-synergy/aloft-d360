@@ -1,5 +1,9 @@
 @AGENTS.md
 
+## Protected default branch
+
+Never push directly to **`main`**; follow `AGENTS.md` and `.cursor/rules/protected-branches.mdc`. Use feature branches and PRs unless the user explicitly orders otherwise.
+
 ## Credentials and live databases
 
 Follow the credentials section in `AGENTS.md`. Never execute `DROP`, `DELETE`, `TRUNCATE`, or other destructive SQL, and never print or copy `.env` secrets. `.claude/settings.json` denies reads of `.env` and runs `scripts/guards/block-destructive-db.mjs` before Bash, PowerShell, and MCP tools.

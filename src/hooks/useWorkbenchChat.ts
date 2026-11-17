@@ -252,12 +252,24 @@ export function useWorkbenchChat({ sessionId, onSessionCreated }: UseWorkbenchCh
           }
 
           switch (event.type) {
-            case 'loop_start':
+            case 'loop_start': {
+              const loop = typeof event.loop === 'number' ? event.loop : 1;
+              if (loop > 1) rawContent = '';
+              setLocalMessages(prev => prev.map(message => {
+                if (message.id !== assistantMsgId) return message;
+                return {
+                  ...message,
+                  activity: 'thinking',
+                  ...(loop > 1 ? { content: '' } : {}),
+                };
+              }));
+              break;
+            }
             case 'thinking':
               setLocalMessages(prev => prev.map(message => message.id === assistantMsgId ? {
                 ...message,
                 activity: 'thinking',
-                ...(event.type === 'thinking' ? { thinking: (message.thinking ?? '') + String(event.delta ?? '') } : {}),
+                thinking: (message.thinking ?? '') + String(event.delta ?? ''),
               } : message));
               break;
             case 'text':

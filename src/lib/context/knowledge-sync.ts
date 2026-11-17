@@ -319,12 +319,17 @@ export async function syncObjectToKnowledge(
     // 3. Data samples — Internal tables only (Phase 6 derived-data rule)
     if (opts.includeSamples) {
       try {
-        const { loadPolicySnapshot } = await import('@/lib/access/policy-store');
-        const { effectiveLabelForPath } = await import('@/lib/access/decide');
-        const snap = await loadPolicySnapshot(obj.org_id);
-        const label = effectiveLabelForPath(snap, obj.full_path);
-        if (label !== 'internal') {
-          // Skip live row samples for Confidential / Restricted (metadata docs still sync above)
+        const { getAccessModel } = await import('@/lib/access/model-store');
+        const { pathProtections } = await import('@/lib/access/engine');
+        const { model } = await getAccessModel(obj.org_id);
+        const table = obj.full_path.toLowerCase();
+        // Simplified model: no samples from a protected table, or from a table with protected
+        // columns (samples are stored for everyone; metadata docs still sync above).
+        const isProtected =
+          pathProtections(model, table).length > 0 ||
+          model.targets.some((t) => t.column !== null && t.path === table);
+        if (isProtected) {
+          // Skip live row samples
         } else {
           const srcRow = await prisma.platformContextSource.findUniqueOrThrow({
             where: { id: obj.source_id },

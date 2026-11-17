@@ -8,6 +8,12 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## Protected default branch (`main`)
+
+**Never push directly to `main`.** Do not run `git push` (or push `HEAD`) to `origin/main` while on `main`, and do not advise that as the default. Use a feature branch and a pull request (or merge locally when asked, without pushing `main` yourself). If the user explicitly orders a push to `main`, confirm they accept bypassing this rule, then act only on that explicit request.
+
+Full rule: `.cursor/rules/protected-branches.mdc`.
+
 ## Estate Jobs & harvest pipeline
 
 When changing or fixing **Jobs**, **harvest** (T0–T3), **estate** scope, **orchestrator**, or `src/views/agent-lab/estate/jobs.tsx`:
@@ -24,4 +30,4 @@ Live SQL is read-only. Never execute `DROP`, `DELETE FROM`, `TRUNCATE`, `INSERT 
 
 Never print, copy, commit, or pass secret values from `.env` (including `DATABRICKS_CLIENT_SECRET`). Use variable names from `docs/databricks-auth-and-usage.md`. For Cursor exploration, use a Databricks CLI OAuth `--profile`, not the app service principal.
 
-Full rule: `.cursor/rules/db-and-credentials.mdc`. Hooks in `.cursor/hooks.json` and `.claude/settings.json` block these calls.
+Full rule: `.cursor/rules/db-and-credentials.mdc`. Hooks in `.cursor/hooks.json` (shell, MCP, `preToolUse` for Read/Write, and `beforeReadFile` / `beforeTabFileRead`) run `scripts/guards/block-destructive-db.mjs`; `.claude/settings.json` does the same for Claude Code. **`.cursorignore`** excludes `.env*` from indexing as a backstop.

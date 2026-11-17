@@ -1,0 +1,2 @@
+TableName,RoleName,RoleDescription,FilterExpression,State,MetadataPermission
+RLS_Mapping,BS_User,,RLS_Mapping[Email] = USERPRINCIPALNAME(),1,0

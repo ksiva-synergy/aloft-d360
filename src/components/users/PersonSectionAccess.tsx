@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Layers, Loader2 } from 'lucide-react';
+import { AlertTriangle, Layers, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -10,9 +10,11 @@ import {
   keysForLevels,
   resolveSectionLevels,
   roleBaseKey,
+  roleDefaultKeysFor,
   type DefaultRole,
   type SectionLevel,
 } from '@/lib/sections/registry';
+import { sectionUseGaps } from '@/lib/sections/uses';
 import type { UserRow } from './UserTable';
 import styles from './users.module.css';
 
@@ -38,6 +40,7 @@ export function PersonSectionAccess({ user, onSaved, notify }: {
   notify: (msg: string, type?: 'success' | 'error') => void;
 }) {
   const [options, setOptions] = useState<Option[] | null>(null);
+  const [roleOverrides, setRoleOverrides] = useState<Partial<Record<DefaultRole, Record<string, SectionLevel>>>>({});
   const [loadError, setLoadError] = useState<string | null>(null);
   const [customRoleId, setCustomRoleId] = useState<string>(user.customRole?.id ?? '');
   const [bundleIds, setBundleIds] = useState<Set<string>>(() => new Set((user.bundles ?? []).map((b) => b.id)));
@@ -49,8 +52,11 @@ export function PersonSectionAccess({ user, onSaved, notify }: {
       try {
         const res = await fetch('/api/sections', { cache: 'no-store' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = (await res.json()) as { bundles: Option[] };
-        if (live) setOptions(data.bundles);
+        const data = (await res.json()) as { bundles: Option[]; roleOverrides?: Partial<Record<DefaultRole, Record<string, SectionLevel>>> };
+        if (live) {
+          setOptions(data.bundles);
+          setRoleOverrides(data.roleOverrides ?? {});
+        }
       } catch (e) {
         if (live) setLoadError(e instanceof Error ? e.message : 'Could not load roles and bundles');
       }
@@ -66,14 +72,21 @@ export function PersonSectionAccess({ user, onSaved, notify }: {
   const chosenRole = roles.find((r) => r.id === customRoleId) ?? null;
 
   // What the person would get: the custom role (or their built-in role) plus the ticked bundles.
-  const preview = (() => {
-    if (!options) return [];
+  const { rows: preview, gaps } = (() => {
+    if (!options) return { rows: [], gaps: [] };
     const keys: string[] = [];
     if (chosenRole?.base) keys.push(roleBaseKey(chosenRole.base), ...keysForLevels(chosenRole.levels));
     for (const b of bundles) if (bundleIds.has(b.id)) keys.push(...keysForLevels(b.levels));
     const baseRole = chosenRole?.base ?? user.primaryRole;
+    // Without a custom role, the built-in role's defaults apply, including any changed in the matrix.
+    if (!chosenRole && (baseRole === 'readonly' || baseRole === 'member' || baseRole === 'admin')) {
+      keys.push(...roleDefaultKeysFor(baseRole, roleOverrides[baseRole] ?? {}));
+    }
     const levels = resolveSectionLevels([baseRole], keys);
-    return SECTIONS.filter((s) => s.enforced).map((s) => ({ id: s.id, label: `${SECTION_GROUP_LABEL[s.group]} → ${s.label}`, level: levels[s.id] }));
+    return {
+      rows: SECTIONS.filter((s) => s.enforced).map((s) => ({ id: s.id, label: `${SECTION_GROUP_LABEL[s.group]} → ${s.label}`, level: levels[s.id] })),
+      gaps: sectionUseGaps(levels),
+    };
   })();
 
   const dirty =
@@ -171,6 +184,17 @@ export function PersonSectionAccess({ user, onSaved, notify }: {
               </ul>
             )}
           </fieldset>
+
+          {gaps.length > 0 && (
+            <ul className={cn(styles.depNotice, "!mx-0")} aria-label="Sections that depend on other sections">
+              {gaps.map((g) => (
+                <li key={g.use.id} className={styles.depItem}>
+                  <AlertTriangle aria-hidden className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--warn)]" />
+                  <span>{g.message} Add a bundle that gives it, or change their role.</span>
+                </li>
+              ))}
+            </ul>
+          )}
 
           <details>
             <summary className="cursor-pointer text-size-ui font-medium">What they would get</summary>

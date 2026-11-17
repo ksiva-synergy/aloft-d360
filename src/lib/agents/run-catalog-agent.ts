@@ -2,7 +2,7 @@ import 'server-only';
 
 import type { ContentBlock, Message, Tool } from '@aws-sdk/client-bedrock-runtime';
 import { prisma } from '@/lib/db';
-import { runAgentLoop, type AgentLoopParams, type AgentLoopResult, type LoopMetrics, type ToolCallEvent } from '@/lib/inspector/agent-loop';
+import { type AgentLoopParams, type AgentLoopResult, type LoopMetrics, type ToolCallEvent } from '@/lib/inspector/agent-loop';
 import { dispatchAgentLoop } from '@/lib/inspector/providers/factory';
 import { INSPECTOR_TOOLS } from '@/lib/inspector/prompts';
 import { executeInspectorTool, resolveToolCatalogEntry } from '@/lib/inspector/tools';
@@ -189,7 +189,8 @@ export async function runCatalogAgent(input: RunCatalogAgentInput): Promise<RunC
   }
   const resolved = resolveWorkbenchModel(input.model, input.role, 'commissioned_agents');
   if (!resolved) throw new AgentRunError(400, 'Model not available');
-  const { option, boostModel, effectiveModelId } = resolved;
+  const { option, boostModel } = resolved;
+  let effectiveModelId = resolved.effectiveModelId;
 
   const agent = await prisma.agent_catalog.findFirst({ where: { slug: input.slug } });
   if (!agent) throw new AgentRunError(404, 'Agent not found');
@@ -323,11 +324,12 @@ export async function runCatalogAgent(input: RunCatalogAgentInput): Promise<RunC
       input.onToolCallEvent?.(event);
     },
     onLoopMetrics: (m: LoopMetrics) => metrics.addLoop(m),
+    onModelSwitch: (modelId) => { effectiveModelId = modelId; },
   };
 
   let result: AgentLoopResult;
   try {
-    result = boostModel ? await dispatchAgentLoop(boostModel, loop) : await runAgentLoop(loop);
+    result = await dispatchAgentLoop(boostModel, loop);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Agent run failed';
     void metrics.flush({ model: effectiveModelId, outcome: 'errored', toolCalls, toolErrors, error: message });

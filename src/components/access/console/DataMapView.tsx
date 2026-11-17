@@ -25,7 +25,7 @@ import {
   type TreeNode,
 } from './api';
 import { EstateTree, type TreeContext } from './EstateTree';
-import { Card, Empty, Mono, Segmented, type SegOption } from './parts';
+import { Card, Empty, Mono, Segmented, type SegOption, SplitPane } from './parts';
 import s from './console.module.css';
 import { useConsoleReadOnly } from './readOnly';
 
@@ -542,7 +542,7 @@ function ByHolder({
   };
 
   return (
-    <div className={s.split}>
+    <SplitPane>
       <aside className={s.listPane} aria-label="App roles and departments">
         <div className={s.listBody}>
           <p className="px-3 pb-1 pt-2 text-caption font-semibold uppercase tracking-wide text-muted-foreground">
@@ -629,7 +629,7 @@ function ByHolder({
           />
         )}
       </div>
-    </div>
+    </SplitPane>
   );
 }
 

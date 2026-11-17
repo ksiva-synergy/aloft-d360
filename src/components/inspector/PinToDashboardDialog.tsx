@@ -145,7 +145,7 @@ export function PinToDashboardDialog({
           body: JSON.stringify({
             widgets,
             layout: { columns: 12, rows: widgets.map((w) => ({ widgetId: w.widgetId, ...w.position })) },
-            changeSummary: `Pinned "${widgetName.trim() || message.chartDsl.title}" from Inspector`,
+            changeSummary: `Pinned "${widgetName.trim() || message.chartDsl.title}" from Ask Data`,
           }),
         });
       };

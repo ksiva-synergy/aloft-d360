@@ -1,5 +1,3 @@
-import { ACCENT_PRESETS } from '@/lib/theme/appearance';
-
 export const COMPANION_KEY = 'aloft-companion-v2';
 // v1 colours came from an older palette; only personality/character carry over.
 export const LEGACY_COMPANION_KEY = 'aloft-companion-v1';
@@ -12,7 +10,14 @@ export interface CompanionPreferences { color: string; personality: CompanionPer
 export const DEFAULT_COMPANION: CompanionPreferences = { color: 'accent', personality: 'balanced', character: 'nova' };
 export const COMPANION_COLORS: readonly { name: string; value: string }[] = [
   { name: 'Match app accent', value: 'accent' },
-  ...ACCENT_PRESETS.map(p => ({ name: p.name, value: p.hex })),
+  { name: 'Vanilla', value: '#D6BD8F' },
+  { name: 'Peach', value: '#DB997B' },
+  { name: 'Rosewater', value: '#CF8FA9' },
+  { name: 'Lavender', value: '#A397CF' },
+  { name: 'Periwinkle', value: '#839BCF' },
+  { name: 'Lagoon', value: '#6CAEB5' },
+  { name: 'Sage', value: '#95AD87' },
+  { name: 'Cocoa', value: '#AD8D7E' },
 ];
 
 export function parseCompanionPreferences(raw: string | null): CompanionPreferences {

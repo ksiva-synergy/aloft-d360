@@ -1,4 +1,5 @@
 'use client';
+import { AccessNoticeBanner } from '@/components/access/AccessNoticeBanner';
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -7,7 +8,7 @@ import type { WorkbenchMessage } from '@/components/agent-lab/workbench/types';
 import { StreamingMessage } from './StreamingMessage';
 import { CaptainStatus } from '@/components/companion/CaptainStatus';
 import { Companion } from '@/components/companion/Companion';
-import { InputComposer } from './InputComposer';
+import { InputComposer, type ComposerQueue } from './InputComposer';
 import { AssumptionChip } from './AssumptionChip';
 import { ClassSuggestionChip } from './ClassSuggestionChip';
 import type { AssumptionLedgerEntry } from '@/lib/construction/assumptionHelpers';
@@ -16,6 +17,22 @@ import type { Reflection } from './marcus/useReflections';
 import { ReflectionCard } from './marcus/ReflectionCard';
 import { DismissedReflection } from './marcus/DismissedReflection';
 import { type, inkOf } from '@/lib/typography/tokens';
+import type { QueryResult } from '@/hooks/useInspectorChat';
+import { AssistantQueryTableOffer } from '@/components/workbench/AssistantQueryTableOffer';
+import { rankQueryResultsForChat, shouldOfferChatFullTable } from '@/lib/inspector/result-display';
+
+function linkedWarehouseForMessage(
+  msg: WorkbenchMessage,
+  queryResults: QueryResult[] | undefined,
+  simpleQueryTables: boolean,
+): QueryResult | undefined {
+  if (!simpleQueryTables || !queryResults?.length || !msg.queryResultIndices?.length) return undefined;
+  const { primary } = rankQueryResultsForChat(msg.queryResultIndices, queryResults);
+  const result = queryResults[primary];
+  if (!result?.rows.length) return undefined;
+  const content = typeof msg.content === 'string' ? msg.content : '';
+  return shouldOfferChatFullTable(content, result) ? result : undefined;
+}
 
 // ── Constants ─────────────────────────────────────────────────
 const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
@@ -199,24 +216,24 @@ function SuggestionPills({ suggestions, onSelect }: { suggestions: string[]; onS
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.18 }}
-      style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '10px 20px 4px' }}
+      className="flex w-full min-w-0 flex-col gap-2 py-2"
     >
-      {suggestions.map(s => (
-        <button
-          key={s}
-          onClick={() => onSelect(s)}
-          style={{
-            ...type['ui-regular'], color: INK_DIM,
-            background: SURFACE, border: `1px solid ${BORDER_SUBTLE}`,
-            borderRadius: 20, padding: '5px 14px', cursor: 'pointer',
-            transition: 'border-color 0.15s, color 0.15s',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = BORDER_GOLD; e.currentTarget.style.color = INK; }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = BORDER_SUBTLE; e.currentTarget.style.color = INK_DIM; }}
-        >
-          {s}
-        </button>
-      ))}
+      <span className="text-label font-medium uppercase tracking-wide text-[var(--ink-3)]">
+        Next questions
+      </span>
+      <div className="flex flex-wrap gap-2">
+        {suggestions.map(s => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => onSelect(s)}
+            title={s}
+            className="max-w-full rounded-2xl border border-[var(--line-2)] bg-[var(--surface-1)] px-3.5 py-2 text-left text-size-ui leading-snug text-[var(--ink-1)] shadow-sm transition-[border-color,background-color,color] duration-150 hover:border-[color-mix(in_srgb,var(--brand-a)_45%,var(--line-2))] hover:bg-[color-mix(in_srgb,var(--brand-a)_6%,var(--surface-1))] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+          >
+            {s}
+          </button>
+        ))}
+      </div>
     </motion.div>
   );
 }
@@ -241,7 +258,7 @@ function UserMessage({ msg, onResend, onEdit, bubble = false }: UserMessageProps
         transition={{ duration: 0.22, ease: 'easeOut' }}
         className="group flex flex-col items-end gap-1"
       >
-        <p className="ml-auto max-w-[min(720px,90%)] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[var(--brand-a)] px-3.5 py-2.5 text-size-body leading-relaxed text-white">
+        <p className="ml-auto max-w-[min(720px,90%)] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[var(--brand-a)] px-4 py-3 text-size-body leading-relaxed text-white">
           {msg.content}
         </p>
         <div className="flex items-center gap-1 text-[length:var(--type-caption-size)] text-[var(--ink-3)]">
@@ -400,6 +417,8 @@ interface ConversationThreadProps {
   collapseToolCallsWhenIdle?: boolean;
   /** Admin + developer mode: show describe_schema / execute_tool steps in the thread. */
   showDeveloperToolSteps?: boolean;
+  queryResults?: QueryResult[];
+  simpleQueryTables?: boolean;
 }
 
 function ConversationThread({
@@ -425,6 +444,8 @@ function ConversationThread({
   renderAfterAssistant,
   collapseToolCallsWhenIdle = false,
   showDeveloperToolSteps = false,
+  queryResults,
+  simpleQueryTables = false,
 }: ConversationThreadProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -503,9 +524,9 @@ function ConversationThread({
           flex: 1,
           overflowY: 'auto',
           // Capped column keeps the scrollbar at the pane edge while centring the content.
-          padding: columnMaxWidth
-            ? `24px max(clamp(16px, 2.5vw, 40px), calc((100% - ${columnMaxWidth}px) / 2)) 8px`
-            : '24px clamp(16px, 2.5vw, 40px) 8px',
+            padding: columnMaxWidth
+              ? `24px max(clamp(12px, 2vw, 32px), calc((100% - ${columnMaxWidth}px) / 2)) 8px`
+              : '24px clamp(12px, 2vw, 32px) 8px',
           display: 'flex',
           flexDirection: 'column',
           gap: 20,
@@ -556,6 +577,7 @@ function ConversationThread({
                   </div>
                 )}
                 <StreamingMessage
+                  cleanPresentation={!!chatStyle}
                   activity={msg.activity}
                   companionActive={isLast}
                   error={isLast && !isStreaming ? chatError : undefined}
@@ -566,13 +588,33 @@ function ConversationThread({
                   showToolCalls={showDeveloperToolSteps && (!collapseToolCallsWhenIdle || isLiveStreaming)}
                   showTechnicalToolNames={showDeveloperToolSteps}
                   isStreaming={isLiveStreaming}
-                  interrupted={interrupted && isLast && !isStreaming}
+                  interrupted={(interrupted && isLast && !isStreaming) || (!!msg.stopped && !isLiveStreaming)}
                   readiness={isLast ? readiness : undefined}
                   timestamp={msg.timestamp}
                   durationMs={completionMeta[msg.id]?.durationMs}
                   tokenCount={completionMeta[msg.id]?.tokenCount}
                   modelName={completionMeta[msg.id]?.modelName}
+                  linkedWarehouseResult={
+                    !isLiveStreaming
+                      ? linkedWarehouseForMessage(msg, queryResults, simpleQueryTables)
+                      : undefined
+                  }
+                  inspectorSessionId={sessionId}
                 />
+                {!isLiveStreaming && msg.accessDenial ? (
+                  <AccessNoticeBanner message={msg.accessDenial.message} request={msg.accessDenial.request} />
+                ) : null}
+                {!isLiveStreaming
+                  && !simpleQueryTables
+                  && queryResults
+                  && msg.queryResultIndices?.length
+                  ? (
+                    <AssistantQueryTableOffer
+                      indices={msg.queryResultIndices}
+                      queryResults={queryResults}
+                    />
+                  )
+                  : null}
                 {!isLiveStreaming && renderAfterAssistant?.(msg)}
                 {/* Assumption chips — shown after streaming completes */}
                 {!isLiveStreaming && msgAssumptions.length > 0 && (
@@ -596,6 +638,16 @@ function ConversationThread({
                     sessionId={sessionId}
                     onApply={(c, m) => onApplyClass?.(c, m)}
                     onDismiss={() => onDismissClassSuggestion?.()}
+                  />
+                )}
+                {!isLiveStreaming && isLastAssistantMsg(msg) && suggestions.length > 0 && (
+                  <SuggestionPills
+                    suggestions={suggestions}
+                    onSelect={s => {
+                      if (s === 'Start over') { onReset(); return; }
+                      if (s === 'Continue from here') { handleContinue(); return; }
+                      onSend(s);
+                    }}
                   />
                 )}
               </motion.div>
@@ -644,20 +696,6 @@ function ConversationThread({
                   onAct={(id, action) => onActReflection?.(id, action)}
                 />
           ))}
-        </AnimatePresence>
-
-        {/* Suggestion pills right below the last message */}
-        <AnimatePresence>
-          {!isStreaming && suggestions.length > 0 && (
-            <SuggestionPills
-              suggestions={suggestions}
-              onSelect={s => {
-                if (s === 'Start over') { onReset(); return; }
-                if (s === 'Continue from here') { handleContinue(); return; }
-                onSend(s);
-              }}
-            />
-          )}
         </AnimatePresence>
 
         <div ref={bottomRef} style={{ height: 8 }} />
@@ -719,6 +757,12 @@ export interface PromptCanvasProps {
   /** Extra content under each finished assistant reply. */
   renderAfterAssistant?: (msg: WorkbenchMessage) => React.ReactNode;
   showDeveloperToolSteps?: boolean;
+  /** Queue follow-ups typed while a reply streams (inline composer only). */
+  composerQueue?: ComposerQueue;
+  /** Warehouse query results for **Open full table** under assistant replies (Inspector). */
+  queryResults?: QueryResult[];
+  /** Inspector members: inline table only — hide multi-query explanation and tabs. */
+  simpleQueryTables?: boolean;
 }
 
 export function PromptCanvas({
@@ -758,10 +802,13 @@ export function PromptCanvas({
   chatStyle = null,
   renderAfterAssistant,
   showDeveloperToolSteps = false,
+  composerQueue,
+  queryResults,
+  simpleQueryTables = false,
 }: PromptCanvasProps) {
   const hasMessages = messages.length > 0 || !!chatError;
   const centeredComposer = !hasMessages && !emptyState;
-  const columnMaxWidth = surface === 'workbench' || chatStyle ? WORKBENCH_COMPOSER_MAX_PX : undefined;
+  const columnMaxWidth = surface === 'inspector' ? 920 : surface === 'workbench' || chatStyle ? WORKBENCH_COMPOSER_MAX_PX : undefined;
 
   const { reflections, dismissed, dismiss, acknowledge, act, restoreReflection } = useReflections(sessionId);
 
@@ -875,6 +922,8 @@ export function PromptCanvas({
           renderAfterAssistant={renderAfterAssistant}
           collapseToolCallsWhenIdle={surface === 'inspector'}
           showDeveloperToolSteps={showDeveloperToolSteps}
+          queryResults={queryResults}
+          simpleQueryTables={simpleQueryTables}
         />
       )}
 
@@ -952,6 +1001,7 @@ export function PromptCanvas({
           /* Agent missions need substance; data questions can be short ("revenue by month"). */
           minLength={surface === 'inspector' ? 1 : 10}
           variant={surface === 'inspector' ? 'inline' : 'toolbar'}
+          queue={composerQueue}
         />
       )}
 

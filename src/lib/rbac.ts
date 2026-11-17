@@ -14,6 +14,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { writeAudit } from '@/lib/audit';
+import { entraAdminGroupIds, isEntraAdminGroupMember, ssoRequiresAdminApproval } from '@/lib/sso-access';
 
 /**
  * Role granted to brand-new users on first login (just-in-time provisioning). Least privilege:
@@ -215,6 +216,7 @@ export async function provisionUserByOid(claims: OidClaims): Promise<UserWithAut
     }
 
     // (3) No oid match and no email collision — create a FRESH user keyed on oid + tid.
+    const autoAdmit = !ssoRequiresAdminApproval() || isEntraAdminGroupMember(groups);
     const role = await prisma.role.findUniqueOrThrow({ where: { name: DEFAULT_ROLE } });
     try {
       user = await prisma.user.create({
@@ -226,11 +228,10 @@ export async function provisionUserByOid(claims: OidClaims): Promise<UserWithAut
           name: aadName ?? null,
           authProvider: 'aad',
           emailVerified: true,
-          status: 'ACTIVE',
-          isActive: true,
-          lastLoginAt: new Date(),
-          lastSeenAt: new Date(),
-          roles: { create: { roleId: role.id } },
+          status: autoAdmit ? 'ACTIVE' : 'PENDING_APPROVAL',
+          isActive: autoAdmit,
+          ...(autoAdmit ? { lastLoginAt: new Date(), lastSeenAt: new Date() } : {}),
+          ...(autoAdmit ? { roles: { create: { roleId: role.id } } } : {}),
         },
         include: userAuthInclude,
       });
@@ -245,10 +246,15 @@ export async function provisionUserByOid(claims: OidClaims): Promise<UserWithAut
 
     await writeAudit({
       actorId: null, // self-provisioned via SSO; no acting admin
-      action: 'user.provisioned',
+      action: autoAdmit ? 'user.provisioned' : 'user.access_requested',
       entityType: 'user',
       entityId: user.id,
-      after: { email: user.email, aadObjectId: oid, aadTenantId: tid ?? null, role: DEFAULT_ROLE },
+      after: {
+        email: user.email,
+        aadObjectId: oid,
+        aadTenantId: tid ?? null,
+        ...(autoAdmit ? { role: DEFAULT_ROLE } : { status: 'PENDING_APPROVAL' }),
+      },
     });
   }
 
@@ -276,11 +282,9 @@ export async function provisionUserByOid(claims: OidClaims): Promise<UserWithAut
  * an ABSENT claim would let a single such token strip platform_admin from everyone.
  */
 async function syncPlatformAdminFromGroups(user: UserWithAuth, groups: string[] | undefined): Promise<UserWithAuth> {
-  const adminGroupIds = (process.env.AZURE_AD_ADMIN_GROUP_IDS ?? '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const adminGroupIds = entraAdminGroupIds();
   if (adminGroupIds.length === 0) return user; // admin-group mapping not configured
+  if (user.status === 'PENDING_APPROVAL') return user;
 
   // UNKNOWN signal: no groups claim to act on. Leave the platform_admin role exactly as-is.
   if (!groups || groups.length === 0) return user;

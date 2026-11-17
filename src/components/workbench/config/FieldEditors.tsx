@@ -36,7 +36,7 @@ export function ProvenanceBadge({ state, field }: { state: ConstructionState; fi
     );
   }
   if (source === 'user') return <Badge tone="ok" title="You set this. The builder will not change it unless you ask.">You</Badge>;
-  if (source === 'template') return <Badge tone="neutral" title="Carried over from your Inspector session">From Inspector</Badge>;
+  if (source === 'template') return <Badge tone="neutral" title="Carried over from your chat session">From Ask Data</Badge>;
   if (source === 'ai') return <Badge tone="brand" title="Filled in by the builder from the conversation">AI</Badge>;
   return null;
 }

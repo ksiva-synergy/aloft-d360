@@ -750,29 +750,66 @@ export async function searchObjects(input: SearchInput): Promise<SearchResult> {
   }
 
   // ── Name-match candidates via ILIKE ─────────────────────────────────────────
+  const longNameTokens = nameTokens.filter((t) => t.length >= 3);
+  const hasHrToken =
+    nameTokens.includes('hr') || /\b(human\s+resources|darwin\s*box)\b/i.test(input.query);
+  const mentionsCrew = /\b(seafarer|seafarers|crewing|vessel\s+crew)\b/i.test(input.query);
 
   const nameRows = await prisma.platformContextObject.findMany({
     where: {
       org_id: input.orgId,
       lifecycle: 'active',
-      AND: nameTokens.length > 0
-        ? nameTokens.map((token) => ({
+      ...(hasHrToken && !mentionsCrew
+        ? {
             OR: [
-              { full_path: { contains: token, mode: 'insensitive' as const } },
-              { object_name: { contains: token, mode: 'insensitive' as const } },
+              { full_path: { startsWith: 'darwin_box.', mode: 'insensitive' as const } },
+              { full_path: { contains: 'darwin', mode: 'insensitive' as const } },
+              { full_path: { contains: '.hr', mode: 'insensitive' as const } },
             ],
-          }))
-        : [{
-            OR: [
-              { full_path: { contains: input.query, mode: 'insensitive' as const } },
-              { object_name: { contains: input.query, mode: 'insensitive' as const } },
-            ],
-          }],
+          }
+        : {
+            AND:
+              longNameTokens.length > 0
+                ? longNameTokens.map((token) => ({
+                    OR: [
+                      { full_path: { contains: token, mode: 'insensitive' as const } },
+                      { object_name: { contains: token, mode: 'insensitive' as const } },
+                    ],
+                  }))
+                : [
+                    {
+                      OR: [
+                        { full_path: { contains: input.query, mode: 'insensitive' as const } },
+                        { object_name: { contains: input.query, mode: 'insensitive' as const } },
+                      ],
+                    },
+                  ],
+          }),
     },
-    select: { id: true },
+    select: { id: true, full_path: true, object_name: true },
     take: candidateLimit,
   });
-  const nameMatchIds = new Set(nameRows.map((r) => r.id));
+
+  const tokenStartsSegment = (haystack: string, token: string): boolean => {
+    const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`(^|[._-])${escaped}`, 'i').test(haystack);
+  };
+
+  const nameMatchIds = new Set(
+    nameRows
+      .filter((r) => {
+        if (hasHrToken && !mentionsCrew) {
+          return (
+            /^darwin_box\.curated_db\.employee_master/i.test(r.full_path ?? '') &&
+            !/_(old|bkp)/i.test(r.full_path ?? '')
+          );
+        }
+        if (longNameTokens.length === 0) return true;
+        const target = `${r.full_path ?? ''}.${r.object_name ?? ''}`;
+        return longNameTokens.every((t) => tokenStartsSegment(target, t));
+      })
+      .map((r) => r.id),
+  );
 
   // ── Merge semantic, keyword, and exact-name evidence ─────────────────────────
   const relevantVectorCount = [...vectorScores.values()]

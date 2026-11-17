@@ -8,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import userStyles from '@/components/users/users.module.css';
 import { SENSITIVITY_LABEL, personName, send, type Department, type Person, type RoleInfo, type Sensitivity } from './api';
 import { PersonAccessEditor } from './PersonAccessEditor';
-import { Segmented, type SegOption } from './parts';
+import { ConsoleSelect, Segmented, type SegOption } from './parts';
 import s from './console.module.css';
 import { useConsoleReadOnly } from './readOnly';
 
@@ -121,25 +121,22 @@ export function PeopleView({
             { value: 'cleared', label: 'Has clearance' },
           ]}
         />
-        <select
-          className={cn(userStyles.input, '!w-auto')}
-          value={deptFilter}
-          onChange={(e) => setDeptFilter(e.target.value)}
-          aria-label="Show one department"
-        >
-          <option value="">All departments</option>
-          {departments.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.name}
-            </option>
-          ))}
-        </select>
+        <ConsoleSelect
+          className="min-w-[11rem]"
+          value={deptFilter || '__all__'}
+          ariaLabel="Show one department"
+          onChange={(v) => setDeptFilter(v === '__all__' ? '' : v)}
+          options={[
+            { value: '__all__', label: 'All departments' },
+            ...departments.map((d) => ({ value: d.id, label: d.name })),
+          ]}
+        />
       </div>
 
       <p className="mb-3 text-caption text-muted-foreground">
         A person can use the data mapped to their app role and to each of their departments. Clearance only matters for
         Confidential or Restricted tables{isPlatformAdmin ? '' : ', and only a platform admin can raise it'}. Platform admins
-        get data the same way; they manage access but do not see data automatically.
+        see all data, including protected columns.
       </p>
 
       {error ? (
@@ -184,7 +181,7 @@ export function PeopleView({
                       </td>
                       <td className="whitespace-nowrap">
                         {p.platformAdmin ? (
-                          <span className={cn(s.chip, s.chipOk)} title="Can open Confidential or Restricted data to others. Gets data the same way as everyone else.">
+                          <span className={cn(s.chip, s.chipOk)} title="Sees all data, including protected columns, and can open protected data to others.">
                             <ShieldCheck className="h-3 w-3" /> {roleLabel.get(p.role) ?? p.role}
                           </span>
                         ) : (

@@ -19,6 +19,18 @@
         "matcher": "^(Read|Write|StrReplace|TabRead|TabWrite)$",
         "failClosed": true
       }
+    ],
+    "beforeReadFile": [
+      {
+        "command": "node scripts/guards/block-destructive-db.mjs",
+        "failClosed": true
+      }
+    ],
+    "beforeTabFileRead": [
+      {
+        "command": "node scripts/guards/block-destructive-db.mjs",
+        "failClosed": true
+      }
     ]
   }
 }

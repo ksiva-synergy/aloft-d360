@@ -1,5 +1,7 @@
 # Data access control: architecture and implementation plan
 
+> **Superseded at runtime on 2026-11-08** by the simplified model ([simplified-access-model.md](simplified-access-model.md)): access rules + protections + groups. Departments, grants, labels and clearance below are kept for history; the request-time check now reads `access_rules`, `access_path_protections` and protections.
+
 Status: **implemented in code** (2026-11-05). Default runtime: `ACCESS_MODE=off` (no enforcement until you enable it). Apply migration `20261105_data_access` before using admin APIs.
 Scope: who can see which Databricks data in ALOFT, by department, by catalog / schema / table, with sensitivity labels (Confidential, Restricted) that need an extra clearance even when catalog access is granted.
 Method: static reading of the repository on 2026-11-05. No database, Databricks workspace or AWS account was queried. Line numbers refer to the tree on that date.
@@ -406,7 +408,7 @@ Sizes are relative (S, M, L), not estimates in days.
 | **4. Enforce on metadata** | Enforce `describe`, `estate`; lineage and search filtering; executor-name privacy | M | Hidden objects absent from every estate API and from `describe_schema` |
 | **5. Role service principals** | **Built 2026-11-05:** role credentials, routing by workload, admin API, fallback and lock-down switch. **Remaining:** create the SPs and UC grants (UC admin); route confidential and restricted tiers from `decide()`; drift check; admin screen | M (plus UC work) | Every role has its own tested SP; `DATABRICKS_SP_REQUIRED_ROLES=all`; drift report clean |
 | **6. Derived data and AI** | Memory paths and labels; intent filtering; knowledge sync rules; provider allowlist per tier; flows run-as-owner at run time | M | Derived-data tests pass |
-| **7. Columns** | Column labels; the semantic compiler omits or masks columns above clearance **in every clause** (SELECT, WHERE, GROUP BY, ORDER BY, JOIN); raw SQL refused on tables that have columns above the user's clearance | L | Mask tests pass, including inference through filters |
+| **7. Columns** | **Redesigned 2026-11-07** (see [pii-protection-backlog.md](pii-protection-backlog.md) §2b, §7): column access by data tag and access group, not clearance; `SELECT *` masks protected columns, other uses are refused; request / approve / audit flow | L | Mask tests and the E10-T4 red-team canary suite pass |
 
 Later, not scheduled: company scope (principal type `company`, label-like company tag), vessel and person row filters (a `conditions` column on grants that binds a table column to a user attribute), per-agent use grants.
 

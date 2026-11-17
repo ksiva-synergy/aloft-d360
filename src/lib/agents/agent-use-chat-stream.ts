@@ -13,6 +13,8 @@ export type AgentUseChatMessage = {
   content: string;
   /** Set only when the server sent one. Members never receive it. */
   inspection?: AgentInspection;
+  /** The person stopped this reply before it finished. Shown in this browser only. */
+  stopped?: boolean;
 };
 
 export type AgentUseChatSnapshot = {
@@ -31,12 +33,19 @@ type Listener = (snapshot: AgentUseChatSnapshot) => void;
 
 type InFlight = {
   ctrl: AbortController;
+  /**
+   * Client id for this turn, sent with Stop so only this reply is cancelled. Missing for a reply
+   * resumed after a page reload; Stop then targets the chat's current turn.
+   */
+  turnId?: string;
   assistantId: string;
   chatId: string | null;
   messages: AgentUseChatMessage[];
   runError: string | null;
   toolCalls: ToolCall[];
   startedAt: number;
+  /** Stop button or New chat. A dropped connection leaves this false so the turn keeps going. */
+  userStop: boolean;
 };
 
 type Idle = { chatId: string | null; messages: AgentUseChatMessage[]; runError: string | null };
@@ -70,9 +79,37 @@ function snapshot(slug: string): AgentUseChatSnapshot {
   };
 }
 
+/** Coalesce rapid text SSE deltas so large replies do not re-render markdown on every token. */
+const TEXT_NOTIFY_MS = 80;
+const textNotifyTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
 function notifyListeners(slug: string) {
   const snap = snapshot(slug);
   for (const listener of listenersBySlug.get(slug) ?? []) listener(snap);
+}
+
+function flushTextNotify(slug: string) {
+  const pending = textNotifyTimers.get(slug);
+  if (pending) {
+    clearTimeout(pending);
+    textNotifyTimers.delete(slug);
+  }
+}
+
+function notifyListenersNow(slug: string) {
+  flushTextNotify(slug);
+  notifyListeners(slug);
+}
+
+function scheduleTextNotify(slug: string) {
+  if (textNotifyTimers.has(slug)) return;
+  textNotifyTimers.set(
+    slug,
+    setTimeout(() => {
+      textNotifyTimers.delete(slug);
+      notifyListeners(slug);
+    }, TEXT_NOTIFY_MS),
+  );
 }
 
 export function getAgentUseChatSnapshot(slug: string): AgentUseChatSnapshot {
@@ -96,8 +133,28 @@ export function subscribeAgentUseChat(slug: string, listener: Listener): () => v
   };
 }
 
+/** Stop the reply on the server too, mark it stopped, and drop the local stream. */
+function stopHandle(handle: InFlight) {
+  if (handle.ctrl.signal.aborted) return;
+  handle.userStop = true;
+  if (handle.chatId) {
+    void fetch('/api/agent-lab/agents/chat/cancel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chatId: handle.chatId, turnId: handle.turnId }),
+    }).catch(() => {});
+  }
+  handle.messages = handle.messages.map((m) =>
+    m.id === handle.assistantId ? { ...m, stopped: true } : m,
+  );
+  handle.ctrl.abort();
+}
+
 export function stopAgentUseChat(slug: string) {
-  inFlightBySlug.get(slug)?.ctrl.abort();
+  const handle = inFlightBySlug.get(slug);
+  if (!handle) return;
+  stopHandle(handle);
+  notifyListenersNow(slug);
 }
 
 /** Show a saved chat (loaded from the server). Ignored while a reply is streaming. */
@@ -108,12 +165,39 @@ export function openAgentUseChat(slug: string, chatId: string, messages: AgentUs
 }
 
 /**
+ * Page reload while the server is still generating: poll the saved chat until the draft finishes.
+ */
+export function resumeAgentUseChat(slug: string, chatId: string, messages: AgentUseChatMessage[]) {
+  if (inFlightBySlug.has(slug)) return;
+  const last = messages[messages.length - 1];
+  const assistantId = last?.role === 'assistant' ? last.id : crypto.randomUUID();
+  const normalized =
+    last?.role === 'assistant'
+      ? messages
+      : [...messages, { id: assistantId, role: 'assistant' as const, content: '' }];
+  const handle: InFlight = {
+    ctrl: new AbortController(),
+    assistantId,
+    chatId,
+    messages: normalized,
+    runError: null,
+    toolCalls: [],
+    startedAt: Date.now(),
+    userStop: false,
+  };
+  inFlightBySlug.set(slug, handle);
+  notifyListenersNow(slug);
+  void followDroppedAgentTurn(slug, handle);
+}
+
+/**
  * Start a new, empty chat (used by New chat). An in-flight reply is stopped; the server still
  * saves what it had, so it stays in the person's chat list.
  */
 export function resetAgentUseChat(slug: string) {
   const handle = inFlightBySlug.get(slug);
   if (handle) {
+    handle.userStop = true;
     inFlightBySlug.delete(slug);
     handle.ctrl.abort();
   }
@@ -131,30 +215,44 @@ export function startAgentUseChat(input: {
   /** Called once the turn is saved (or failed), e.g. to refresh the chat list. */
   onSettled?: (chatId: string | null) => void;
 }): void {
-  const { slug, chatId, message, priorMessages, model, onSettled } = input;
-  inFlightBySlug.get(slug)?.ctrl.abort();
+  const { slug, message, model, onSettled } = input;
+  let { chatId, priorMessages } = input;
+  // "Send now" while a reply streams: stop it on the server as well (the server waits for it
+  // to save before reading this turn's history) and keep its partial text, marked stopped.
+  const previous = inFlightBySlug.get(slug);
+  if (previous) {
+    stopHandle(previous);
+    chatId = chatId ?? previous.chatId;
+    priorMessages = previous.messages.filter(
+      (m) => m.id !== previous.assistantId || m.content.trim(),
+    );
+  }
 
   const userMsg: AgentUseChatMessage = { id: crypto.randomUUID(), role: 'user', content: message };
   const assistantId = crypto.randomUUID();
+  const turnId = crypto.randomUUID();
   const ctrl = new AbortController();
   const handle: InFlight = {
     ctrl,
+    turnId,
     assistantId,
     chatId,
     messages: [...priorMessages, userMsg, { id: assistantId, role: 'assistant', content: '' }],
     runError: null,
     toolCalls: [],
     startedAt: Date.now(),
+    userStop: false,
   };
   inFlightBySlug.set(slug, handle);
   notifyListeners(slug);
 
   void (async () => {
+    let following = false;
     try {
       const res = await fetch('/api/agent-lab/agents/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug, message, chatId, model }),
+        body: JSON.stringify({ slug, message, chatId, model, turnId }),
         signal: ctrl.signal,
       });
       if (!res.ok || !res.body) {
@@ -180,21 +278,21 @@ export function startAgentUseChat(input: {
           }
           if (ev.type === 'chat' && typeof ev.chatId === 'string') {
             handle.chatId = ev.chatId;
-            notifyListeners(slug);
+            notifyListenersNow(slug);
           } else if (ev.type === 'inspection') {
             const note = parseInspection(ev.inspection);
             if (note) {
               handle.messages = handle.messages.map((m) =>
                 m.id === assistantId ? { ...m, inspection: note } : m,
               );
-              notifyListeners(slug);
+              notifyListenersNow(slug);
             }
           } else if (ev.type === 'text') {
             const delta = String(ev.delta ?? '');
             handle.messages = handle.messages.map((m) =>
               m.id === assistantId ? { ...m, content: m.content + delta } : m,
             );
-            notifyListeners(slug);
+            scheduleTextNotify(slug);
           } else if (ev.type === 'tool_call_running') {
             const callId = String(ev.callId ?? crypto.randomUUID());
             const toolName = String(ev.toolName ?? 'a tool');
@@ -202,7 +300,7 @@ export function startAgentUseChat(input: {
               ...handle.toolCalls.filter((t) => t.callId !== callId),
               { callId, toolId: toolName, toolName, status: 'running', input: ev.input },
             ];
-            notifyListeners(slug);
+            notifyListenersNow(slug);
           } else if (ev.type === 'tool_call_result' || ev.type === 'tool_call_error') {
             const failed = ev.type === 'tool_call_error';
             handle.toolCalls = handle.toolCalls.map((t) =>
@@ -215,29 +313,78 @@ export function startAgentUseChat(input: {
                   }
                 : t,
             );
-            notifyListeners(slug);
+            notifyListenersNow(slug);
           } else if (ev.type === 'error') {
             handle.runError = String(ev.message ?? 'The agent hit an error');
-            notifyListeners(slug);
+            notifyListenersNow(slug);
           }
         }
       }
     } catch (err: unknown) {
-      if ((err as { name?: string }).name !== 'AbortError') {
+      const name = (err as { name?: string }).name;
+      const dropped = !handle.userStop && (name === 'AbortError' || err instanceof TypeError);
+      if (!dropped && name !== 'AbortError') {
         handle.runError = err instanceof Error ? err.message : 'The request failed';
-        notifyListeners(slug);
+        notifyListenersNow(slug);
+      }
+      if (dropped && handle.chatId) {
+        following = true;
+        void followDroppedAgentTurn(slug, handle, onSettled);
+        return;
       }
     } finally {
-      handle.messages = handle.messages.filter(
-        (m) => m.role !== 'assistant' || m.content.trim() || m.id !== assistantId,
-      );
-      const stillCurrent = inFlightBySlug.get(slug) === handle;
-      if (stillCurrent) {
-        inFlightBySlug.delete(slug);
-        idleBySlug.set(slug, { chatId: handle.chatId, messages: handle.messages, runError: handle.runError });
-        notifyListeners(slug);
-      }
-      onSettled?.(handle.chatId);
+      if (following) return;
+      if (inFlightBySlug.get(slug) !== handle) return;
+      settleAgentTurn(slug, handle, onSettled);
     }
   })();
+}
+
+function settleAgentTurn(slug: string, handle: InFlight, onSettled?: (chatId: string | null) => void) {
+  handle.messages = handle.messages.filter(
+    (m) => m.role !== 'assistant' || m.content.trim() || m.id !== handle.assistantId,
+  );
+  if (inFlightBySlug.get(slug) === handle) {
+    inFlightBySlug.delete(slug);
+    idleBySlug.set(slug, { chatId: handle.chatId, messages: handle.messages, runError: handle.runError });
+    notifyListenersNow(slug);
+  }
+  onSettled?.(handle.chatId);
+}
+
+/** Browser dropped the socket. The server keeps writing; pull the draft until the turn ends. */
+async function followDroppedAgentTurn(slug: string, handle: InFlight, onSettled?: (chatId: string | null) => void) {
+  try {
+    for (let i = 0; i < 160 && !handle.userStop; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      if (handle.userStop || !handle.chatId) break;
+      const res = await fetch(`/api/agent-lab/agents/chats/${handle.chatId}`);
+      if (!res.ok) continue;
+      const data = (await res.json()) as {
+        chat?: {
+          messages?: AgentUseChatMessage[];
+          draft?: { status?: string; text?: string } | null;
+        };
+      };
+      const draft = data.chat?.draft;
+      if (draft && typeof draft.text === 'string' && draft.text) {
+        handle.messages = handle.messages.map((m) =>
+          m.id === handle.assistantId ? { ...m, content: draft.text as string } : m,
+        );
+        notifyListenersNow(slug);
+      }
+      if (!draft || draft.status !== 'running') {
+        const saved = data.chat?.messages;
+        if (Array.isArray(saved) && saved.length > 0) {
+          handle.messages = saved;
+          notifyListenersNow(slug);
+        }
+        break;
+      }
+    }
+  } catch {
+    /* the saved chat still has the reply when the turn finishes */
+  } finally {
+    settleAgentTurn(slug, handle, onSettled);
+  }
 }

@@ -63,6 +63,8 @@ interface ScannedPipelineScopeBarProps {
   sourceId?: string;
   canRunPipeline?: boolean;
   onLaunched?: () => void;
+  /** Show the scanned list limited to tables that still need an embedding. */
+  onShowNeedsEmbed?: () => void;
 }
 
 export default function ScannedPipelineScopeBar({
@@ -73,6 +75,7 @@ export default function ScannedPipelineScopeBar({
   sourceId,
   canRunPipeline = false,
   onLaunched,
+  onShowNeedsEmbed,
 }: ScannedPipelineScopeBarProps) {
   const [health, setHealth] = useState<PipelineIntentHealth | null>(null);
   const [summary, setSummary] = useState('');
@@ -270,7 +273,20 @@ export default function ScannedPipelineScopeBar({
               <span>{health.scanned_objects.toLocaleString()} scanned</span>
               {needsProfile > 0 && <span>{needsProfile.toLocaleString()} need profiling</span>}
               {health.needs_enrich > 0 && <span>{health.needs_enrich.toLocaleString()} need a description</span>}
-              {health.needs_embed > 0 && <span>{health.needs_embed.toLocaleString()} not searchable yet</span>}
+              {health.needs_embed > 0 && (
+                onShowNeedsEmbed ? (
+                  <button
+                    type="button"
+                    onClick={onShowNeedsEmbed}
+                    className="underline decoration-[color:color-mix(in_srgb,currentColor_40%,transparent)] underline-offset-2 hover:text-[var(--estate-ink)]"
+                    title="Show these tables. Counted the same way as the Searchable color: missing or out-of-date embeddings."
+                  >
+                    {health.needs_embed.toLocaleString()} need{health.needs_embed === 1 ? 's' : ''} searchable
+                  </button>
+                ) : (
+                  <span>{health.needs_embed.toLocaleString()} need{health.needs_embed === 1 ? 's' : ''} searchable</span>
+                )
+              )}
             </div>
           )}
         </div>

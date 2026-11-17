@@ -29,6 +29,8 @@ const CLI_RULES = [
   { re: /\bdatabricks\b[\s\S]{0,160}\bfs\s+rm\b/i, label: 'databricks fs rm' },
   { re: /\bdatabricks\b[\s\S]{0,160}\b(tables|schemas|catalogs|volumes|pipelines)\s+delete\b/i, label: 'databricks delete' },
   { re: /\bdatabricks\b[\s\S]{0,160}\b(bundles?\s+)?destroy\b/i, label: 'databricks destroy' },
+  { re: /\bprisma\b[\s\S]{0,120}\bmigrate\s+reset\b/i, label: 'prisma migrate reset' },
+  { re: /\bprisma\b[\s\S]{0,120}\bdb\s+push\b[\s\S]{0,100}(?:--force-reset|--accept-data-loss)\b/i, label: 'prisma db push (destructive)' },
 ];
 
 const FILE_TOOLS = /^(Read|Write|StrReplace|TabRead|TabWrite|Edit|ApplyPatch)$/i;
@@ -64,6 +66,21 @@ function isEnvFile(filePath) {
 export function inspect(payload) {
   const tool = String(payload.tool_name || payload.tool || '');
   const reasons = [];
+  const hookEvent = String(payload.hook_event_name || '');
+
+  // Cursor beforeReadFile / beforeTabFileRead: file_path at root + optional attachments (see cursor.com/docs/hooks)
+  if (hookEvent === 'beforeReadFile' || hookEvent === 'beforeTabFileRead') {
+    const readPaths = [];
+    if (typeof payload.file_path === 'string') readPaths.push(payload.file_path);
+    if (Array.isArray(payload.attachments)) {
+      for (const a of payload.attachments) {
+        if (a && typeof a.file_path === 'string') readPaths.push(a.file_path);
+      }
+    }
+    if (readPaths.some(isEnvFile)) reasons.push('reading or writing .env');
+    return reasons;
+  }
+
   const paths = [];
   collectPaths(payload.tool_input ?? payload.input ?? {}, paths);
 
@@ -93,6 +110,9 @@ function message(reasons) {
 }
 
 function emit(payload, reasons) {
+  const hookEvent = String(payload.hook_event_name || '');
+  const tabRead = hookEvent === 'beforeTabFileRead';
+
   if (reasons.length === 0) {
     if (payload.hook_event_name === 'PreToolUse') {
       process.stdout.write(JSON.stringify({
@@ -116,6 +136,9 @@ function emit(payload, reasons) {
         permissionDecisionReason: text,
       },
     }));
+  } else if (tabRead) {
+    // beforeTabFileRead schema: permission only (no user_message)
+    process.stdout.write(JSON.stringify({ permission: 'deny' }));
   } else {
     process.stdout.write(JSON.stringify({
       permission: 'deny',

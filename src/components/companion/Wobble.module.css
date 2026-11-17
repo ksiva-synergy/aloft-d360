@@ -1,7 +1,12 @@
 .wobble { display: inline-block; flex-shrink: 0; vertical-align: middle; }
 .wobble svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .body { transform-origin: 62px 96px; transition: transform 240ms cubic-bezier(.23,1,.32,1); }
-.shadow { fill: var(--wob); opacity: .28; transform-origin: 62px 104px; }
+.shadow { transform-origin: 62px 103px; }
+/* The smooth body fades out as the painted fur coat fades in over it. */
+.skin { transition: opacity 240ms ease-out; }
+.skin[data-hidden] { opacity: 0; }
+.coat { animation: coat-in 240ms ease-out both; }
+@keyframes coat-in { from { opacity: 0; } }
 .eye { transform-box: fill-box; transform-origin: center; transition: transform 200ms cubic-bezier(.23,1,.32,1); }
 .pupil { transition: transform 240ms cubic-bezier(.23,1,.32,1); }
 .waves, .sparks { stroke: color-mix(in srgb, var(--wob) 80%, #2b2560); }
@@ -42,9 +47,9 @@
 @keyframes idle-glance { 0%,12%,48%,100% { transform: translate(0, 0); } 16%,26% { transform: translate(-1.6px, .4px); } 32%,44% { transform: translate(1.6px, -1.2px); } }
 @keyframes idle-sway { 0%,12%,62%,100% { transform: none; } 16%,26% { transform: rotate(-2deg); } 32%,44% { transform: rotate(2.5deg); } 54%,58% { transform: rotate(-1.5deg); } }
 @keyframes idle-play { 0%,100% { transform: none; } 8% { transform: translateY(-2px); } 16%,26% { transform: translateY(-1px) rotate(-3deg); } 32%,44% { transform: translateY(-3px) rotate(4deg); } 50% { transform: none; } 54%,58% { transform: translateY(-2px) rotate(-2deg) scale(1.02); } 70% { transform: translateY(-3px); } 85% { transform: none; } }
-@keyframes idle-shadow { 0%,50%,85%,100% { transform: none; } 8%,32%,44%,54%,58%,70% { transform: scaleX(.88); opacity: .18; } }
+@keyframes idle-shadow { 0%,50%,85%,100% { transform: none; } 8%,32%,44%,54%,58%,70% { transform: scaleX(.88); opacity: .6; } }
 @keyframes wob-float { 50% { transform: translateY(-3px); } }
-@keyframes wob-shadow { 50% { transform: scaleX(.88); opacity: .18; } }
+@keyframes wob-shadow { 50% { transform: scaleX(.88); opacity: .6; } }
 @keyframes wob-pulse { 50% { transform: scale(1.035); } }
 @keyframes wob-tilt { 0%,100% { transform: rotate(-5deg); } 50% { transform: rotate(3deg); } }
 @keyframes wob-wobble { 0%,100% { transform: scale(1, 1); } 25% { transform: scale(1.045, .955); } 50% { transform: scale(.97, 1.03); } 75% { transform: scale(1.02, .98); } }
@@ -69,3 +74,31 @@
 @keyframes wob-lean { 0%,100% { transform: rotate(6deg) translateX(1px); } 50% { transform: rotate(9deg) translateX(2px); } }
 @keyframes wob-stretch { 0%,100% { transform: scale(1, 1); } 50% { transform: scale(1.07, .94); } }
 @keyframes wob-squash { 0%,100% { transform: scale(1, 1); } 50% { transform: scale(1.04, .95); } }
+
+/* Fur follow-through: the fringe group also has .body, so it repeats every body motion and pose; starting a beat
+   later makes the hair trail each wobble, bounce and lean. Kept last and at this specificity so it beats the
+   per-state `animation` shorthands above. */
+.wobble[data-captain-state] .body.fringe { animation-delay: 90ms; transition-delay: 40ms; }
+/* The busy wobble is fast, so a shorter beat keeps the fringe tight to the body. */
+.wobble[data-captain-state='tools'] .body.fringe { animation-delay: 50ms; }
+/* The happy bounce moves too far, too fast for a delayed copy (the fringe would lift off the body), so the hair
+   moves with the body exactly and reacts in shape instead: it stretches as it rises, flares out on landing, then
+   springs back. */
+.wobble[data-personality='expressive'][data-captain-state='success'] .body.fringe {
+  animation: fur-bounce 600ms cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes fur-bounce {
+  30% { transform: translateY(-7px) scale(.965, 1.055); }
+  60% { transform: translateY(0) scale(1.065, .94); }
+  80% { transform: translateY(0) scale(.985, 1.02); }
+  92% { transform: translateY(0) scale(1.006, .994); }
+  100% { transform: translateY(0) scale(1, 1); }
+}
+/* A slow drift of its own, as if the fur moves in the air. */
+.drift { transform-origin: 62px 96px; animation: fur-drift 5.2s ease-in-out infinite; }
+.wobble[data-character='lumi'] .drift { animation-duration: 7s; }
+@keyframes fur-drift {
+  0%, 100% { transform: none; }
+  30% { transform: skewX(-.9deg) scale(1.006, 1.012); }
+  65% { transform: skewX(.7deg) scale(1.004, 1.008); }
+}

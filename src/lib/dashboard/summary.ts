@@ -437,7 +437,7 @@ async function fetchGovernance(orgId: string): Promise<GovernanceSummary | null>
 }
 
 const SPEND_AREA: Record<string, string> = {
-  InspectorChat: 'Inspector',
+  InspectorChat: 'Ask Data',
   t2_semantic: 'Table descriptions',
   mapping: 'Schema mapping',
 };

@@ -185,6 +185,49 @@ export function compileMetricViewDDL(
   return statements;
 }
 
+// ── Access protections for generated views (review C5) ───────────────────────
+
+/** View and source table of a statement compileMetricViewDDL generated, or null for other statements. */
+export function metricViewLineage(statement: string): { view: string; source: string } | null {
+  const view = /CREATE\s+OR\s+REPLACE\s+VIEW\s+([\w$.-]+)/i.exec(statement)?.[1];
+  const source = /\bFROM\s+([\w$.-]+)/i.exec(statement)?.[1];
+  if (!view || !source || view.split('.').length !== 3 || source.split('.').length !== 3) return null;
+  return { view: view.toLowerCase(), source: source.toLowerCase() };
+}
+
+/**
+ * A view over a protected table must be at least as protected as the table. Rules and protections are
+ * keyed by path, so without this a generated view would expose protected columns to anyone with Use.
+ * Every protection on the source (whole-path protections covering it, and column protections in it)
+ * becomes a whole-path protection on the view. Conservative: it doesn't track which columns survive.
+ */
+export async function inheritProtectionsForView(orgId: string, view: string, source: string): Promise<number> {
+  const [catalog, schema] = source.split('.');
+  const [pathProtections, columnTags] = await Promise.all([
+    prisma.accessPathProtection.findMany({
+      where: { org_id: orgId, path: { in: [catalog!, `${catalog}.${schema}`, source] } },
+      select: { tag_id: true },
+    }),
+    prisma.accessColumnTag.findMany({
+      where: { org_id: orgId, table_path: source, status: 'confirmed' },
+      select: { tag_id: true },
+    }),
+  ]);
+  const tagIds = [...new Set([...pathProtections, ...columnTags].map((t) => t.tag_id))];
+  for (const tag_id of tagIds) {
+    await prisma.accessPathProtection.upsert({
+      where: { org_id_tag_id_path: { org_id: orgId, tag_id, path: view } },
+      create: { org_id: orgId, tag_id, path: view, path_depth: 3, reason: `Inherited from ${source} (generated view)` },
+      update: {},
+    });
+  }
+  if (tagIds.length) {
+    const { bumpPolicyVersion } = await import('@/lib/access/policy-store');
+    await bumpPolicyVersion(orgId);
+  }
+  return tagIds.length;
+}
+
 // ── Apply function ────────────────────────────────────────────────────────────
 
 /**
@@ -209,6 +252,9 @@ export async function applyMetricViews(
 
   for (const statement of ddlStatements) {
     try {
+      // Protect the view before it exists, so there is no window where it is readable unprotected (review C5).
+      const lineage = metricViewLineage(statement);
+      if (lineage) await inheritProtectionsForView(connection.org_id, lineage.view, lineage.source);
       await executeDatabricksDDL(
         connectionId,
         session.workspaceHost,

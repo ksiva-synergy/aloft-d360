@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import { getCurrentTopicMap } from '@/lib/foer/topics';
+import { guardMemoryApi } from '../_auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,7 +13,10 @@ export const dynamic = 'force-dynamic';
  * The current-period topic map (`taskSignature -> { topicKey, topicName, rank }`) that
  * `memory/ops/page.tsx` used to load on the server and pass to `FoerOpsDashboard`.
  */
-export async function GET() {
+export async function GET(req: Request) {
+  const denied = await guardMemoryApi(req);
+  if (denied) return denied;
+
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });

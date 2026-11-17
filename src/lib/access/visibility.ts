@@ -1,5 +1,6 @@
-import { decide } from './decide';
-import { loadPolicySnapshot } from './policy-store';
+import { createHash } from 'node:crypto';
+import { decideLevel } from './engine';
+import { getAccessModel } from './model-store';
 import type { AccessLevel, AccessPrincipal } from './types';
 
 const MAX_CACHE = 500;
@@ -40,6 +41,15 @@ class LruCache<V> {
   }
 }
 
+/**
+ * Cache keys include WHICH paths were asked about (not just how many) and the current minute,
+ * so rules and grants that expire stop applying within 60 s even if nothing else changes (review H4).
+ */
+function listKey(items: string[]): string {
+  const digest = createHash('sha1').update([...items].sort().join('\n')).digest('base64url');
+  return `${Math.floor(Date.now() / 60_000)}:${digest}`;
+}
+
 const pathSetCache = new LruCache<Set<string>>(MAX_CACHE);
 const idListCache = new LruCache<string[]>(MAX_CACHE);
 
@@ -48,14 +58,14 @@ export async function visiblePathsSet(
   level: AccessLevel,
   objectPaths: string[],
 ): Promise<Set<string>> {
-  const snapshot = await loadPolicySnapshot(principal.orgId);
-  const key = `${cacheKey(principal, level, snapshot.version)}:${objectPaths.length}`;
+  const { model, version } = await getAccessModel(principal.orgId);
+  const key = `${cacheKey(principal, level, version)}:${listKey(objectPaths.map((p) => p.toLowerCase()))}`;
   const cached = pathSetCache.get(key);
   if (cached) return cached;
 
   const visible = new Set<string>();
   for (const path of objectPaths) {
-    const d = decide(principal, path, level, snapshot);
+    const d = decideLevel(model, principal, path, level);
     if (d.allowed) visible.add(path.toLowerCase());
   }
   pathSetCache.set(key, visible);
@@ -67,14 +77,14 @@ export async function visibleObjectIds(
   level: AccessLevel,
   objects: Array<{ id: string; full_path: string }>,
 ): Promise<string[]> {
-  const snapshot = await loadPolicySnapshot(principal.orgId);
-  const key = `${cacheKey(principal, level, snapshot.version)}:ids:${objects.length}`;
+  const { model, version } = await getAccessModel(principal.orgId);
+  const key = `${cacheKey(principal, level, version)}:ids:${listKey(objects.map((o) => `${o.id}\u0000${o.full_path.toLowerCase()}`))}`;
   const cached = idListCache.get(key);
   if (cached) return cached;
 
   const ids: string[] = [];
   for (const obj of objects) {
-    const d = decide(principal, obj.full_path, level, snapshot);
+    const d = decideLevel(model, principal, obj.full_path, level);
     if (d.allowed) ids.push(obj.id);
   }
   idListCache.set(key, ids);

@@ -11,11 +11,15 @@ import { cn } from '@/lib/utils';
 import { UserMenu } from '@/components/shell/UserMenu';
 import { BrandMark } from '@/components/shell/BrandMark';
 import type { Session } from 'next-auth';
-import { groupForPath, isActive, type NavItem } from './nav-config';
+import { useSession } from 'next-auth/react';
+import { useSectionLevels } from '@/lib/sections/useSectionLevels';
+import { flatNavItems, groupForPath, isActive, isFlatNav, primaryNavHref, showHomeInNav, type NavItem } from './nav-config';
 import { useNavGroups } from './useNavGroups';
 import { TOGGLE_EVENT, useNavShell } from './useNavShell';
 import { AuroraGlow, NavStyleToggle, useNavStyle } from './nav-shared';
 import { CommandSidebar } from './CommandSidebar';
+import { PinnedAgentBadge, isPinnedAgentActive } from './PinnedAgentBadge';
+import { usePinReorder } from './usePinReorder';
 
 const RAIL_W = 64;
 const PANEL_W = 240;
@@ -41,12 +45,19 @@ export function toggleMobileNav() {
 function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
   const pathname = usePathname();
   const isHome = pathname === '/dashboard';
-  const shell = useNavShell();
+  const { data: session } = useSession();
+  const shellRole = (session ?? initialSession)?.user?.role as string | undefined;
+  const shell = useNavShell({ initialRole: shellRole });
   const { expanded, pinned, mobileOpen } = shell;
+  const me = useSectionLevels();
+  const levels = me?.levels ?? null;
+  const logoHref = primaryNavHref(levels);
+  const showHome = showHomeInNav(levels);
 
   const [areaId, setAreaId] = useState(() => groupForPath(pathname));
   const [filter, setFilter] = useState('');
   const groups = useNavGroups();
+  const flatNav = isFlatNav(groups);
 
   // Follow navigation: show the panel for the section you are in.
   useEffect(() => {
@@ -56,7 +67,10 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
 
   const area = groups.find((g) => g.id === areaId) ?? groups[0];
   const q = filter.trim().toLowerCase();
-  const items = q ? area.items.filter((i) => i.label.toLowerCase().includes(q)) : area.items;
+  const baseItems = flatNav ? flatNavItems(groups) : (area?.items ?? []);
+  const items = q ? baseItems.filter((i) => i.label.toLowerCase().includes(q)) : baseItems;
+  const flatNavTitle =
+    flatNavItems(groups).find((i) => isActive(i, pathname))?.label ?? groups[0]?.label ?? '';
 
   return (
     <>
@@ -93,9 +107,9 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
           }}
         >
           <AuroraGlow />
-          <div className="flex h-[var(--shell-header-h)] w-full shrink-0 items-center justify-center border-b border-[var(--header-border)]">
+          <div className="flex min-h-[var(--shell-header-h)] w-full shrink-0 items-center justify-center border-b border-[var(--header-border)] px-1 pt-1.5 pb-1">
             <Link
-              href="/dashboard"
+              href={logoHref}
               aria-label="Synergy Group — ALOFT home"
               className="relative rounded-full outline-none focus-visible:ring-2 focus-visible:ring-[var(--rail-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--rail-bg)]"
             >
@@ -105,22 +119,34 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
           <span aria-hidden className="relative my-2 h-px w-6 rounded-full bg-[var(--rail-line)]" />
 
           <div className="relative flex flex-col items-center gap-1">
-            <RailLink href="/dashboard" label="Home" icon={HouseIcon} active={isHome} />
-            {groups.map((g) => (
-              <RailButton
-                key={g.id}
-                label={g.railLabel}
-                icon={g.icon}
-                selected={g.id === areaId && !isHome}
-                hasActive={g.items.some((i) => isActive(i, pathname))}
-                onClick={() => {
-                  setAreaId(g.id);
-                  setFilter('');
-                  shell.open();
-                }}
-              />
-            ))}
+            {showHome ? <RailLink href="/dashboard" label="Home" icon={HouseIcon} active={isHome} /> : null}
+            {flatNav
+              ? flatNavItems(groups).map((item) => (
+                  <RailLink
+                    key={item.href}
+                    href={item.href}
+                    label={item.label}
+                    icon={item.icon}
+                    active={isActive(item, pathname)}
+                  />
+                ))
+              : groups.map((g) => (
+                  <RailButton
+                    key={g.id}
+                    label={g.railLabel}
+                    icon={g.icon}
+                    selected={g.id === areaId && !isHome}
+                    hasActive={g.items.some((i) => isActive(i, pathname))}
+                    onClick={() => {
+                      setAreaId(g.id);
+                      setFilter('');
+                      shell.open();
+                    }}
+                  />
+                ))}
           </div>
+
+          <RailPinnedAgents pathname={pathname} />
 
           <div className="relative mt-auto flex w-full justify-center">
             <UserMenu initialSession={initialSession} />
@@ -142,7 +168,7 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
               <div className="min-w-0 flex-1">
                 <p className="text-[length:var(--type-caption-size)] font-semibold uppercase leading-none tracking-wide text-[var(--ink-3)]">Agent Lab</p>
                 <h2 className="mt-0.5 truncate leading-tight text-size-body font-semibold tracking-tight text-[var(--ink-1)]">
-                  {isHome ? 'Home' : area.label}
+                  {isHome ? 'Home' : flatNav ? flatNavTitle : area?.label}
                 </h2>
               </div>
               <button
@@ -161,7 +187,7 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
               </button>
             </div>
             <p className="mb-2 truncate px-2 text-size-ui text-[var(--ink-3)]">
-              {isHome ? 'Your workspace overview' : area.description}
+              {isHome ? 'Your workspace overview' : flatNav ? 'Jump to a page' : area?.description}
             </p>
 
             {!isHome && (
@@ -170,8 +196,8 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
                 <input
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
-                  placeholder={`Filter ${area.label.toLowerCase()}`}
-                  aria-label={`Filter ${area.label}`}
+                  placeholder={flatNav ? 'Filter pages' : `Filter ${area?.label.toLowerCase() ?? 'pages'}`}
+                  aria-label={flatNav ? 'Filter pages' : `Filter ${area?.label ?? 'pages'}`}
                   autoComplete="off"
                   className="w-full min-w-0 bg-transparent text-[length:var(--type-ui-regular-size)] text-[var(--ink-1)] outline-none placeholder:text-[var(--ink-3)]"
                 />
@@ -264,6 +290,36 @@ function RailButton({
     <button onClick={onClick} aria-pressed={selected} className={railItemClass}>
       <RailItem label={label} icon={icon} active={selected} dot={hasActive && !selected} />
     </button>
+  );
+}
+
+/** Pinned agents as initials badges under the area buttons; hover shows the name. */
+function RailPinnedAgents({ pathname }: { pathname: string }) {
+  const { list, dragId, dragProps, keyProps } = usePinReorder();
+  if (list.length === 0) return null;
+  return (
+    <>
+      <span aria-hidden className="relative my-2 h-px w-6 rounded-full bg-[var(--rail-line)]" />
+      <ul aria-label="Pinned agents" className="relative flex flex-col items-center gap-1">
+        {list.map((agent) => {
+          const active = isPinnedAgentActive(agent.useUrl, pathname);
+          return (
+            <li key={agent.id} {...dragProps(agent.id)} className={cn(dragId === agent.id && 'opacity-50')}>
+              <Link
+                href={agent.useUrl}
+                aria-label={agent.name}
+                aria-current={active ? 'page' : undefined}
+                title={`${agent.name} (drag or Alt+↑/↓ to reorder)`}
+                {...keyProps(agent.id)}
+                className="flex h-9 w-10 items-center justify-center rounded-full outline-none transition-colors hover:bg-[var(--rail-hover)] focus-visible:ring-2 focus-visible:ring-[var(--rail-accent)]"
+              >
+                <PinnedAgentBadge name={agent.name} active={active} />
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 }
 

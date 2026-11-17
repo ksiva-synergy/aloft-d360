@@ -19,6 +19,18 @@ import {
 import { AVAILABLE_MODELS, type ModelOption } from '@/components/agent-lab/workbench/types';
 import { type, inkOf } from '@/lib/typography/tokens';
 import { cn } from '@/lib/utils';
+import { QueuedMessageBar } from './QueuedMessageBar';
+
+/** Typing while a reply streams queues the message instead (see useQueuedSend). Inline variant only. */
+export type ComposerQueue = {
+  queued: string | null;
+  /** Queue the composer text. */
+  onQueue: () => void;
+  /** Stop the reply and send the queued text now; `withDraft` adds the composer text (Ctrl+Enter). */
+  onSendNow: (withDraft: boolean) => void;
+  onEdit: () => void;
+  onDiscard: () => void;
+};
 
 const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
 const sans: React.CSSProperties = { fontFamily: 'var(--font-sans)' };
@@ -455,6 +467,8 @@ export interface InputComposerProps {
   columnMaxWidth?: number;
   /** `inline` = Agents-chat style: one rounded box with model picker beside a round send button. */
   variant?: 'toolbar' | 'inline';
+  /** Inline variant: keep the box usable while streaming and queue what is sent. */
+  queue?: ComposerQueue;
 }
 
 export function InputComposer({
@@ -477,11 +491,15 @@ export function InputComposer({
   layout = 'dock',
   columnMaxWidth,
   variant = 'toolbar',
+  queue,
 }: InputComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const busy = isStreaming || isCommissioning;
   const canSend = value.trim().length >= minLength && !busy;
   const [focused, setFocused] = useState(false);
+  // A reply is streaming and this composer queues instead of blocking.
+  const queueing = variant === 'inline' && !!queue && isStreaming && !isCommissioning;
+  const canQueue = queueing && value.trim().length > 0;
 
   // Auto-focus when not busy
   useEffect(() => {
@@ -502,6 +520,14 @@ export function InputComposer({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if ((e.key === 'Enter' && !e.shiftKey) || (e.key === 'Enter' && (e.metaKey || e.ctrlKey))) {
       e.preventDefault();
+      if (queueing && queue) {
+        if (e.metaKey || e.ctrlKey) {
+          if (canQueue || queue.queued) queue.onSendNow(true);
+        } else if (canQueue) {
+          queue.onQueue();
+        }
+        return;
+      }
       if (canSend) onSubmit();
     }
   };
@@ -519,11 +545,19 @@ export function InputComposer({
         className={centered ? 'w-full' : 'w-full shrink-0 px-4 pb-4 pt-2 md:px-6'}
         style={{ maxWidth: widthCap, marginLeft: widthCap ? 'auto' : undefined, marginRight: widthCap ? 'auto' : undefined, boxSizing: 'border-box' }}
       >
+        {queue && (
+          <QueuedMessageBar
+            text={queue.queued}
+            onSendNow={() => queue.onSendNow(false)}
+            onEdit={queue.onEdit}
+            onDiscard={queue.onDiscard}
+          />
+        )}
         <form
-          className="flex w-full items-end gap-2 rounded-2xl border bg-[var(--surface-1)] p-2.5 shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-[border-color] duration-200"
-          style={{ borderColor: focused ? 'color-mix(in srgb, var(--brand-a) 45%, transparent)' : 'var(--line-1)' }}
+          className="flex w-full items-end gap-2 rounded-[26px] border border-[var(--line-1)] bg-[var(--surface-1)] py-1.5 pl-1.5 pr-2 shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-[border-color,box-shadow] duration-hover focus-within:border-[color-mix(in_srgb,var(--brand-a)_45%,var(--line-1))] focus-within:shadow-[var(--focus-ring),0_8px_30px_rgba(0,0,0,0.12)]"
           onSubmit={(e) => {
             e.preventDefault();
+            if (queueing) { if (canQueue) queue?.onQueue(); return; }
             if (canSend) onSubmit();
           }}
         >
@@ -532,14 +566,12 @@ export function InputComposer({
             value={value}
             onChange={e => { onChange(e.target.value); resizeTextarea(); }}
             onKeyDown={handleKeyDown}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
-            placeholder={busy ? 'Generating…' : placeholder}
-            disabled={busy}
+            placeholder={queueing ? 'Ask a follow-up — it sends when this reply finishes' : busy ? 'Generating…' : placeholder}
+            disabled={busy && !queueing}
             rows={1}
-            className="max-h-40 min-h-[44px] flex-1 resize-none bg-transparent px-3 py-2.5 text-size-body leading-relaxed text-[var(--ink-1)] outline-none placeholder:text-[var(--ink-3)]"
+            className="max-h-40 min-h-[40px] min-w-0 flex-1 resize-none bg-transparent py-2 pl-4 pr-2 text-size-body leading-relaxed text-[var(--ink-1)] outline-none placeholder:text-[var(--ink-3)]"
           />
-          <div className="shrink-0 self-end pb-0.5">
+          <div className="flex h-[40px] max-w-[50%] shrink-0 items-center gap-1.5 self-end [&_button]:max-w-full [&_button]:border-[var(--line-1)] [&_button]:text-[var(--ink-1)] [&_button_span]:truncate">
             <ModelSelector
               selectedModel={selectedModel}
               onModelChange={onModelChange}
@@ -547,31 +579,43 @@ export function InputComposer({
               models={modelOptions}
               align="right"
             />
+            {canQueue && (
+              <button
+                type="submit"
+                aria-label="Queue message"
+                title="Queue — sends when this reply finishes (Enter). Ctrl+Enter sends now."
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--brand-a)_14%,transparent)] text-[var(--brand-a-ink)] transition-transform duration-hover active:scale-[0.94]"
+              >
+                <ArrowUp className="h-4 w-4" />
+              </button>
+            )}
+            {busy ? (
+              <button
+                type="button"
+                onClick={onStop}
+                aria-label="Stop"
+                title="Stop generation"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--line-1)] text-[var(--ink-1)] transition-colors duration-hover hover:bg-[var(--surface-2)]"
+              >
+                <Square className="h-3.5 w-3.5" />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={!canSend}
+                aria-label="Send"
+                title="Send (Enter)"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--brand-a)] text-white transition-[background-color,transform] duration-hover active:scale-[0.94] disabled:bg-[var(--surface-3)] disabled:text-[var(--ink-3)] disabled:active:scale-100"
+              >
+                <ArrowUp className="h-4 w-4" />
+              </button>
+            )}
           </div>
-          {busy ? (
-            <button
-              type="button"
-              onClick={onStop}
-              aria-label="Stop"
-              title="Stop generation"
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--line-1)] text-[var(--ink-1)]"
-            >
-              <Square className="h-3.5 w-3.5" />
-            </button>
-          ) : (
-            <button
-              type="submit"
-              disabled={!canSend}
-              aria-label="Send"
-              title="Send (Enter)"
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--brand-a)] text-white disabled:opacity-40"
-            >
-              <ArrowUp className="h-4 w-4" />
-            </button>
-          )}
         </form>
         <p className="mt-2 w-full text-center text-[length:var(--type-caption-size)] text-[var(--ink-3)]">
-          Enter to send · Shift+Enter for a new line
+          {queueing
+            ? 'Enter to queue · Ctrl+Enter to stop and send now'
+            : 'Enter to send · Shift+Enter for a new line'}
         </p>
       </div>
     );

@@ -10,8 +10,8 @@ import {
 import { saveCompanionPreferences, useCompanionPreferences } from '@/hooks/useCompanionPreferences';
 
 function Swatch({
-  color, label, selected, onClick,
-}: { color: string; label: string; selected: boolean; onClick: () => void }) {
+  color, label, selected, onClick, compact = false,
+}: { color: string; label: string; selected: boolean; onClick: () => void; compact?: boolean }) {
   return (
     <button
       type="button"
@@ -20,41 +20,51 @@ function Swatch({
       aria-label={label}
       aria-pressed={selected}
       className={cn(
-        'flex h-6 w-6 items-center justify-center rounded-full ring-offset-2 ring-offset-[var(--surface-1)] transition-transform hover:scale-110',
+        'flex items-center justify-center rounded-full ring-offset-2 ring-offset-[var(--surface-1)] transition-transform hover:scale-110',
+        compact ? 'h-5 w-5' : 'h-6 w-6',
         selected ? 'ring-2 ring-[var(--ink-1)]' : 'ring-1 ring-[var(--line-2)]',
       )}
       style={{ background: color }}
     >
-      {selected && <Check className="h-3.5 w-3.5 text-white mix-blend-difference" strokeWidth={3} />}
+      {selected && <Check className={cn('text-white mix-blend-difference', compact ? 'h-3 w-3' : 'h-3.5 w-3.5')} strokeWidth={3} />}
     </button>
   );
 }
 
 function PickerRow({
-  title, value, presets, onChange,
+  title, value, presets, onChange, compact = false,
 }: {
   title: string;
   value: string;
   presets: { name: string; hex: string }[];
   onChange: (hex: string) => void;
+  compact?: boolean;
 }) {
   const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
   const isPreset = presets.some((p) => same(p.hex, value));
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between px-1">
-        <span className="text-size-ui font-semibold uppercase tracking-wide text-[var(--ink-3)]">{title}</span>
-        <span className="font-mono text-size-ui text-[var(--ink-3)]">{value.toUpperCase()}</span>
+    <div className={compact ? 'space-y-1' : 'space-y-1.5'}>
+      <div className="flex items-center justify-between gap-2 px-1">
+        <span className={cn(
+          'font-semibold text-[var(--ink-3)]',
+          compact ? 'text-[length:var(--type-caption-size)] text-[var(--ink-2)]' : 'text-size-ui uppercase tracking-wide',
+        )}>
+          {title}
+        </span>
+        {!compact && (
+          <span className="font-mono text-size-ui text-[var(--ink-3)]">{value.toUpperCase()}</span>
+        )}
       </div>
-      <div className="flex flex-wrap items-center gap-2 px-1">
+      <div className={cn('flex flex-wrap items-center px-1', compact ? 'gap-1.5' : 'gap-2')}>
         {presets.map((p) => (
-          <Swatch key={p.hex} color={p.hex} label={p.name} selected={same(p.hex, value)} onClick={() => onChange(p.hex)} />
+          <Swatch key={p.hex} color={p.hex} label={p.name} selected={same(p.hex, value)} onClick={() => onChange(p.hex)} compact={compact} />
         ))}
         {/* Any color: the native picker, shown as a rainbow ring when a custom color is active */}
         <label
           title="Pick any color"
           className={cn(
-            'relative flex h-6 w-6 cursor-pointer items-center justify-center rounded-full ring-offset-2 ring-offset-[var(--surface-1)] transition-transform hover:scale-110',
+            'relative flex cursor-pointer items-center justify-center rounded-full ring-offset-2 ring-offset-[var(--surface-1)] transition-transform hover:scale-110',
+            compact ? 'h-5 w-5' : 'h-6 w-6',
             !isPreset ? 'ring-2 ring-[var(--ink-1)]' : 'ring-1 ring-[var(--line-2)]',
           )}
           style={{
@@ -78,7 +88,7 @@ function PickerRow({
 }
 
 /** Accent + sidebar color pickers; changes apply live and are remembered in this browser. */
-export function AppearanceControls() {
+export function AppearanceControls({ compact = false }: { compact?: boolean }) {
   const [state, setState] = useState<Appearance>({ accent: null, rail: null, railLight: null, railDark: null });
 
   const [dark, setDark] = useState(false);
@@ -107,25 +117,40 @@ export function AppearanceControls() {
     (dark ? state.railDark : state.railLight ?? state.rail) ?? defaults.rail;
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between px-1">
-        <span className="text-size-ui font-semibold uppercase tracking-wide text-[var(--ink-3)]">Colors</span>
-        {customised && (
+    <div className={compact ? 'space-y-2' : 'space-y-3'}>
+      {!compact && (
+        <div className="flex items-center justify-between px-1">
+          <span className="text-size-ui font-semibold uppercase tracking-wide text-[var(--ink-3)]">Colors</span>
+          {customised && (
+            <button
+              type="button"
+              onClick={() => update({ accent: null, rail: null, railLight: null, railDark: null })}
+              className="flex items-center gap-1 rounded-full px-2 py-0.5 text-size-ui font-semibold text-[var(--brand-a-ink)] transition-colors hover:bg-[var(--brand-a-soft)]"
+            >
+              <RotateCcw className="h-3 w-3" />
+              Reset
+            </button>
+          )}
+        </div>
+      )}
+      {compact && customised && (
+        <div className="flex justify-end px-1">
           <button
             type="button"
             onClick={() => update({ accent: null, rail: null, railLight: null, railDark: null })}
-            className="flex items-center gap-1 rounded-full px-2 py-0.5 text-size-ui font-semibold text-[var(--brand-a-ink)] transition-colors hover:bg-[var(--brand-a-soft)]"
+            className="flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[length:var(--type-caption-size)] font-semibold text-[var(--brand-a-ink)] transition-colors hover:bg-[var(--brand-a-soft)]"
           >
             <RotateCcw className="h-3 w-3" />
-            Reset
+            Reset colors
           </button>
-        )}
-      </div>
+        </div>
+      )}
       <PickerRow
         title="Accent"
         value={state.accent ?? defaults.accent}
         presets={ACCENT_PRESETS}
         onChange={(hex) => update({ accent: hex })}
+        compact={compact}
       />
       <PickerRow
         title="Sidebar"
@@ -134,6 +159,7 @@ export function AppearanceControls() {
         onChange={(hex) =>
           update(dark ? { railDark: hex, rail: null } : { railLight: hex, rail: null })
         }
+        compact={compact}
       />
     </div>
   );

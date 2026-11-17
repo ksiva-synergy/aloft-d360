@@ -34,6 +34,10 @@ const {
 }));
 
 vi.mock('@/lib/semantic/execute', () => ({ executeSemanticQuery }));
+vi.mock('@/lib/access/principal', () => ({
+  principalForUser: vi.fn(async (userId: string) => ({ kind: 'user', orgId: 'org', userId, departmentIds: [], clearance: 'internal', roles: [] })),
+  systemPrincipal: vi.fn(),
+}));
 
 vi.mock('@/lib/dashboards/execute-raw-sql', () => ({ executeRawSql: vi.fn() }));
 
@@ -147,7 +151,8 @@ describe('ephemeral owner boundary — the acceptance gate', () => {
     // Owner-scoped bypass applied, identity from the actor (SEC-2).
     expect(executeSemanticQuery).toHaveBeenCalledTimes(1);
     const [passedQuery, passedConn, passedOpts] = executeSemanticQuery.mock.calls[0];
-    expect(passedOpts).toEqual({ authoringMode: true, authoringUserId: OWNER.id });
+    // Runs as the viewer (review H7) and keeps the owner-scoped bypass.
+    expect(passedOpts).toEqual({ authoringMode: true, authoringUserId: OWNER.id, dataPrincipal: expect.objectContaining({ kind: 'user', userId: OWNER.id }) });
     expect(passedConn).toBe(CONNECTION_ID);
     // Defensive model pin + server-side entity binding.
     expect(passedQuery.modelId).toBe(MODEL_ID);

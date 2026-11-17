@@ -23,6 +23,17 @@ const CATALOG_NAME_SEARCH_STOPWORDS = new Set([
   'show', 'look', 'looking', 'have', 'has', 'had', 'want', 'wanted', 'would',
   'like', 'need', 'create', 'make', 'build', 'agent', 'agents', 'related',
   'catalog', 'harvest', 'harvested', 'data', 'please', 'tell', 'me', 'about',
+  'briefing', 'brief', 'summary', 'overview', 'question', 'questions', 'first',
+  'best', 'two', 'minute', 'give', 'explain', 'compare', 'month', 'versus',
+  'last', 'gap', 'recent', 'recently', 'moved', 'most', 'watch', 'chart',
+  'domain', 'area', 'areas', 'our', 'what', 'names',
+]);
+
+const SHORT_DOMAIN_TOKENS = new Set(['hr', 'po', 'gl', 'pr', 'nc', 'ia']);
+
+const GENERIC_CATALOG_SEGMENTS = new Set([
+  'synergy', 'dwh', 'curated', 'db', 'open', 'analytics', 'zone', 'reporting',
+  'layer', 'landing', 'dev', 'prod', 'public', 'default', 'main', 'hive', 'metastore',
 ]);
 
 // ── Tokenizer ─────────────────────────────────────────────────────────────────
@@ -36,7 +47,7 @@ function tokenize(s: string): string[] {
   return s
     .toLowerCase()
     .split(/[^a-z0-9]+/)
-    .filter((t) => t.length >= 3 && t.length <= 40);
+    .filter((t) => (t.length >= 3 && t.length <= 40) || SHORT_DOMAIN_TOKENS.has(t));
 }
 
 /** Remove stopwords and return unique tokens. */
@@ -96,12 +107,20 @@ export interface KeywordExtractionInput {
 export function extractDomainKeywords(input: KeywordExtractionInput): string[] {
   const accumulated: string[] = [];
 
-  // 1. Path segments: object_name and schema_name
-  //    "synergy_dwh.crew.seafarer_certificates" → ["crew", "seafarer", "certificates"]
+  // 1. Path segments: include catalog tokens when the catalog is a domain/system
+  //    name (e.g. "darwin_box", "sap_prod", "finance_db") while skipping generic
+  //    warehouse layer segments ("curated_db", "reporting_layer", "synergy_dwh").
   const pathParts = input.full_path.split('.');
+  if (pathParts[0]) {
+    for (const tok of tokenize(pathParts[0])) {
+      if (!GENERIC_CATALOG_SEGMENTS.has(tok)) accumulated.push(tok);
+    }
+  }
   for (const part of pathParts.slice(1)) {
-    // skip catalog (index 0), include schema + object
     accumulated.push(...tokenize(part));
+  }
+  if (/darwin/i.test(input.full_path)) {
+    accumulated.push('hr', 'darwinbox');
   }
 
   // 2. Entity field from semantic card
