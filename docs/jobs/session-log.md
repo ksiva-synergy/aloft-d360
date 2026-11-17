@@ -5,6 +5,21 @@
 
 ---
 
+### 2026-11-17: Resume all-reports lineage after network stop (Cursor agent)
+
+- **Issues:** Morning run blocked the launch button; user wanted to continue, not restart from inventory.
+- **Files changed:** `resume-all-reports-lineage.ts`, `reap-stale-lineage-jobs.ts`, `launch-all-reports-lineage.ts`, `jobs/launch/route.ts`, `powerbi/reports/route.ts`, `powerbi-report-lineage-hub.tsx`, `resume-pbi-all-reports-lineage.ts`, tests, `CHANGELOG.md`, this log.
+- **Before -> after:** Launch always started at `pbi_inventory` and stayed disabled while a zombie job looked active. Launch/coverage reaps stale all-reports rows; the UI shows **Continue** with the next stage from coverage. Local CLI resumed at **definitions** (`job a879f74a…`, worker `local-50732`).
+- **Verified:** Unit + hub tests; CLI on dev DB.
+- **Not done:** Not watching the full chain to catalog link in this session.
+
+### 2026-11-17: Power BI raw store mirrors to S3 and restores for Fargate (Cursor agent)
+
+- **Files changed:** `src/lib/powerbi/raw-store.ts`, `src/lib/powerbi/definitions.ts`, `src/lib/powerbi/parse.ts`, `src/lib/powerbi/__tests__/raw-store-s3.test.ts` (new), `docs/CHANGELOG.md`, and this log.
+- **Before -> after:** Definitions were written only to local disk, so a parse on another Fargate task found nothing. With `PBI_RAW_S3_BUCKET` set, each download replaces its S3 prefix and local folder together; parse restores a missing folder from S3 first. Without the variable, behavior is unchanged.
+- **Verified:** 8 new unit tests (`raw-store-s3.test.ts`) and the full `src/lib/powerbi/__tests__/` run (267 tests) pass; `tsc --noEmit` shows no errors in the changed files.
+- **Not done:** No AWS calls made (no credentials in this session). Existing local folders not yet uploaded. Harvester task definition not updated. `report-measure-refs.ts` and the vessel audit script still read local only. No database writes, no pipeline run.
+
 ### 2026-11-17: Merge automate-runs and restore preserved worktree (GitHub Copilot)
 
 - **Issues:** Preserve all current and incoming feature work while integrating `feature/automate-runs` into `feature/powerbi-bridge`.

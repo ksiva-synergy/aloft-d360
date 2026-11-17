@@ -1,11 +1,9 @@
 #!/usr/bin/env node
 /**
- * Platform-aware default for `npm run dev`.
+ * Default `npm run dev`: Vite :3000 + Next API :3001 (HMR, fast UI iteration).
  *
- * - Windows: unified Next on :3000 (production layout; stable RDS over VPN).
- * - macOS/Linux: Vite :3000 + Next API :3001 (faster UI HMR).
- *
- * Override: DEV_SPLIT=1 → Vite split | DEV_UNIFIED=1 → unified everywhere.
+ * Opt into single-process prod-like dev (one Next on :3000): DEV_UNIFIED=1 or npm run dev:unified.
+ * See docs/windows-dev.md when remote RDS over VPN flakes with two Node processes.
  */
 import { spawn } from 'node:child_process';
 import path from 'node:path';
@@ -13,17 +11,15 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
-const forceSplit = process.env.DEV_SPLIT === '1';
-const forceUnified = process.env.DEV_UNIFIED === '1';
-const script =
-  forceUnified || (!forceSplit && process.platform === 'win32')
-    ? path.join(root, 'scripts/dev/unified.mjs')
-    : path.join(root, 'web/dev-all.mjs');
+const unified = process.env.DEV_UNIFIED === '1';
+const script = unified
+  ? path.join(root, 'scripts/dev/unified.mjs')
+  : path.join(root, 'web/dev-all.mjs');
 
-if (script.includes('unified')) {
-  console.log('[dev] Windows/unified mode — one Next process on :3000 (see docs/windows-dev.md)');
+if (unified) {
+  console.log('[dev] Unified mode — one Next on :3000 (DEV_UNIFIED=1). See docs/windows-dev.md');
 } else {
-  console.log('[dev] Split mode — Vite :3000, API :3001');
+  console.log('[dev] Split mode — Vite :3000, API :3001 (default)');
 }
 
 const child = spawn(process.execPath, [script], {

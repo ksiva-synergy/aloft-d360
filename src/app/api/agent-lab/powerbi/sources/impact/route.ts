@@ -8,18 +8,30 @@ export const dynamic = 'force-dynamic';
 
 /**
  * Reverse lineage from stored report snapshots.
- *   GET           → the source tree: system → server/site → database/folder → schema → table/file, with counts
- *   GET ?node=    → also everything that depends on that node (any level of the tree)
- *   GET ?key=     → the same for one original source key (links from a report's lineage page)
+ *   GET              → the source tree: system → server/site → database/folder → schema → table/file, with counts
+ *   GET ?node=       → everything that depends on that node (any level of the tree); no tree
+ *   GET ?key=        → the same for one original source key (links from a report's lineage page)
+ *   add &tree=1      → include the tree with an impact request
+ *   add &focus=<id>  → draw only the paths through one graph node (source, model table, measure or report);
+ *                      the table/report lists are omitted (the page already has them)
  * Read-only; uses the latest Catalog link snapshot per report.
  */
-export async function GET(req: NextRequest) {
-  const denied = await denyUnlessSection(req, ['estate.powerbi', 'view']);
-  if (denied) return denied;
+const ROWS_TTL_MS = 20_000;
+// Clicking through the tree issues one request per node; reuse the extracted rows for a short while
+// (one per org) instead of re-expanding every snapshot's JSON on each click.
+const rowsCache = new Map<string, { at: number; rows: Promise<ImpactRow[]> }>();
 
-  try {
-    const orgId = await getOrgId();
-    const rows = await prisma.$queryRaw<ImpactRow[]>`
+function loadRows(orgId: string): Promise<ImpactRow[]> {
+  const hit = rowsCache.get(orgId);
+  if (hit && Date.now() - hit.at < ROWS_TTL_MS) return hit.rows;
+  const rows = queryRows(orgId);
+  rowsCache.set(orgId, { at: Date.now(), rows });
+  rows.catch(() => rowsCache.delete(orgId));
+  return rows;
+}
+
+function queryRows(orgId: string): Promise<ImpactRow[]> {
+  return prisma.$queryRaw<ImpactRow[]>`
       SELECT l.report_id::text AS report_id,
              r.name AS report_name,
              l.status,
@@ -36,15 +48,25 @@ export async function GET(req: NextRequest) {
       WHERE l.org_id = ${orgId}
         AND r.lifecycle = 'active'
         AND o->>'system' NOT IN ('unknown', 'calculated', 'embedded')`;
+}
 
+export async function GET(req: NextRequest) {
+  const denied = await denyUnlessSection(req, ['estate.powerbi', 'view']);
+  if (denied) return denied;
+
+  try {
+    const orgId = await getOrgId();
+    const rows = await loadRows(orgId);
     const key = req.nextUrl.searchParams.get('key');
     const requested = req.nextUrl.searchParams.get('node');
     const node = requested ?? (key ? nodeIdForKey(rows, key) : null);
-    const tree = buildSourceTree(rows);
-    const impact = node ? buildSourceImpact(rows, node) : null;
+    const withTree = !(requested || key) || req.nextUrl.searchParams.get('tree') === '1';
+    const tree = withTree ? buildSourceTree(rows) : undefined;
+    const focus = req.nextUrl.searchParams.get('focus');
+    const built = node ? buildSourceImpact(rows, node, focus) : null;
+    const impact = built && focus ? { ...built, source_rows: [], report_rows: [] } : built;
     return NextResponse.json({
-      tree,
-      total_sources: tree.filter((n) => n.depth === 0).reduce((sum, n) => sum + n.sources, 0),
+      ...(tree ? { tree, total_sources: tree.filter((n) => n.depth === 0).reduce((sum, n) => sum + n.sources, 0) } : {}),
       node: impact ? node : null,
       impact,
       not_found: Boolean((requested || key) && !impact),

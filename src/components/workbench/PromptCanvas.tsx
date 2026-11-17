@@ -19,7 +19,11 @@ import { DismissedReflection } from './marcus/DismissedReflection';
 import { type, inkOf } from '@/lib/typography/tokens';
 import type { QueryResult } from '@/hooks/useInspectorChat';
 import { AssistantQueryTableOffer } from '@/components/workbench/AssistantQueryTableOffer';
-import { rankQueryResultsForChat, shouldOfferChatFullTable } from '@/lib/inspector/result-display';
+import {
+  countMarkdownTableDataRows,
+  rankQueryResultsForChat,
+  shouldOfferChatFullTable,
+} from '@/lib/inspector/result-display';
 
 function linkedWarehouseForMessage(
   msg: WorkbenchMessage,
@@ -419,6 +423,8 @@ interface ConversationThreadProps {
   showDeveloperToolSteps?: boolean;
   queryResults?: QueryResult[];
   simpleQueryTables?: boolean;
+  /** Renders at the end of the scrollable thread (e.g. member CSV export cards). */
+  threadFooter?: React.ReactNode;
 }
 
 function ConversationThread({
@@ -446,6 +452,7 @@ function ConversationThread({
   showDeveloperToolSteps = false,
   queryResults,
   simpleQueryTables = false,
+  threadFooter,
 }: ConversationThreadProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -604,18 +611,21 @@ function ConversationThread({
                 {!isLiveStreaming && msg.accessDenial ? (
                   <AccessNoticeBanner message={msg.accessDenial.message} request={msg.accessDenial.request} />
                 ) : null}
-                {!isLiveStreaming
-                  && !simpleQueryTables
-                  && queryResults
-                  && msg.queryResultIndices?.length
-                  ? (
+                {!isLiveStreaming && queryResults && msg.queryResultIndices?.length ? (() => {
+                  const content = typeof msg.content === 'string' ? msg.content : '';
+                  const mdRows = countMarkdownTableDataRows(content);
+                  const showMemberTable = simpleQueryTables && mdRows === 0;
+                  const showAdminTable = !simpleQueryTables;
+                  if (!showMemberTable && !showAdminTable) return null;
+                  return (
                     <AssistantQueryTableOffer
                       indices={msg.queryResultIndices}
                       queryResults={queryResults}
+                      compact={simpleQueryTables}
                     />
-                  )
-                  : null}
-                {!isLiveStreaming && renderAfterAssistant?.(msg)}
+                  );
+                })() : null}
+                {(!isLiveStreaming || (msg.chatExportOffers?.length ?? 0) > 0) && renderAfterAssistant?.(msg)}
                 {/* Assumption chips — shown after streaming completes */}
                 {!isLiveStreaming && msgAssumptions.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingLeft: 2 }}>
@@ -698,6 +708,8 @@ function ConversationThread({
           ))}
         </AnimatePresence>
 
+        {threadFooter}
+
         <div ref={bottomRef} style={{ height: 8 }} />
       </div>
 
@@ -763,6 +775,7 @@ export interface PromptCanvasProps {
   queryResults?: QueryResult[];
   /** Inspector members: inline table only — hide multi-query explanation and tabs. */
   simpleQueryTables?: boolean;
+  threadFooter?: React.ReactNode;
 }
 
 export function PromptCanvas({
@@ -805,6 +818,7 @@ export function PromptCanvas({
   composerQueue,
   queryResults,
   simpleQueryTables = false,
+  threadFooter,
 }: PromptCanvasProps) {
   const hasMessages = messages.length > 0 || !!chatError;
   const centeredComposer = !hasMessages && !emptyState;
@@ -924,6 +938,7 @@ export function PromptCanvas({
           showDeveloperToolSteps={showDeveloperToolSteps}
           queryResults={queryResults}
           simpleQueryTables={simpleQueryTables}
+          threadFooter={threadFooter}
         />
       )}
 

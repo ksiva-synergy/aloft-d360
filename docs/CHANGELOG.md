@@ -1,3 +1,78 @@
+## 2026-11-17 — Power BI raw store: optional S3 mirror (write + restore)
+
+- **What:** `raw-store.ts` now mirrors each downloaded definition to S3 when `PBI_RAW_S3_BUCKET` is set, in addition to the local folder. `writeDefinitionParts` is async. It deletes the item's old S3 objects under `<PBI_RAW_S3_PREFIX|pbi-raw>/<kind>/<itemId>/`, then uploads every new part with the same relative key, so S3 is replaced the same way local is. `restorePbiRawFolder(storage_path)` copies a folder down from S3 when local is empty; `pbi_parse` calls it before reading TMDL or report files, so a Fargate task can parse what another task downloaded. Credentials use the default AWS chain (ECS task role on Fargate). Nothing reads `.env` keys.
+- **Why:** Fargate tasks have empty local disks, so downloads and parses in different tasks could not see each other's files. The user asked for local and S3 both going forward.
+- **Paths:** `src/lib/powerbi/raw-store.ts`, `src/lib/powerbi/definitions.ts` (await), `src/lib/powerbi/parse.ts` (restore before model and report reads), `src/lib/powerbi/__tests__/raw-store-s3.test.ts` (new, 8 tests).
+- **Verified:** `npx vitest run src/lib/powerbi/__tests__/raw-store-s3.test.ts` (8 passed); `npx vitest run src/lib/powerbi/__tests__/` (46 files, 267 tests passed); `tsc --noEmit` reports no errors in the changed files.
+- **Not done:** No AWS upload performed. This machine has no AWS credentials, so the existing local folders (`definitions/` 209 models, `report-definitions/` 4, `report-definitions-legacy/` 10) are not yet in S3. Run the copy once with credentials (see chat), or let the next Definitions run write them. Not set on the harvester task definition: add `PBI_RAW_S3_BUCKET=aloft-pbi-raw-dev` and `PBI_RAW_S3_REGION=ap-south-1` to `infra/context/task-definition.json`, register a new revision, and deploy the harvester image. `report-measure-refs.ts` and `scripts/powerbi/audit-vessel-harvest.ts` still read the local folder only (report lineage on the web tier needs the same restore before it can read S3).
+
+## 2026-11-17 — Export card: filename + Download only
+
+- **What:** `ExportReadyCard` drops row-limit and warehouse re-run copy; compact single-line chip (filename + **Download**).
+- **Path:** `ExportReadyCard.tsx`.
+
+## 2026-11-17 — All-reports lineage: resume + unblock stale runs
+
+- **What:** Re-run **Continue lineage for all reports** from the first incomplete stage (coverage-based), not always inventory. Stale all-reports jobs are reaped on launch/coverage poll so the button unlocks. Definitions/parse still skip already-downloaded items in the worker. CLI: `scripts/context/resume-pbi-all-reports-lineage.ts`.
+- **Paths:** `resume-all-reports-lineage.ts`, `reap-stale-lineage-jobs.ts`, `launch-all-reports-lineage.ts`, `jobs/launch/route.ts`, `powerbi-report-lineage-hub.tsx`, `powerbi/reports/route.ts`.
+- **Verified:** `resume-all-reports-lineage.test.ts`, hub + launch tests; local CLI resumed at **definitions** with worker `local-50732`.
+- **Not done:** Model-definition gaps when every *report* has a file but model TMDL is still missing (still lands on definitions job, which skips completed fetches).
+
+## 2026-11-17 — Ask Data: CSV download in chat (all roles)
+
+- **What:** `export_query_result` offers attach to the assistant turn as `chatExportOffers` on `WorkbenchMessage`. **Export ready** cards render under the reply in the chat thread for members and admins; the download can appear while the reply is still streaming. Removed duplicate export cards from the Results pane footer and member thread footer.
+- **Paths:** `workbench/types.ts`, `useInspectorChat.ts`, `InspectorShell.tsx`, `PromptCanvas.tsx`.
+- **Verified:** Not checked in browser.
+- **Not done:** Older saved sessions without `chatExportOffers` on messages will not show inline export until re-run or a backfill.
+
+## 2026-11-17 — Dev auth: normalize loopback to localhost (no Entra change)
+
+- **What:** `ensureAuthPublicUrl()` in `src/lib/auth-public-url.ts` runs from `auth.ts` and `instrumentation.ts`. In non-production it maps `NEXTAUTH_URL` / `NEXTAUTH_URL_INTERNAL` from `127.0.0.1` or `::1` → `localhost`, and defaults missing values to `http://localhost:PORT`. `scripts/dev/unified.mjs` applies the same when spawning Next. No Azure or `.env` edit required for the usual local registration.
+- **Why:** `AADSTS50011` when Entra only lists `localhost` but the app sent `127.0.0.1`.
+- **Verified:** `auth-public-url.test.ts`.
+- **Not done:** Production URLs unchanged; use `AUTH_PUBLIC_URL_FORCE=1` only if you intentionally need loopback in prod.
+
+## 2026-11-17 — Dev auth: default NEXTAUTH_URL to localhost on Windows unified
+
+- **What:** `scripts/dev/unified.mjs` sets `NEXTAUTH_URL` to `http://localhost:3000` by default (not `127.0.0.1`), matching typical Entra app registration. Bind host stays `DEV_HOST` / `127.0.0.1`. Warns when `.env` forces `127.0.0.1`. `docs/windows-dev.md` updated.
+- **Why:** `AADSTS50011` when users open localhost but OAuth used `127.0.0.1`.
+- **Verified:** Script review; superseded by `auth-public-url` for in-process override.
+- **Not done:** No Azure portal change.
+
+## 2026-11-17 — Ask Data (members): exports and query tables in chat
+
+- **What:** Members (no Results pane) now see CSV **Export ready** cards, disambiguation prompts, and query progress in the scrollable chat thread. When the answer is prose-only but a warehouse query ran, the main result table appears under the reply (compact, no admin tabs). Inset markdown tables scroll vertically again (`.tableInsetScroll` uses `overflow: auto`). Inspector page uses `min-h-0` so the thread scrolls inside the viewport.
+- **Paths:** `PromptCanvas.tsx`, `AssistantQueryTableOffer.tsx`, `InspectorShell.tsx`, `ChatPresentation.module.css`, `views/inspector/index.tsx`, `web/src/AgentLayout.tsx`.
+- **Verified:** Not checked in browser.
+- **Not done:** Semantic chart cards for members still require admin Results pane or a future in-chat chart slot.
+
+## 2026-11-17 — Default `npm run dev` back to split (Vite HMR)
+
+- **What:** `scripts/dev/start.mjs` no longer forces unified mode on Windows. Default is Vite :3000 + Next :3001 on all platforms. Unified only when `DEV_UNIFIED=1` or `npm run dev:unified`. Docs: `windows-dev.md`, `web/README.md`.
+- **Why:** Local UI iteration with HMR; unified remains opt-in for RDS/VPN stability.
+- **Verified:** Script change only.
+- **Not done:** `dev:split` remains an alias; `DEV_SPLIT=1` is redundant with default.
+
+## 2026-11-17 — Windows unified dev: UI watch + faster restarts
+
+- **What:** `npm run dev` (unified) spawns `web/scripts/watch-spa.mjs` by default (`DEV_UI_WATCH=0` to disable). Restarts skip rebuilding `public/spa` when it already exists (watch rebuilds after saves). Added `npm run dev:ui`. Docs: `windows-dev.md`.
+- **Why:** Unified mode required `web:build` or dev restart per UI change and slow cold starts.
+- **Verified:** Script wiring only; use `npm run dev:split` for full Vite HMR.
+- **Not done:** No change to Windows default (still unified for RDS).
+
+## 2026-11-17 — Source impact: compact header
+
+- **What:** Removed the long intro paragraph; title row is back link + **Source impact** on one line so more room for the tree and impact lanes.
+- **Path:** `powerbi-source-impact.tsx`.
+
+## 2026-11-17 — Source impact: scroll (page + wide lanes)
+
+- **What:** Estate content pane uses `min-h-0`; Source impact scrolls vertically in the shell. Impact panel no longer clips the lane canvas (`overflow-hidden` removed; constrained horizontal scroll). `LaneCanvas` scrollport uses `min-w-0 max-w-full overflow-x-auto` so Reports column is reachable on narrow viewports.
+- **Paths:** `EstateLayout.tsx`, `powerbi-source-impact.tsx`, `LaneCanvas.tsx`.
+- **Why:** Four-lane impact graph was cut off on the right with no scrollbar.
+- **Verified:** `powerbi-source-impact` unit tests.
+- **Not done:** Report lineage flow section still wraps canvas in `overflow-hidden` (same pattern if reported there).
+
 ## 2026-11-17 — Source impact: browse sources by system hierarchy
 
 - **What:** Source impact now starts from the source system and drills down each system's hierarchy (Databricks workspace → catalog → schema → table; SQL Server/Oracle server → database → schema → table; SharePoint site → folder → file → sheet; and so on). Impact can be shown for any level, with a clickable path and the levels inside it; a system overview appears when nothing is selected. `GET /api/agent-lab/powerbi/sources/impact` returns the counted tree and accepts `?node=` (any level) or `?key=` (one source). Paths: `src/lib/powerbi/source-impact.ts`, the impact route, `src/views/agent-lab/estate/powerbi-source-impact.tsx`, tests, `docs/jobs/powerbi-report-lineage.md`.

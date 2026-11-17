@@ -66,6 +66,8 @@ export default function PowerBiReportLineageHubPage() {
   const [estate, setEstate] = useState<Estate | null>(null);
   const [coverageError, setCoverageError] = useState<string | null>(null);
   const [latestJob, setLatestJob] = useState<{ id: string; job_kind: string; status: string } | null>(null);
+  const [latestJobBlocksUi, setLatestJobBlocksUi] = useState(false);
+  const [resumeFrom, setResumeFrom] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(true);
   const [q, setQ] = useState('');
   const [debounced, setDebounced] = useState('');
@@ -86,6 +88,8 @@ export default function PowerBiReportLineageHubPage() {
       setSnapshots(json.snapshots);
       setEstate(json.estate ?? null);
       setLatestJob(json.latest_job);
+      setLatestJobBlocksUi(json.latest_job_blocks_ui === true);
+      setResumeFrom(typeof json.resume_from === 'string' ? json.resume_from : null);
       setCoverageError(null);
     })
     .catch((error: unknown) => {
@@ -111,7 +115,11 @@ export default function PowerBiReportLineageHubPage() {
       if (!res.ok || json.failures?.length) {
         throw new Error(json.message ?? json.error ?? json.failures?.[0]?.reason ?? 'Could not start lineage pipeline');
       }
-      toast.success('All-reports lineage pipeline queued');
+      toast.success(
+        json.resume_from
+          ? `Lineage resumed from ${json.resume_from} (already-finished work is skipped)`
+          : 'All-reports lineage pipeline queued',
+      );
       dialogRef.current?.close();
       void fetchCoverage();
     } catch (error) {
@@ -121,7 +129,7 @@ export default function PowerBiReportLineageHubPage() {
     }
   };
 
-  const active = latestJob && ['queued', 'running', 'orchestrating'].includes(latestJob.status);
+  const active = latestJobBlocksUi;
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebounced(q.trim()), 300);
@@ -188,9 +196,10 @@ export default function PowerBiReportLineageHubPage() {
           </button>
           {canRun && (
             <button type="button" className={cn(CATALOG_BTN, 'inline-flex min-h-9 max-w-full items-center gap-1.5 whitespace-normal')}
-              disabled={launching || Boolean(active)} onClick={() => dialogRef.current?.showModal()}>
+              disabled={launching || active} title={active ? 'An all-reports lineage run is in progress (see status below)' : undefined}
+              onClick={() => dialogRef.current?.showModal()}>
               {launching ? <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden /> : <Play className="size-3.5 shrink-0" aria-hidden />}
-              Run lineage for all reports
+              Continue lineage for all reports
             </button>
           )}
         </div>
@@ -239,12 +248,13 @@ export default function PowerBiReportLineageHubPage() {
       {canRun && <dialog ref={dialogRef} aria-labelledby="all-reports-lineage-title"
         className="m-auto w-[calc(100%_-_2rem)] max-w-[30rem] rounded-md border border-[var(--estate-border)] bg-[var(--estate-surface)] p-4 text-[var(--estate-ink)] backdrop:bg-black/40">
         <div className="flex items-start justify-between gap-3">
-          <h2 id="all-reports-lineage-title" className="text-ui font-semibold">Run lineage for all reports</h2>
+          <h2 id="all-reports-lineage-title" className="text-ui font-semibold">Continue lineage for all reports</h2>
           <button type="button" title="Close" aria-label="Close" disabled={launching} onClick={() => dialogRef.current?.close()}
             className={cn(CATALOG_BTN, 'inline-flex size-8 shrink-0 items-center justify-center p-0')}><X className="size-4" aria-hidden /></button>
         </div>
         <dl className="mt-3 space-y-3 text-caption">
           <div><dt className="text-[var(--estate-text-muted)]">Scope</dt><dd>All accessible workspaces, reports and semantic models</dd></div>
+          <div><dt className="text-[var(--estate-text-muted)]">Resume from</dt><dd>{resumeFrom ? `Next stage: ${resumeFrom} (earlier stages and downloads are reused)` : 'Checking coverage…'}</dd></div>
           <div><dt className="text-[var(--estate-text-muted)]">Stages</dt><dd>Inventory → Definitions → Parse → Catalog link</dd></div>
           <div><dt className="text-[var(--estate-text-muted)]">Report/model limit</dt><dd>Entire estate</dd></div>
         </dl>
@@ -252,7 +262,7 @@ export default function PowerBiReportLineageHubPage() {
           <button type="button" disabled={launching} className={CATALOG_BTN} onClick={() => dialogRef.current?.close()}>Cancel</button>
           <button type="button" disabled={launching} className={cn(CATALOG_BTN, 'inline-flex items-center gap-1.5')} onClick={() => void runAllReports()}>
             {launching ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Play className="size-3.5" aria-hidden />}
-            {launching ? 'Starting…' : 'Run all reports'}
+            {launching ? 'Starting…' : 'Continue'}
           </button>
         </div>
       </dialog>}

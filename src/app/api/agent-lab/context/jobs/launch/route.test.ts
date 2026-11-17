@@ -11,11 +11,20 @@ import prisma from '@/lib/db';
 vi.mock('server-only', () => ({}));
 vi.mock('next-auth', () => ({ getServerSession: vi.fn(async () => ({ user: { id: 'operator' } })) }));
 vi.mock('@/lib/auth', () => ({ authOptions: {} }));
-vi.mock('@/lib/db', () => ({ default: { $executeRaw: vi.fn(), pbiReportLineage: { count: vi.fn(async () => 0) } } }));
+vi.mock('@/lib/db', () => ({
+  default: {
+    $executeRaw: vi.fn(),
+    pbiReportLineage: { count: vi.fn(async () => 0) },
+    pbiReport: { findMany: vi.fn(async () => []) },
+    pbiModel: { findMany: vi.fn(async () => []) },
+    platformContextJob: { updateMany: vi.fn(async () => ({ count: 0 })) },
+  },
+}));
 vi.mock('@/lib/databricks/connections', () => ({ getOrgId: vi.fn(async () => 'org') }));
 vi.mock('@/lib/context/queue', () => ({
   enqueue: vi.fn(async () => ({ id: 'job' })), enqueueWithChildren: vi.fn(),
   planForKind: vi.fn(async () => ({ totalObjects: 0 })), launchChildTask: vi.fn(),
+  failStale: vi.fn(async () => 0),
   MAX_CONCURRENT_TASKS: 1, MAX_CONCURRENT_BY_KIND: {}, REGION: 'test',
 }));
 vi.mock('@/lib/context/launch-harvester', () => ({

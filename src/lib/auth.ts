@@ -12,6 +12,9 @@ import {
   AccountLinkRequiredError,
 } from '@/lib/rbac';
 import { credentialsLoginEnabled, verifyCredentialsLogin } from '@/lib/auth-credentials';
+import { ensureAuthPublicUrl } from '@/lib/auth-public-url';
+
+ensureAuthPublicUrl();
 
 /** Production idle lifetime. A session read issues a new cookie, so this is time since the app was last opened. */
 const SESSION_MAX_AGE_PRODUCTION = 8 * 60 * 60;

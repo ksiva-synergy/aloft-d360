@@ -40,6 +40,18 @@ export interface WorkbenchMessage {
   followUps?: string[];
   /** Indexes into the session `queryResults` array for warehouse tables tied to this reply. */
   queryResultIndices?: number[];
+  /** CSV export offers from `export_query_result`, persisted on the assistant turn. */
+  chatExportOffers?: ChatExportOffer[];
+}
+
+/** Lightweight export metadata stored on assistant messages (no row data). */
+export interface ChatExportOffer {
+  id: string;
+  sql: string;
+  filename: string;
+  maxRows: number;
+  toolSlug: string;
+  sessionId?: string;
 }
 
 export interface ToolCall {

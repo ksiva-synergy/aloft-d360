@@ -106,8 +106,10 @@ export function LaneCanvas({
     const ins = new Map<string, Live[]>();
     for (const item of live) {
       const edge = edges[item.i]!;
-      outs.set(edge.from, [...(outs.get(edge.from) ?? []), item]);
-      ins.set(edge.to, [...(ins.get(edge.to) ?? []), item]);
+      const out = outs.get(edge.from);
+      if (out) out.push(item); else outs.set(edge.from, [item]);
+      const into = ins.get(edge.to);
+      if (into) into.push(item); else ins.set(edge.to, [item]);
     }
     outs.forEach((list) => { list.sort((p, q) => mid(p.b) - mid(q.b)); list.forEach((x, k) => { x.y1 = port(x.a, k, list.length); }); });
     ins.forEach((list) => { list.sort((p, q) => mid(p.a) - mid(q.a)); list.forEach((x, k) => { x.y2 = port(x.b, k, list.length); }); });
@@ -137,7 +139,7 @@ export function LaneCanvas({
   const particles = !reducedMotion && animateEdges?.length && animateEdges.length <= MAX_PARTICLES ? animateEdges : [];
 
   return (
-    <div className="overflow-x-auto">
+    <div className="min-w-0 w-full max-w-full overflow-x-auto overscroll-x-contain scrollbar-thin">
       <div
         ref={flowRef}
         role="group"

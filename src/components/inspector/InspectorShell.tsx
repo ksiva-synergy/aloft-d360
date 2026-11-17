@@ -176,6 +176,29 @@ function renderInspection(msg: WorkbenchMessage) {
   return <AnswerInspection inspection={note} queries={note.queries} />;
 }
 
+function renderAssistantExtras(
+  msg: WorkbenchMessage,
+  canInspect: boolean,
+): React.ReactNode {
+  const exports = msg.chatExportOffers ?? [];
+  if (exports.length === 0 && !canInspect) return null;
+  return (
+    <>
+      {exports.map((o) => (
+        <ExportReadyCard
+          key={o.id}
+          message={{
+            ...o,
+            kind: 'export_ready',
+            timestamp: msg.timestamp,
+          }}
+        />
+      ))}
+      {canInspect ? renderInspection(msg) : null}
+    </>
+  );
+}
+
 export default function InspectorShell({ sessionId: initialSessionId }: InspectorShellProps = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -327,7 +350,7 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
   // Counted, not boolean, so a second chart re-opens a pane the user minimized after
   // the first. Collapsing again keeps it closed until the next new item.
   const resultItemCount =
-    insp.queryResults.length + insp.semanticChartMessages.length + insp.disambiguations.length + insp.exportOffers.length;
+    insp.queryResults.length + insp.semanticChartMessages.length + insp.disambiguations.length;
   const prevResultCountRef = useRef(resultItemCount);
   const hasResults = resultItemCount > 0;
   // Typical member UX: no Semantic/Developer tabs — tables live in the chat thread only.
@@ -410,8 +433,25 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
   })();
   const showResultsEmptyState = !hasResults && !insp.queryProgress;
 
+  const memberThreadFooter = memberResultsOnly && (
+    insp.disambiguations.length > 0
+    || !!insp.queryProgress
+  ) ? (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%', minWidth: 0 }}>
+      {insp.disambiguations.map((dm) => (
+        <DisambiguationCard
+          key={dm.id}
+          message={dm}
+          modelId={candidateModelId}
+          onChoose={(followUp) => submitText(followUp)}
+        />
+      ))}
+      {insp.queryProgress ? <QueryProgressCard progress={insp.queryProgress} /> : null}
+    </div>
+  ) : null;
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--wb-canvas)', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, background: 'var(--wb-canvas)', overflow: 'hidden' }}>
       <style>{INSPECTOR_CSS}</style>
       <InspectorStatusBar
         sessionTitle={sessionTitle}
@@ -503,9 +543,10 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
             chatStyle={INSPECTOR_CHAT_STYLE}
             queryResults={insp.queryResults}
             simpleQueryTables={memberResultsOnly}
-            renderAfterAssistant={canInspect ? renderInspection : undefined}
+            renderAfterAssistant={(msg) => renderAssistantExtras(msg, canInspect)}
             showDeveloperToolSteps={developerMode}
             composerQueue={composerQueue}
+            threadFooter={memberThreadFooter}
           />
         </div>
 
@@ -594,7 +635,7 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
               ) : (
               <>
               {/* Semantic chart cards + disambiguation + in-flight progress — above query results */}
-              {(insp.semanticChartMessages.length > 0 || insp.disambiguations.length > 0 || insp.exportOffers.length > 0 || insp.queryProgress) && (
+              {(insp.semanticChartMessages.length > 0 || insp.disambiguations.length > 0 || insp.queryProgress) && (
                 <div
                   style={{
                     flexShrink: 0,
@@ -611,9 +652,6 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
                       modelId={candidateModelId}
                       onChoose={(followUp) => submitText(followUp)}
                     />
-                  ))}
-                  {insp.exportOffers.map((eo) => (
-                    <ExportReadyCard key={eo.id} message={eo} />
                   ))}
                   {insp.semanticChartMessages.map((scm) => (
                     <SemanticChartCard

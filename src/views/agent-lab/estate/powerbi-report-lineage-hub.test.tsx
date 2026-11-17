@@ -126,10 +126,10 @@ describe('all-reports lineage UI', () => {
 
   it('confirms the whole-estate scope and submits only the server-enforced lineage action', async () => {
     render(<PowerBiReportLineageHubPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Run lineage for all reports' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue lineage for all reports' }));
     expect(screen.getByRole('dialog')).toBeVisible();
     expect(screen.getByText('All accessible workspaces, reports and semantic models')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Run all reports' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     await waitFor(() => expect(toast.success).toHaveBeenCalled());
     expect(fetchMock).toHaveBeenCalledWith('/api/agent-lab/context/jobs/launch', expect.objectContaining({
       method: 'POST', body: JSON.stringify({ pbiAllReports: true, uiSurface: 'estate.powerbi.report-lineage.all' }),
@@ -140,7 +140,7 @@ describe('all-reports lineage UI', () => {
     vi.mocked(useCanRunEstatePipeline).mockReturnValue(false);
     render(<PowerBiReportLineageHubPage />);
     expect(await screen.findByText('110 / 120')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Run lineage for all reports' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Continue lineage for all reports' })).not.toBeInTheDocument();
   });
 
   it('reports launch failures and leaves the dialog available for retry', async () => {
@@ -148,8 +148,8 @@ describe('all-reports lineage UI', () => {
       ? response({ message: 'A pipeline is already running' }, false)
       : response(url.includes('coverage=true') ? { coverage: null, latest_job: null, snapshots: null } : { reports: [], total: 0 }));
     render(<PowerBiReportLineageHubPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Run lineage for all reports' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Run all reports' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue lineage for all reports' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Could not start lineage pipeline', { description: 'A pipeline is already running' }));
     expect(screen.getByRole('dialog')).toBeVisible();
   });

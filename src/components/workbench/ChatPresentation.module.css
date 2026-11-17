@@ -28,7 +28,7 @@
 }
 .tableInsetScroll {
   max-height: min(480px, 58vh);
-  overflow-x: auto;
+  overflow: auto;
   -webkit-overflow-scrolling: touch;
 }
 .tableInsetToolbar {

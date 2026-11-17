@@ -13,7 +13,7 @@ import {
   type PartitionKind,
 } from '@/lib/powerbi/partition-kind';
 import { extractTablePathsFromSql } from '@/lib/powerbi/native-sql';
-import { getPbiRawStoreRoot } from '@/lib/powerbi/raw-store';
+import { getPbiRawStoreRoot, restorePbiRawFolder } from '@/lib/powerbi/raw-store';
 import { summarizeReportDefinitionDir } from '@/lib/powerbi/report-measure-refs';
 import { describeSourceOrigins, parseTmdlExpressions, warehouseNavigationPath } from '@/lib/powerbi/source-origin';
 import { readMParameters } from '@/lib/powerbi/m-parameters';
@@ -157,6 +157,7 @@ export async function runPbiParse(
 
     const absDir = path.join(root, defMeta.storage_path);
     try {
+      await restorePbiRawFolder(defMeta.storage_path);
       const partitionKinds: PartitionKind[] = [];
       let tableCount = 0;
       let measureCount = 0;
@@ -507,6 +508,12 @@ export async function runPbiParse(
       continue;
     }
     const absDir = path.join(root, defMeta.storage_path);
+    try {
+      await restorePbiRawFolder(defMeta.storage_path);
+    } catch {
+      reportsFailed += 1;
+      continue;
+    }
     if (!fs.existsSync(absDir)) {
       reportsSkipped += 1;
       continue;

@@ -26,6 +26,7 @@
     "web:dev": "vite --config web/vite.config.ts",
     "web:build": "vite build --config web/vite.config.ts",
     "web:spa": "node web/scripts/prepare-spa.mjs",
+    "dev:ui": "node web/scripts/watch-spa.mjs",
     "web:preview": "vite preview --config web/vite.config.ts",
     "web:typecheck": "tsc -p web/tsconfig.json --noEmit",
     "web:e2e": "node web/e2e/smoke.mjs",

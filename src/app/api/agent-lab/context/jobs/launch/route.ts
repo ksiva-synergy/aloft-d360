@@ -40,6 +40,8 @@ import {
   mergeJobScopeRunnerFlags,
 } from '@/lib/context/job-scope-flags';
 import { mergeJobScope, PBI_LINEAGE_KINDS, pbiJobScopeFromLaunchBody } from '@/lib/powerbi/launch-scope';
+import { inferAllReportsLineageResume, resumeStageLabel } from '@/lib/powerbi/resume-all-reports-lineage';
+import { summarizeReportLineageCoverage } from '@/lib/powerbi/report-lineage-coverage';
 
 class NoObjectsInScopeError extends Error {
   kind: JobKind;
@@ -329,6 +331,10 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
 
   const allReports = body.pbiAllReports === true;
+  if (allReports) {
+    const { reapAbandonedPbiAllReportsJobs } = await import('@/lib/powerbi/reap-stale-lineage-jobs');
+    await reapAbandonedPbiAllReportsJobs();
+  }
   const rawKinds: string[] = allReports ? [...PBI_LINEAGE_KINDS] : body.kinds
     ? (Array.isArray(body.kinds) ? body.kinds : [body.kinds])
     : body.kind
@@ -387,8 +393,38 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const pipelineRunId = sequential && kinds.length > 1 ? randomUUID() : undefined;
-    const pbiScope = pbiJobScopeFromLaunchBody(body as Record<string, unknown>);
+    let effectiveKinds = kinds;
+    let resumeFrom: string | undefined;
+    if (allReports) {
+      const [coverageReports, coverageModels] = await Promise.all([
+        prisma.pbiReport.findMany({
+          where: { org_id: orgId, lifecycle: 'active' },
+          select: { model_id: true, props: true },
+        }),
+        prisma.pbiModel.findMany({
+          where: { org_id: orgId, lifecycle: 'active', reports: { some: { lifecycle: 'active' } } },
+          select: {
+            id: true,
+            props: true,
+            tables: {
+              where: { lifecycle: 'active' },
+              select: { partition_kind: true, sourceBinding: { select: { uc_full_path: true } } },
+            },
+          },
+        }),
+      ]);
+      const resume = inferAllReportsLineageResume(
+        summarizeReportLineageCoverage(coverageReports, coverageModels),
+      );
+      effectiveKinds = [resume.startKind, ...resume.chain];
+      resumeFrom = resumeStageLabel(resume.startKind);
+    }
+
+    const pipelineRunId = sequential && effectiveKinds.length >= 1 ? randomUUID() : undefined;
+    const pbiScope = {
+      ...pbiJobScopeFromLaunchBody(body as Record<string, unknown>),
+      ...(resumeFrom ? { resume_from: resumeFrom } : {}),
+    };
 
     for (const src of sources) {
       const conflict = await findScopedLaunchConflict(src.id, kinds, includePatterns);
@@ -487,11 +523,11 @@ export async function POST(req: NextRequest) {
       }
     };
 
-    if (sequential && kinds.length > 1) {
-      const [firstKind, ...rest] = kinds;
+    if (sequential) {
+      const [firstKind, ...rest] = effectiveKinds;
       await launchOne(firstKind, rest);
     } else {
-      await Promise.all(kinds.map(kind => launchOne(kind, [])));
+      await Promise.all(effectiveKinds.map((kind) => launchOne(kind, [])));
     }
 
     if (allFailures.length > 0) {
@@ -504,8 +540,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       status: 'launched',
-      kinds,
+      kinds: effectiveKinds,
       sequential,
+      resume_from: resumeFrom,
       jobs_enqueued: totalJobsEnqueued,
       task_arns: taskArns,
       pipeline_run_id: pipelineRunId,

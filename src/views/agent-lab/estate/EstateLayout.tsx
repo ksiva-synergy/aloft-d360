@@ -32,7 +32,7 @@ export default function EstateLayout({ children }: { children: React.ReactNode }
           View only. Only platform admins can run jobs or change anything in the Data Estate.
         </div>
       ) : null}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {me === null ? (
           <p role="status" className="p-6 text-ui-regular text-[var(--estate-text-secondary,var(--muted-foreground))]">
             Loading…

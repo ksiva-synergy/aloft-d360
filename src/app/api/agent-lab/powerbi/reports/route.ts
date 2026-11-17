@@ -7,6 +7,11 @@ import { summarizeReportLineageCoverage } from '@/lib/powerbi/report-lineage-cov
 import { PBI_LINEAGE_KINDS } from '@/lib/powerbi/launch-scope';
 import { loadSnapshotSummaries } from '@/lib/powerbi/report-lineage-snapshot-load';
 import { isLineageQuestion, matchesQuestion, summarizeEstate } from '@/lib/powerbi/report-lineage-snapshot-summary';
+import {
+  pbiAllReportsJobBlocksUi,
+  reapAbandonedPbiAllReportsJobs,
+} from '@/lib/powerbi/reap-stale-lineage-jobs';
+import { inferAllReportsLineageResume, resumeStageLabel } from '@/lib/powerbi/resume-all-reports-lineage';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +23,7 @@ export async function GET(req: NextRequest) {
   try {
     const orgId = await getOrgId();
     if (req.nextUrl.searchParams.get('coverage') === 'true') {
+      await reapAbandonedPbiAllReportsJobs();
       const [reports, models, latestJob, snapshots] = await Promise.all([
         prisma.pbiReport.findMany({
           where: { org_id: orgId, lifecycle: 'active' },
@@ -35,7 +41,7 @@ export async function GET(req: NextRequest) {
         prisma.platformContextJob.findFirst({
           where: { org_id: orgId, job_kind: { in: [...PBI_LINEAGE_KINDS] }, scope: { path: ['all_reports'], equals: true } },
           orderBy: { created_at: 'desc' },
-          select: { id: true, job_kind: true, status: true },
+          select: { id: true, job_kind: true, status: true, updated_at: true, scope: true },
         }),
         prisma.pbiReportLineage.groupBy({
           by: ['status'],
@@ -44,8 +50,14 @@ export async function GET(req: NextRequest) {
         }),
       ]);
       const estate = summarizeEstate((await loadSnapshotSummaries(orgId)).values());
+      const coverage = summarizeReportLineageCoverage(reports, models);
+      const resume = inferAllReportsLineageResume(coverage);
       return NextResponse.json({
-        coverage: summarizeReportLineageCoverage(reports, models), latest_job: latestJob, estate,
+        coverage,
+        latest_job: latestJob,
+        latest_job_blocks_ui: pbiAllReportsJobBlocksUi(latestJob),
+        resume_from: resumeStageLabel(resume.startKind),
+        estate,
         snapshots: {
           saved: snapshots.reduce((total, row) => total + row._count._all, 0),
           statuses: Object.fromEntries(snapshots.map((row) => [row.status, row._count._all])),

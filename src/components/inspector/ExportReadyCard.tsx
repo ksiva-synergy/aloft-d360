@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Download } from 'lucide-react';
 import type { ExportReadyMessage } from '@/hooks/useInspectorChat';
 import { downloadInspectorCsv } from '@/lib/inspector/download-csv';
-import { type, inkOf } from '@/lib/typography/tokens';
+import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
   fontFamily: 'var(--font-mono)',
@@ -19,7 +19,6 @@ interface ExportReadyCardProps {
 export function ExportReadyCard({ message }: ExportReadyCardProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState(false);
 
   const onDownload = async () => {
     if (busy) return;
@@ -33,15 +32,8 @@ export function ExportReadyCard({ message }: ExportReadyCardProps) {
         toolSlug: message.toolSlug,
         sessionId: message.sessionId,
       });
-      setDone(true);
       if (result.truncated) {
-        setError(
-          `Download complete (truncated at ${message.maxRows.toLocaleString()} rows` +
-            (result.totalRowCount != null
-              ? `; warehouse reported ${result.totalRowCount.toLocaleString()}`
-              : '') +
-            ').',
-        );
+        setError('Truncated at row limit.');
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Export failed');
@@ -51,54 +43,66 @@ export function ExportReadyCard({ message }: ExportReadyCardProps) {
   };
 
   return (
-    <div
-      style={{
-        marginBottom: 10,
-        border: '1px solid color-mix(in srgb, var(--brand-a) 28%, transparent)',
-        borderRadius: 8,
-        background: 'color-mix(in srgb, var(--brand-a) 6%, transparent)',
-        padding: '12px 14px',
-      }}
-    >
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, width: '100%', minWidth: 0, marginTop: 6, marginBottom: 2 }}>
       <div
         style={{
-          ...type.label,
-          color: inkOf(GOLD),
-          marginBottom: 6,
-        }}
-      >
-        CSV export ready
-      </div>
-      <div style={{ fontSize: 'var(--type-ui-regular-size)', color: 'var(--wb-ink, #e6ecf4)', marginBottom: 10, lineHeight: 1.45 }}>
-        Download up to <strong>{message.maxRows.toLocaleString()}</strong> rows
-        as <code style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)' }}>{message.filename}</code>.
-        This re-runs the query on the warehouse (not the preview slice).
-      </div>
-      <button
-        type="button"
-        onClick={() => { void onDownload(); }}
-        disabled={busy}
-        style={{
-          display: 'inline-flex',
+          display: 'flex',
           alignItems: 'center',
-          gap: 8,
-          ...type.label,
-          padding: '7px 12px',
+          gap: 6,
+          maxWidth: '100%',
+          minHeight: 28,
+          padding: '3px 6px 3px 8px',
           borderRadius: 6,
-          border: `1px solid ${GOLD}`,
-          background: busy ? 'color-mix(in srgb, var(--brand-a) 12%, transparent)' : 'color-mix(in srgb, var(--brand-a) 18%, transparent)',
-          color: GOLD,
-          cursor: busy ? 'wait' : 'pointer',
+          border: '1px solid var(--wb-border-subtle, color-mix(in srgb, var(--ink-1) 12%, transparent))',
+          background: 'var(--surface-1, color-mix(in srgb, var(--ink-1) 4%, transparent))',
         }}
       >
-        <Download size={14} />
-        {busy ? 'Preparing…' : done ? 'Download again' : 'Download CSV'}
-      </button>
-      {error && (
-        <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: error.startsWith('Download complete') ? MUTED : '#f87171', marginTop: 8 }}>
+        <Download size={12} style={{ flexShrink: 0, color: MUTED }} aria-hidden />
+        <code
+          style={{
+            ...MONO,
+            ...type.ui,
+            fontSize: 'var(--type-ui-size, 12px)',
+            color: 'var(--ink-2)',
+            flex: '1 1 auto',
+            minWidth: 0,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+          title={message.filename}
+        >
+          {message.filename}
+        </code>
+        <button
+          type="button"
+          onClick={() => { void onDownload(); }}
+          disabled={busy}
+          aria-label={`Download ${message.filename}`}
+          style={{
+            flexShrink: 0,
+            display: 'inline-flex',
+            alignItems: 'center',
+            ...type.ui,
+            fontSize: 'var(--type-ui-size, 12px)',
+            fontWeight: 600,
+            padding: '2px 6px',
+            margin: 0,
+            borderRadius: 4,
+            border: 'none',
+            background: busy ? 'color-mix(in srgb, var(--brand-a) 10%, transparent)' : 'transparent',
+            color: GOLD,
+            cursor: busy ? 'wait' : 'pointer',
+          }}
+        >
+          {busy ? '…' : 'Download'}
+        </button>
+      </div>
+      {error ? (
+        <div style={{ ...MONO, fontSize: 11, color: error === 'Truncated at row limit.' ? MUTED : '#f87171', paddingLeft: 2 }}>
           {error}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

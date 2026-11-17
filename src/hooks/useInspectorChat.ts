@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
-import type { WorkbenchMessage } from '@/components/agent-lab/workbench/types';
+import type { ChatExportOffer, WorkbenchMessage } from '@/components/agent-lab/workbench/types';
 import { AVAILABLE_MODELS } from '@/components/agent-lab/workbench/types';
 import { DEFAULT_INSPECTOR_MODEL_KEY } from '@/lib/inspector/default-model';
 import { useInspectorChatModels } from '@/hooks/useInspectorChatModels';
@@ -246,6 +246,7 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested', domainK
   const pendingToolCallsRef = useRef<{ name: string; durationMs: number; status: 'success' | 'error'; kind: ToolKind; sqlExcerpt?: string | null }[]>([]);
   /** `queryResults` indexes produced during the current assistant turn. */
   const turnQueryResultIndicesRef = useRef<number[]>([]);
+  const turnChatExportOffersRef = useRef<ChatExportOffer[]>([]);
 
   let msgIdCounter = 0;
   function nextMsgId(): string {
@@ -323,6 +324,7 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested', domainK
 
     pendingToolCallsRef.current = [];
     turnQueryResultIndicesRef.current = [];
+    turnChatExportOffersRef.current = [];
 
     const userMsg: WorkbenchMessage = { id: userMsgId, role: 'user', content, timestamp: now, turnNumber: 0 };
     const assistantMsg: WorkbenchMessage = { id: assistantMsgId, role: 'assistant', content: '', timestamp: now, turnNumber: 0 };
@@ -596,6 +598,25 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested', domainK
               };
               if (offer.sql) {
                 setExportOffers(prev => [...prev, offer]);
+                const chatOffer = {
+                  id: offer.id,
+                  sql: offer.sql,
+                  filename: offer.filename,
+                  maxRows: offer.maxRows,
+                  toolSlug: offer.toolSlug,
+                  sessionId: offer.sessionId,
+                };
+                turnChatExportOffersRef.current.push(chatOffer);
+                setLocalMessages((msgs) =>
+                  msgs.map((m) =>
+                    m.id === assistantMsgId
+                      ? {
+                          ...m,
+                          chatExportOffers: [...(m.chatExportOffers ?? []), chatOffer],
+                        }
+                      : m,
+                  ),
+                );
               }
               break;
             }
@@ -692,17 +713,22 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested', domainK
                 const indices = turnQueryResultIndicesRef.current.length
                   ? [...turnQueryResultIndicesRef.current]
                   : msg.queryResultIndices;
+                const exports = turnChatExportOffersRef.current.length
+                  ? [...turnChatExportOffersRef.current]
+                  : msg.chatExportOffers;
                 updated[idx] = {
                   ...msg,
                   turnOps,
                   ...(msg.toolCalls ? { toolCalls } : {}),
                   ...(indices?.length ? { queryResultIndices: indices } : {}),
+                  ...(exports?.length ? { chatExportOffers: exports } : {}),
                 };
                 return updated;
               });
 
               pendingToolCallsRef.current = [];
               turnQueryResultIndicesRef.current = [];
+              turnChatExportOffersRef.current = [];
               break;
             }
 

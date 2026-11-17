@@ -113,7 +113,7 @@ export async function runPbiDefinitions(
       }
       try {
         const parts = await fetchSemanticModelDefinitionTmdl(wsPbiId, model.pbi_model_id);
-        const stored = writeDefinitionParts('definitions', model.pbi_model_id, parts);
+        const stored = await writeDefinitionParts('definitions', model.pbi_model_id, parts);
         const definition: DefinitionMeta = {
           storage_kind: 'definitions',
           storage_path: stored.relativeDir,
@@ -167,7 +167,7 @@ export async function runPbiDefinitions(
         fmt === 'PBIR-Legacy' ? 'report-definitions-legacy' : 'report-definitions';
       try {
         const parts = await fetchReportDefinition(wsPbiId, report.pbi_report_id, fmt);
-        const stored = writeDefinitionParts(storageKind, report.pbi_report_id, parts);
+        const stored = await writeDefinitionParts(storageKind, report.pbi_report_id, parts);
         const definition: DefinitionMeta = {
           storage_kind: storageKind,
           storage_path: stored.relativeDir,

@@ -36,37 +36,25 @@ Quick check on home Wi‑Fi: same laptop, `npm run db:diag`. If phase **B** is 5
 
 ## Recommended paths (pick one)
 
-### 1. Default on Windows — unified dev (no stack change)
+### 1. Default on Windows — split dev (Vite HMR)
 
-Since Nov 2026, **`npm run dev` on Windows** runs **unified mode** automatically:
-
-| | Split (old) | Unified (Windows default) |
-|---|-------------|---------------------------|
-| Processes | Vite :3000 + Next :3001 | **One Next :3000** |
-| UI updates | Vite HMR | `npm run web:build`, refresh |
-| RDS pools | Easier to get 2+ pools | **One pool** |
-| Same as prod? | No | **Yes** |
+**`npm run dev`** starts **Vite on :3000** and the **Next API on :3001** (same as Mac/Linux). UI changes hot-reload; you do not rebuild or restart for every edit.
 
 ```powershell
 npm run dev:clean   # if a previous session left :3000/:3001 open
 npm run dev
 ```
 
-Open **http://127.0.0.1:3000**.
+Open **http://localhost:3000** for sign-in (Entra redirect URI).
 
-When you change React/UI files:
-
-```powershell
-npm run web:build
-```
-
-Then hard-refresh the browser.
-
-Force split mode (Mac-style HMR on Windows — only if you accept RDS risk):
+If the database flakes (P1001) with two Node processes, switch to **unified** (one process, one Prisma pool):
 
 ```powershell
-$env:DEV_SPLIT="1"; npm run dev
+$env:DEV_UNIFIED="1"; npm run dev
+# or: npm run dev:unified
 ```
+
+Unified serves a prebuilt `public/spa` — use the UI watch (`DEV_UI_WATCH`, default on) and hard-refresh, or `npm run web:spa`. See [web/README.md](../web/README.md).
 
 ### 2. Best long-term for Windows — WSL2 (Ubuntu)
 
@@ -111,9 +99,9 @@ Point `.env.local` at `postgresql://aloft:aloft@127.0.0.1:5434/aloftdb` and run 
 
 | Command | Purpose |
 |---------|---------|
-| `npm run dev` | Windows → unified; Mac/Linux → split |
-| `npm run dev:unified` | Force unified anywhere |
-| `npm run dev:split` | Force Vite + API :3001 |
+| `npm run dev` | Split (Vite :3000 + API :3001) — default everywhere |
+| `npm run dev:unified` | One Next on :3000 (RDS-friendly) |
+| `npm run dev:split` | Same as `npm run dev` |
 | `npm run dev:clean` | Kill stale :3000 / :3001 listeners |
 | `npm run dev:api` | API only (split workflow) |
 

@@ -18,6 +18,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const spaIndex = path.join(root, 'public', 'spa', 'index.html');
 const port = String(process.env.PORT ?? process.env.WEB_PORT ?? 3000);
 const host = process.env.DEV_HOST ?? '127.0.0.1';
+/** Entra treats localhost and 127.0.0.1 as different redirect URIs — default OAuth to localhost. */
+const oauthHost = process.env.DEV_OAUTH_HOST ?? 'localhost';
 
 /** Newest mtime under `dir` (bounded depth) — detects UI edits newer than public/spa. */
 function newestMtime(dir, depth = 0, maxDepth = 5) {
@@ -47,13 +49,23 @@ function spaSourceNewerThanBundle() {
 
 function ensureSpa() {
   const force = process.env.WEB_FORCE_BUILD === '1';
-  const stale = spaSourceNewerThanBundle();
-  if (existsSync(spaIndex) && !force && !stale) {
-    console.log('[dev:unified] serving existing public/spa (WEB_FORCE_BUILD=1 to rebuild UI)');
-    return;
-  }
-  if (stale && !force) {
-    console.log('[dev:unified] UI source is newer than public/spa — rebuilding…');
+  const skip = process.env.DEV_SKIP_SPA_BUILD === '1';
+  const watch = process.env.DEV_UI_WATCH !== '0';
+  if (existsSync(spaIndex) && !force) {
+    if (skip || watch) {
+      console.log(
+        watch
+          ? '[dev:unified] using existing public/spa — UI watch will rebuild after saves'
+          : '[dev:unified] DEV_SKIP_SPA_BUILD: skipping UI build (run npm run web:spa if the UI is missing)',
+      );
+      return;
+    }
+    const stale = spaSourceNewerThanBundle();
+    if (!stale) {
+      console.log('[dev:unified] serving existing public/spa (WEB_FORCE_BUILD=1 to rebuild UI)');
+      return;
+    }
+    console.log('[dev:unified] UI source is newer than public/spa — one-time rebuild…');
   }
   console.log('[dev:unified] building UI → public/spa…');
   const r = spawnSync('node', ['web/scripts/prepare-spa.mjs'], { cwd: root, stdio: 'inherit', env: process.env });
@@ -62,38 +74,81 @@ function ensureSpa() {
 
 ensureSpa();
 
+const watchUi = process.env.DEV_UI_WATCH !== '0';
+/** @type {import('node:child_process').ChildProcess | null} */
+let uiWatchChild = null;
+if (watchUi) {
+  console.log('[dev:unified] UI watch on — save React/TS/CSS files, then hard-refresh');
+  uiWatchChild = spawn('node', ['web/scripts/watch-spa.mjs'], {
+    cwd: root,
+    stdio: 'inherit',
+    shell: true,
+    env: process.env,
+  });
+} else {
+  console.log('[dev:unified] UI watch off — after edits run `npm run dev:ui` or `npm run web:spa`, then refresh');
+}
+
 const nextAuth =
   process.env.NEXTAUTH_URL ??
   process.env.NEXTAUTH_URL_INTERNAL ??
-  `http://${host}:${port}`;
+  `http://${oauthHost}:${port}`;
+
+if (
+  (process.env.NEXTAUTH_URL ?? process.env.NEXTAUTH_URL_INTERNAL)?.includes('127.0.0.1')
+) {
+  console.warn(
+    '[dev:unified] NEXTAUTH_URL uses 127.0.0.1 — Entra usually registers localhost instead. ' +
+      `Set NEXTAUTH_URL=http://${oauthHost}:${port} and sign in at that URL.`,
+  );
+}
 
 console.log(`[dev:unified] Next.js (webpack) at http://${host}:${port} — API + SPA, one process`);
-console.log('[dev:unified] UI is the prebuilt public/spa — after UI changes run `npm run web:spa`, then refresh');
+console.log(`[dev:unified] Microsoft sign-in callback: ${nextAuth}/api/auth/callback/azure-ad`);
+console.log(`[dev:unified] Open the app at ${nextAuth} (same host as NEXTAUTH_URL)`);
+console.log('[dev:unified] UI: save files → watch copies to public/spa → hard-refresh (:3000). Instant HMR: npm run dev:split');
+
+function loopbackToLocalhost(url) {
+  if (!url) return url;
+  try {
+    const u = new URL(url);
+    if (u.hostname === '127.0.0.1' || u.hostname === '[::1]' || u.hostname === '::1') {
+      u.hostname = 'localhost';
+      return u.origin;
+    }
+    return url.replace(/\/$/, '') === u.href ? u.origin : u.toString();
+  } catch {
+    return url;
+  }
+}
+
+const childEnv = { ...process.env, PORT: port, HOSTNAME: host, NEXTAUTH_URL: nextAuth };
+childEnv.NEXTAUTH_URL = loopbackToLocalhost(childEnv.NEXTAUTH_URL ?? nextAuth);
+if (childEnv.NEXTAUTH_URL_INTERNAL) {
+  childEnv.NEXTAUTH_URL_INTERNAL = loopbackToLocalhost(childEnv.NEXTAUTH_URL_INTERNAL);
+}
 
 const child = spawn('npx', ['next', 'dev', '--webpack', '-p', port], {
   cwd: root,
   stdio: 'inherit',
   shell: true,
-  env: {
-    ...process.env,
-    PORT: port,
-    HOSTNAME: host,
-    NEXTAUTH_URL: nextAuth,
-  },
+  env: childEnv,
 });
 
 child.on('exit', (code) => process.exit(code ?? 0));
-process.on('SIGINT', () => {
+function stopAll() {
   try {
     child.kill('SIGINT');
   } catch {
     /* */
   }
-});
-process.on('SIGTERM', () => {
-  try {
-    child.kill('SIGTERM');
-  } catch {
-    /* */
+  if (uiWatchChild) {
+    try {
+      uiWatchChild.kill('SIGINT');
+    } catch {
+      /* */
+    }
   }
-});
+}
+process.on('SIGINT', stopAll);
+process.on('SIGTERM', stopAll);

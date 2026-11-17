@@ -22,8 +22,8 @@ export function AgentLayout() {
       >
         <StagingHeader />
         <main
-          className="flex-1 overflow-y-auto overflow-x-hidden"
-          style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}
+          className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden"
+          style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto', overflowX: 'hidden' }}
         >
           <SectionGate>
             <Outlet />

@@ -169,9 +169,12 @@ function InlineQueryResultTable({ result, subtitle }: { result: QueryResult; sub
 export function AssistantQueryTableOffer({
   indices,
   queryResults,
+  compact = false,
 }: {
   indices: number[];
   queryResults: QueryResult[];
+  /** Member chat: one main table, no multi-query tabs or warehouse explanation. */
+  compact?: boolean;
 }) {
   const { ordered, primary } = useMemo(
     () => rankQueryResultsForChat(indices, queryResults),
@@ -190,7 +193,7 @@ export function AssistantQueryTableOffer({
   if (offers.length === 0) return null;
 
   const activeOffer = offers.find((o) => o.i === active) ?? offers[0];
-  const multi = offers.length > 1;
+  const multi = !compact && offers.length > 1;
   const activeTabIndex = offers.findIndex((o) => o.i === activeOffer.i);
 
   return (

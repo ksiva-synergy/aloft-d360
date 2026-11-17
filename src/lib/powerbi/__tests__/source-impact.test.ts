@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  MAX_DRAWN,
   NODE_SEP,
   buildSourceImpact,
   buildSourceTree,
@@ -106,3 +107,90 @@ describe('source impact', () => {
     expect(normalizeOrigin(null)).toBeNull();
   });
 });
+
+describe('source impact at estate scale', () => {
+  // One catalog, 3 schemas x 30 tables = 90 tables; each table read by its own model table in 1 of 9 models,
+  // each model table used by 3 measures, every model in 2 reports.
+  const wide: ImpactRow[] = [];
+  for (let s = 0; s < 3; s++) {
+    for (let t = 0; t < 30; t++) {
+      const model = `m${(s * 30 + t) % 9}`;
+      const o = origin({ system: 'databricks', location: 'adb-1.azuredatabricks.net', database: 'prod', object: `s${s}.t${String(t).padStart(2, '0')}` });
+      for (const report of [`${model}-a`, `${model}-b`]) wide.push(row(report, model, `T${s}_${t}`, ['A', 'B', 'C'].map((m) => `${m} ${s}_${t}`), o));
+    }
+  }
+  const catalog = id('databricks', 'adb-1.azuredatabricks.net', 'prod');
+
+  it('caps every graph lane and only draws nodes connected to something drawn', () => {
+    const impact = buildSourceImpact(wide, catalog)!;
+    expect(impact.totals).toEqual({ sources: 90, leaves: 90, tables: 90, measures: 270, reports: 18, models: 9 });
+    expect([impact.sources.length, impact.tables.length, impact.measures.length]).toEqual([MAX_DRAWN, MAX_DRAWN, MAX_DRAWN]);
+    expect(impact.hidden_sources + impact.sources.length).toBe(90);
+    expect(impact.hidden_tables + impact.tables.length).toBe(90);
+    expect(impact.hidden_measures + impact.measures.length).toBe(270);
+    const into = new Set(impact.edges.map((e) => e.to));
+    const ids = new Set([...impact.sources, ...impact.tables, ...impact.measures, ...impact.reports].map((n) => n.id));
+    for (const node of [...impact.tables, ...impact.measures, ...impact.reports]) expect(into.has(node.id)).toBe(true);
+    for (const edge of impact.edges) expect(ids.has(edge.from) && ids.has(edge.to)).toBe(true);
+    for (const report of impact.reports) expect(report.measure_count).toBeGreaterThanOrEqual(report.measure_ids.length);
+  });
+
+  it('lists every table and report under the scope for browsing', () => {
+    const impact = buildSourceImpact(wide, catalog)!;
+    expect(impact.leaf_level).toBe('Table');
+    expect(impact.source_rows).toHaveLength(90);
+    expect(impact.source_rows[0]).toMatchObject({
+      label: 't00', path: 's0', parents: [{ id: id(...catalog.split(NODE_SEP), 's0'), level: 'Schema', label: 's0' }],
+      level: 'Table', reports: 2, models: 1, tables: 1, measures: 3,
+    });
+    expect(impact.report_rows).toHaveLength(18);
+    expect(impact.report_rows.every((r) => r.sources === 10 && r.measures === 30)).toBe(true);
+    const leaf = buildSourceImpact(wide, impact.source_rows[0]!.id)!;
+    expect(leaf.scope.leaf).toBe(true);
+    expect(leaf.source_rows.map((r) => [r.label, r.path, r.parents])).toEqual([['t00', null, []]]);
+    const workspace = buildSourceImpact(wide, id('databricks', 'adb-1.azuredatabricks.net'))!;
+    expect(workspace.source_rows[0]!.parents.map((p) => `${p.level}:${p.label}`)).toEqual(['Catalog:prod', 'Schema:s0']);
+  });
+
+  it('labels tree nodes with the level of their leaves', () => {
+    const tree = buildSourceTree(wide);
+    expect(tree.find((n) => n.id === catalog)).toMatchObject({ sources: 90, leaf_level: 'Table', reports: 18, measures: 270 });
+    expect(buildSourceTree(wide)).toBe(tree); // derived once per rows array
+  });
+
+  it('narrows the graph to the paths through one focused node, keeping totals and lists', () => {
+    const report = buildSourceImpact(wide, catalog, 'm0-a')!;
+    expect(report.focus).toEqual({ id: 'm0-a', kind: 'report', label: 'Report m0-a' });
+    expect(report.reports.map((r) => r.id)).toEqual(['m0-a']);
+    expect(report.sources).toHaveLength(10); // every table model m0 reads, none lost to the lane cap
+    expect([report.hidden_sources, report.hidden_tables, report.hidden_measures, report.hidden_reports]).toEqual([0, 0, 0, 0]);
+    expect(report.totals.leaves).toBe(90);
+    expect(report.source_rows).toHaveLength(90);
+
+    const table = buildSourceImpact(wide, catalog, 't:m0|t0_0')!;
+    expect(table.focus).toMatchObject({ kind: 'table', label: 'T0_0' });
+    expect([table.sources.length, table.tables.length, table.measures.length, table.reports.length]).toEqual([1, 1, 3, 2]);
+
+    const measure = buildSourceImpact(wide, catalog, 'm:m0|a 0_0')!;
+    expect(measure.focus).toMatchObject({ kind: 'measure', label: 'A 0_0' });
+    expect(measure.measures.map((m) => m.name)).toEqual(['A 0_0']);
+    expect(measure.reports.map((r) => r.id).sort()).toEqual(['m0-a', 'm0-b']);
+
+    const source = buildSourceImpact(wide, catalog)!.sources[0]!;
+    const fromSource = buildSourceImpact(wide, catalog, source.id)!;
+    expect(fromSource.focus).toMatchObject({ kind: 'source', label: source.title });
+    expect(fromSource.sources.map((s) => s.id)).toEqual([source.id]);
+    expect(fromSource.sources[0]!.path).toMatch(/^s\d$/);
+
+    const unknown = buildSourceImpact(wide, catalog, 'nope')!;
+    expect(unknown.focus).toBeNull();
+    expect(unknown.sources).toHaveLength(MAX_DRAWN);
+  });
+
+  it('keeps model-wide links when focused on a report without measures', () => {
+    const impact = buildSourceImpact(rows, nodeIdForKey(rows, originKey(excel))!, 'r3')!;
+    expect(impact.reports.map((r) => r.id)).toEqual(['r3']);
+    expect(impact.edges.filter((e) => e.kind === 'model_wide')).toEqual([{ from: 't:m2|targets', to: 'r3', kind: 'model_wide', cls: 'file' }]);
+  });
+});
+
